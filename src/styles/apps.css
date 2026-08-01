@@ -1,0 +1,249 @@
+/* App window bodies. */
+
+/* ------------------------------------------------------------- AeroChat */
+
+.app-aerochat {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: 8px;
+}
+
+.chat__me {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  color: var(--text);
+}
+
+.chat__avatar {
+  font-size: 26px;
+}
+
+.chat__me small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.chat__stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chat__list {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 6px;
+  margin: 0;
+  overflow-y: auto;
+  list-style: none;
+  background: rgb(255 255 255 / 55%);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--radius-sm);
+}
+
+.chat__buddy {
+  display: grid;
+  grid-template-columns: 10px auto 1fr;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 0.76rem;
+}
+
+.chat__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d9ffcf, var(--ok));
+  box-shadow: 0 0 5px rgb(63 166 63 / 80%);
+}
+
+.chat__nick {
+  font-weight: 600;
+}
+
+.chat__status,
+.chat__more,
+.chat__empty {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.chat__buy {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.chat__buy:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.chat__hint {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------ My Computer */
+
+.app-system {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.sys__summary {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+  padding: 8px;
+  color: var(--text);
+}
+
+.sys__summary div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+}
+
+.sys__summary span {
+  color: var(--text-muted);
+}
+
+.sys__heading {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.sys__hardware {
+  display: grid;
+  gap: 6px;
+}
+
+.hw-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgb(255 255 255 / 55%);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--radius-sm);
+}
+
+.hw-row__info {
+  display: grid;
+}
+
+.hw-row__label {
+  font-size: 0.78rem;
+}
+
+.hw-row__current {
+  font-size: 0.72rem;
+  color: var(--aero-blue-deep);
+}
+
+.hw-row__blurb {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.hw-row__buy {
+  min-width: 120px;
+  padding: 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.hw-row__buy:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sys__prestige-copy {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.sys__format,
+.sys__wipe {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.sys__format:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sys__wipe {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+/* ----------------------------------------------------------- placeholder */
+
+.app-placeholder {
+  display: grid;
+  place-content: center;
+}
+
+.placeholder {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding: 16px;
+  text-align: center;
+}
+
+.placeholder__glyph {
+  font-size: 40px;
+  opacity: 0.85;
+}
+
+.placeholder__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.placeholder__blurb {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.placeholder__day {
+  margin: 6px 0 0;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  background: rgb(27 127 212 / 12%);
+  border: 1px dashed rgb(27 127 212 / 45%);
+  border-radius: 999px;
+}
+
+.placeholder__ram {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}

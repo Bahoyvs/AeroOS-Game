@@ -1,0 +1,84 @@
+/* Window chrome on top of 7.css: positioning, focus states, open/close motion. */
+
+/* Guard against 7.css's modal rule if a window ever regains role="dialog". */
+.aero-window,
+.window.aero-window[role='dialog'] {
+  visibility: visible;
+}
+
+.aero-window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  min-height: 180px;
+  opacity: 0;
+  transform: scale(0.96) translateY(6px);
+  transition:
+    opacity 180ms var(--ease-aero),
+    transform 180ms var(--ease-aero);
+}
+
+.aero-window.is-open {
+  opacity: 1;
+  transform: none;
+}
+
+.aero-window.is-minimized {
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.9) translateY(40px);
+}
+
+.aero-window.is-dragging,
+.aero-window.is-resizing {
+  user-select: none;
+  transition: none;
+}
+
+.aero-window.inactive {
+  filter: saturate(0.7) brightness(0.97);
+}
+
+.aero-window .title-bar {
+  cursor: grab;
+  touch-action: none;
+}
+
+.aero-window.is-dragging .title-bar {
+  cursor: grabbing;
+}
+
+.aero-window__icon {
+  margin-right: 4px;
+}
+
+.aero-window__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.aero-window__resize {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(
+    135deg,
+    transparent 0 45%,
+    rgb(255 255 255 / 80%) 45% 55%,
+    transparent 55% 70%,
+    rgb(255 255 255 / 80%) 70% 80%,
+    transparent 80%
+  );
+  opacity: 0.7;
+}
+
+/* The system feeling slow is a mechanic, not a bug (GDD 7). */
+body.is-critical .aero-window {
+  transition-duration: 520ms;
+}

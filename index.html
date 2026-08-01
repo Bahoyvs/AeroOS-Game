@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0a5ea8" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='35%25' cy='30%25'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='45%25' stop-color='%237fe4ff'/%3E%3Cstop offset='100%25' stop-color='%231b7fd4'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='16' cy='16' r='14' fill='url(%23g)'/%3E%3C/svg%3E"
+    />
+    <meta
+      name="description"
+      content="AeroOS - The Messenger Era. Build the biggest buddy list on a mid-2000s desktop, then Format C: for better hardware."
+    />
+    <title>AeroOS — The Messenger Era</title>
+  </head>
+  <body>
+    <div id="boot" class="boot">
+      <div class="boot__logo">AeroOS</div>
+      <div class="boot__bar"><span></span></div>
+      <p class="boot__hint">The Messenger Era</p>
+    </div>
+
+    <main id="desktop" class="desktop">
+      <div id="icons" class="desktop__icons" role="list" aria-label="Desktop icons"></div>
+      <div id="gadget-slot" class="desktop__gadget"></div>
+      <div id="windows" class="desktop__windows"></div>
+      <div id="toasts" class="toasts" aria-live="polite"></div>
+    </main>
+
+    <nav id="taskbar" aria-label="Taskbar"></nav>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

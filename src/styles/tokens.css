@@ -1,0 +1,42 @@
+/**
+ * Design tokens for the Frutiger Aero look (GDD 2): glossy glass, wet
+ * highlights, bright blue/green gradients. 7.css supplies the window chrome;
+ * everything here is the layer on top of it.
+ */
+:root {
+  --aero-blue: #1b7fd4;
+  --aero-blue-deep: #0a4d8c;
+  --aero-green: #6fd44a;
+  --aero-cyan: #7fe4ff;
+  --aero-ink: #0d2437;
+
+  --glass-bg: linear-gradient(180deg, rgb(255 255 255 / 42%) 0%, rgb(255 255 255 / 12%) 48%, rgb(255 255 255 / 24%) 100%);
+  --glass-border: rgb(255 255 255 / 55%);
+  --glass-shadow: 0 10px 30px rgb(4 26 48 / 35%), inset 0 1px 0 rgb(255 255 255 / 70%);
+  --glass-blur: blur(14px) saturate(140%);
+
+  --taskbar-height: 44px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --text: #0d2437;
+  --text-invert: #f2fbff;
+  --text-muted: #46617a;
+
+  --ok: #3fa63f;
+  --warn: #e2a021;
+  --error: #d24b3f;
+
+  --ease-aero: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --font-ui: 'Segoe UI', Tahoma, 'Trebuchet MS', system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

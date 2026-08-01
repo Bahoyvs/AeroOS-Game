@@ -1,0 +1,505 @@
+/* Desktop surface: icon grid, the Aero gadget, taskbar, start menu, balloons. */
+
+.desktop {
+  position: fixed;
+  /* Must match the taskbar's real height, safe area included, or windows sized
+     against this box will not reach the taskbar. */
+  inset: 0 0 calc(var(--taskbar-height) + env(safe-area-inset-bottom)) 0;
+  overflow: hidden;
+}
+
+.desktop__icons {
+  position: absolute;
+  inset: 12px auto 12px 12px;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+  z-index: 1;
+}
+
+.desktop-icon {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  width: 88px;
+  padding: 8px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-invert);
+  cursor: pointer;
+  text-shadow: 0 1px 3px rgb(0 20 40 / 80%);
+}
+
+.desktop-icon:hover,
+.desktop-icon:focus-visible {
+  background: rgb(255 255 255 / 18%);
+  border-color: rgb(255 255 255 / 45%);
+  outline: none;
+}
+
+.desktop-icon__glyph {
+  font-size: 32px;
+  filter: drop-shadow(0 2px 4px rgb(0 30 60 / 55%));
+}
+
+.desktop-icon__label {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.desktop__windows {
+  position: absolute;
+  inset: 0;
+}
+
+/* ----------------------------------------------------------------- gadget */
+
+.desktop__gadget {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.gadget {
+  display: grid;
+  gap: 10px;
+  width: 220px;
+  padding: 12px;
+  color: var(--text-invert);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.gadget__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.gadget__badge {
+  padding: 2px 6px;
+  font-size: 0.6rem;
+  letter-spacing: 0.05em;
+  background: var(--aero-green);
+  border-radius: 999px;
+  color: #06280a;
+  text-shadow: none;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.gadget__buzz {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.gadget__buzz-value {
+  font-size: 1.9rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.gadget__buzz-unit {
+  font-size: 0.78rem;
+  opacity: 0.8;
+}
+
+.gadget__rate {
+  margin-top: -6px;
+  font-size: 0.8rem;
+  color: var(--aero-cyan);
+}
+
+.gadget__dollars {
+  margin: 0;
+  font-size: 0.8rem;
+  text-align: right;
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------------------ meter */
+
+.meter {
+  display: grid;
+  gap: 4px;
+}
+
+.meter__label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+.meter__track {
+  height: 8px;
+  overflow: hidden;
+  background: rgb(0 20 40 / 45%);
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 999px;
+}
+
+.meter__fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(180deg, #a9f7ff, var(--aero-blue));
+  border-radius: inherit;
+  transition: width 200ms linear;
+}
+
+.meter__fill--bloat {
+  background: linear-gradient(180deg, #d6ffb8, var(--aero-green));
+}
+
+.meter__fill.is-warn {
+  background: linear-gradient(180deg, #ffe6a3, var(--warn));
+}
+
+.meter__fill.is-critical {
+  background: linear-gradient(180deg, #ffb3a3, var(--error));
+}
+
+/* ------------------------------------------------------------------ nudge */
+
+.nudge-button {
+  padding: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: #04304f;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 60%);
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffffff 0%, #cfeeff 45%, #8fd4ff 46%, #d9f4ff 100%);
+  border: 1px solid rgb(255 255 255 / 80%);
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 14px rgb(3 30 60 / 45%), inset 0 1px 0 #fff;
+  display: grid;
+  gap: 2px;
+}
+
+.nudge-button:active,
+.nudge-button.is-pressed {
+  animation: nudge-shake 180ms var(--ease-aero);
+}
+
+.nudge-button__hint {
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+}
+
+@keyframes nudge-shake {
+  25% {
+    transform: translate(-3px, 2px);
+  }
+  50% {
+    transform: translate(3px, -2px);
+  }
+  75% {
+    transform: translate(-2px, -1px);
+  }
+}
+
+/* ---------------------------------------------------------------- taskbar */
+
+.taskbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 500;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: var(--taskbar-height);
+  padding: 4px 6px;
+  border-radius: 0;
+  border-width: 1px 0 0 0;
+  background: linear-gradient(180deg, rgb(28 96 160 / 82%), rgb(6 40 76 / 92%));
+  padding-bottom: max(4px, env(safe-area-inset-bottom));
+  height: calc(var(--taskbar-height) + env(safe-area-inset-bottom));
+}
+
+.start-button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px 0 8px;
+  color: var(--text-invert);
+  cursor: pointer;
+  background: linear-gradient(180deg, rgb(255 255 255 / 35%), rgb(255 255 255 / 8%));
+  border: 1px solid rgb(255 255 255 / 45%);
+  border-radius: 999px;
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.start-button__orb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, var(--aero-cyan) 45%, var(--aero-blue) 75%);
+  box-shadow: 0 0 8px rgb(127 228 255 / 90%);
+}
+
+.start-button.is-active,
+.start-button:hover {
+  background: linear-gradient(180deg, rgb(255 255 255 / 55%), rgb(255 255 255 / 18%));
+}
+
+.taskbar__tasks {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.taskbar__tasks::-webkit-scrollbar {
+  display: none;
+}
+
+.task {
+  display: grid;
+  grid-template-areas: 'icon label' 'ram ram';
+  grid-template-columns: auto 1fr;
+  gap: 2px 6px;
+  align-items: center;
+  min-width: 110px;
+  max-width: 170px;
+  padding: 4px 8px;
+  color: var(--text-invert);
+  cursor: pointer;
+  background: linear-gradient(180deg, rgb(255 255 255 / 22%), rgb(255 255 255 / 6%));
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: var(--radius-sm);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.task.is-active {
+  background: linear-gradient(180deg, rgb(255 255 255 / 45%), rgb(255 255 255 / 15%));
+  border-color: rgb(255 255 255 / 65%);
+}
+
+.task.is-minimized {
+  opacity: 0.6;
+}
+
+.task__icon {
+  grid-area: icon;
+}
+
+.task__label {
+  grid-area: label;
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* PDA-mode requirement: per-app RAM bars under the taskbar buttons. */
+.task__ram {
+  grid-area: ram;
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  background: rgb(0 20 40 / 45%);
+  border-radius: 999px;
+}
+
+.task__ram-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--aero-cyan), var(--aero-blue));
+  transition: width 200ms linear;
+}
+
+.task__ram-fill.is-warn {
+  background: linear-gradient(90deg, #ffe6a3, var(--warn));
+}
+
+.task__ram-fill.is-critical {
+  background: linear-gradient(90deg, #ffb3a3, var(--error));
+}
+
+.tray {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  color: var(--text-invert);
+  border-radius: var(--radius-sm);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.tray__buzz {
+  color: var(--aero-cyan);
+}
+
+/* ------------------------------------------------------------- start menu */
+
+.start-menu {
+  position: fixed;
+  bottom: calc(var(--taskbar-height) + 8px);
+  left: 8px;
+  z-index: 600;
+  width: min(320px, calc(100vw - 16px));
+  max-height: min(60vh, 460px);
+  overflow-y: auto;
+  padding: 10px;
+  color: var(--text-invert);
+}
+
+.start-menu[hidden] {
+  display: none;
+}
+
+.start-menu__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgb(255 255 255 / 30%);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.start-menu__status {
+  font-size: 0.7rem;
+  color: var(--aero-green);
+}
+
+.start-menu__list {
+  display: grid;
+  gap: 2px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.start-menu__item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 8px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.start-menu__item:hover:not(:disabled) {
+  background: rgb(255 255 255 / 22%);
+  border-color: rgb(255 255 255 / 40%);
+}
+
+.start-menu__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.start-menu__item.is-purchase strong::after {
+  content: ' ·';
+  opacity: 0.5;
+}
+
+.start-menu__icon {
+  font-size: 22px;
+}
+
+.start-menu__label {
+  display: grid;
+}
+
+.start-menu__label small {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+/* --------------------------------------------------------------- balloons */
+
+.toasts {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 800;
+  display: grid;
+  gap: 8px;
+  width: min(300px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.balloon {
+  position: relative;
+  padding: 10px 28px 10px 12px;
+  color: var(--text);
+  pointer-events: auto;
+  background: linear-gradient(180deg, #ffffff, #eaf6ff);
+  border: 1px solid #b7d8ee;
+  border-left: 4px solid var(--aero-blue);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 8px 20px rgb(3 26 48 / 40%);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 220ms var(--ease-aero), transform 220ms var(--ease-aero);
+}
+
+.balloon.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.balloon--success {
+  border-left-color: var(--ok);
+}
+
+.balloon--warn {
+  border-left-color: var(--warn);
+}
+
+.balloon--error {
+  border-left-color: var(--error);
+}
+
+.balloon__title {
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.balloon__body {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.balloon__close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  padding: 0 4px;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
