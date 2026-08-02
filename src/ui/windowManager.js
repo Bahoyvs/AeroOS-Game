@@ -14,6 +14,10 @@ const MIN_HEIGHT = 180;
 const CASCADE_STEP = 28;
 const TASKBAR_HEIGHT = 44;
 const ICON_COLUMN_WIDTH = 112; // keeps cascaded windows clear of desktop icons
+const EDGE_MARGIN = 8;
+
+/** Clamp that stays sane when max < min (a window dragged to the far edge). */
+const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
 
 export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }) {
   const windows = new Map();
@@ -143,8 +147,13 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     entry.el.setPointerCapture(event.pointerId);
 
     const move = (e) => {
-      entry.rect.width = Math.max(MIN_WIDTH, origin.width + e.clientX - startX);
-      entry.rect.height = Math.max(MIN_HEIGHT, origin.height + e.clientY - startY);
+      // Clamp to the desktop: a window larger than the screen just pushes its
+      // own controls out of reach.
+      const maxWidth = window.innerWidth - entry.rect.x - EDGE_MARGIN;
+      const maxHeight = window.innerHeight - TASKBAR_HEIGHT - entry.rect.y - EDGE_MARGIN;
+
+      entry.rect.width = clamp(origin.width + e.clientX - startX, MIN_WIDTH, maxWidth);
+      entry.rect.height = clamp(origin.height + e.clientY - startY, MIN_HEIGHT, maxHeight);
       applyRect(entry);
       entry.onResize?.(entry.rect);
     };

@@ -2,10 +2,20 @@
 
 /* ------------------------------------------------------------- AeroChat */
 
+/**
+ * A flex column, not a grid with fixed rows: the buff chip strip is
+ * `display: none` when no buff is active, and with fixed rows that shifts
+ * auto-placement so the `1fr` row lands on the buttons and stretches them to
+ * fill a resized window. In a flex column only the list is allowed to grow.
+ */
 .app-aerochat {
-  display: grid;
-  grid-template-rows: auto auto auto 1fr auto auto;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
+}
+
+.app-aerochat > * {
+  flex: 0 0 auto;
 }
 
 .chat__me {
@@ -91,6 +101,9 @@
 
 .chat__list {
   display: grid;
+  /* The only element that absorbs extra height when the window is resized. */
+  flex: 1 1 auto;
+  min-height: 72px;
   gap: 2px;
   align-content: start;
   padding: 6px;
@@ -214,12 +227,21 @@
 .chat__actions {
   display: flex;
   gap: 6px;
+  align-items: stretch;
+  justify-content: center;
 }
 
 .chat__buy {
   display: grid;
-  flex: 1;
+  /* Share the row evenly and stay a button, however large the window gets.
+     min-width overrides 7.css's 75px floor so three fit on a narrow phone. */
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 200px;
+  min-height: 38px;
+  max-height: 48px;
   gap: 1px;
+  align-content: center;
   padding: 5px 4px;
   font-size: 0.74rem;
   line-height: 1.15;
