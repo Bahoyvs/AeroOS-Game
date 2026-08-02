@@ -35,13 +35,22 @@ export function createInitialState(now = Date.now()) {
 
     // Software
     apps,
-    chat: { bots: 0 },
+    chat: {
+      bots: 0,
+      // Rotating status-message event: { index, bonusId, secondsLeft } or null.
+      // Both counters are in simulation seconds, not wall-clock time.
+      event: null,
+      nextEventIn: 0, // rolled on the first tick with AeroChat open
+    },
+
+    // Timed bonuses from status events, RetroAmp playlists, rewarded ads...
+    buffs: [],
 
     // Pressure loop (GDD 7)
     bloat: 0,
 
     // Session bookkeeping
-    stats: { nudges: 0, playtimeSeconds: 0 },
+    stats: { nudges: 0, playtimeSeconds: 0, bonusesClaimed: 0, bonusesMissed: 0 },
     lastSeen: now,
     startedAt: now,
 

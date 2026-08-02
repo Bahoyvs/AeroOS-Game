@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as econ from '../src/core/economy.js';
+import { addBuff } from '../src/core/buffs.js';
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
 import { BLOAT, CHAT_BOT, OFFLINE, PRESTIGE } from '../src/data/balance.js';
 import { RAM_TIERS, HDD_TIERS } from '../src/data/hardware.js';
@@ -196,6 +197,89 @@ describe('prestige', () => {
     const s = stateWith({ lifetimeBuzz: 1_000_000, buzz: 500 });
     resetForPrestige(s, 10, 0);
     expect(s.buzz).toBe(500);
+  });
+});
+
+describe('buddy milestones', () => {
+  const withBots = (bots) => {
+    const s = createInitialState(0);
+    s.chat.bots = bots;
+    s.apps.aerochat.open = true;
+    return s;
+  };
+
+  it('is neutral below the first milestone', () => {
+    expect(econ.chatMilestoneMultiplier(withBots(CHAT_BOT.milestoneEvery - 1))).toBe(1);
+  });
+
+  it('adds a flat bonus per milestone', () => {
+    const s = withBots(CHAT_BOT.milestoneEvery * 3);
+    expect(econ.chatMilestoneCount(s)).toBe(3);
+    expect(econ.chatMilestoneMultiplier(s)).toBeCloseTo(1 + 3 * CHAT_BOT.milestoneBonus);
+  });
+
+  it('reports how far the next milestone is', () => {
+    const next = econ.nextChatMilestone(withBots(CHAT_BOT.milestoneEvery + 4));
+    expect(next.at).toBe(CHAT_BOT.milestoneEvery * 2);
+    expect(next.remaining).toBe(CHAT_BOT.milestoneEvery - 4);
+  });
+
+  it('has no next milestone once the buddy list is full', () => {
+    expect(econ.nextChatMilestone(withBots(CHAT_BOT.maxPerRun))).toBeNull();
+  });
+
+  it('raises production', () => {
+    const before = econ.buzzPerSecond(withBots(CHAT_BOT.milestoneEvery - 1), 0);
+    const after = econ.buzzPerSecond(withBots(CHAT_BOT.milestoneEvery), 0);
+    // One more buddy plus the milestone: strictly more than the linear step.
+    expect(after / before).toBeGreaterThan(CHAT_BOT.milestoneEvery / (CHAT_BOT.milestoneEvery - 1));
+  });
+});
+
+describe('buff integration', () => {
+  const producing = () => {
+    const s = createInitialState(0);
+    s.chat.bots = 10;
+    s.apps.aerochat.open = true;
+    return s;
+  };
+
+  it('chat buffs scale AeroChat production', () => {
+    const s = producing();
+    const before = econ.buzzPerSecond(s, 0);
+    addBuff(s, { id: 'x', kind: 'chat', magnitude: 0.5, durationSeconds: 60, label: 'x' }, 0);
+    expect(econ.buzzPerSecond(s, 0)).toBeCloseTo(before * 1.5);
+  });
+
+  it('global buffs scale everything', () => {
+    const s = producing();
+    const before = econ.buzzPerSecond(s, 0);
+    addBuff(s, { id: 'g', kind: 'global', magnitude: 0.2, durationSeconds: 60, label: 'g' }, 0);
+    expect(econ.buzzPerSecond(s, 0)).toBeCloseTo(before * 1.2);
+  });
+
+  it('click buffs scale the Nudge payout only', () => {
+    const s = producing();
+    const rate = econ.buzzPerSecond(s, 0);
+    const click = econ.clickPower(s, 0);
+    addBuff(s, { id: 'c', kind: 'click', magnitude: 1, durationSeconds: 60, label: 'c' }, 0);
+    expect(econ.clickPower(s, 0)).toBeCloseTo(click * 2);
+    expect(econ.buzzPerSecond(s, 0)).toBeCloseTo(rate);
+  });
+
+  it('expired buffs stop counting', () => {
+    const s = producing();
+    const before = econ.buzzPerSecond(s, 0);
+    addBuff(s, { id: 'x', kind: 'chat', magnitude: 1, durationSeconds: 10, label: 'x' }, 0);
+    expect(econ.buzzPerSecond(s, 20_000)).toBeCloseTo(before);
+  });
+
+  it('offline earnings are computed at the given moment', () => {
+    const s = producing();
+    addBuff(s, { id: 'x', kind: 'chat', magnitude: 1, durationSeconds: 10, label: 'x' }, 0);
+    const withBuff = econ.offlineEarnings(s, 3600, 0).buzz;
+    const without = econ.offlineEarnings(s, 3600, 60_000).buzz;
+    expect(withBuff).toBeGreaterThan(without);
   });
 });
 

@@ -34,10 +34,16 @@ export function defaultStorage() {
  * Fill in anything a save predates. Recursive so newly added nested keys (a new
  * app, a new settings flag) appear with their default instead of undefined.
  */
+const isPlainObject = (value) =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
 function withDefaults(loaded, defaults) {
-  if (loaded === null || typeof loaded !== 'object' || Array.isArray(loaded)) {
-    return loaded === undefined ? defaults : loaded;
-  }
+  if (loaded === undefined) return defaults;
+  // Only merge when both sides are objects. A field whose default is `null` or
+  // a primitive (chat.event, say) is taken from the save verbatim — merging
+  // into a non-object would throw and cost the player their progress.
+  if (!isPlainObject(loaded) || !isPlainObject(defaults)) return loaded;
+
   const out = { ...defaults };
   for (const [key, value] of Object.entries(loaded)) {
     out[key] = key in defaults ? withDefaults(value, defaults[key]) : value;

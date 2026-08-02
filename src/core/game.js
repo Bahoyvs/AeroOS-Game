@@ -1,7 +1,9 @@
-import { SAVE } from '../data/balance.js';
+import { CHAT_BOT, SAVE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
+import { pruneBuffs } from './buffs.js';
+import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
 import { createInitialState, resetForPrestige } from './state.js';
@@ -11,7 +13,7 @@ import { createInitialState, resetForPrestige } from './state.js';
  * through `game.state` and change it only by calling the actions below, which
  * emit events describing what happened. Nothing here touches the DOM.
  */
-export function createGame({ storage = defaultStorage(), now = Date.now() } = {}) {
+export function createGame({ storage = defaultStorage(), now = Date.now(), rng = Math.random } = {}) {
   const bus = createEventBus();
   let state = createInitialState(now);
   let lastSaveAt = now;
@@ -32,7 +34,13 @@ export function createGame({ storage = defaultStorage(), now = Date.now() } = {}
     if (!result) return { loaded: false };
 
     state = result.state;
-    const offline = econ.offlineEarnings(state, result.elapsedSeconds);
+    // A closed tab retires timed bonuses: buffs that ran out while away are
+    // dropped, and a status event nobody could click is not held against them.
+    pruneBuffs(state, now);
+    state.chat.event = null;
+    state.chat.nextEventIn = 0;
+
+    const offline = econ.offlineEarnings(state, result.elapsedSeconds, now);
     if (offline.buzz > 0) {
       grantBuzz(offline.buzz, 'offline');
       state.bloat = Math.min(1, state.bloat + econ.bloatGain(state, offline.seconds));
@@ -53,11 +61,19 @@ export function createGame({ storage = defaultStorage(), now = Date.now() } = {}
   /* ----------------------------------------------------------------- tick */
 
   function tick(dt) {
-    grantBuzz(econ.buzzPerSecond(state) * dt, 'idle');
+    const now = Date.now();
+
+    grantBuzz(econ.buzzPerSecond(state, now) * dt, 'idle');
     state.bloat = Math.min(1, state.bloat + econ.bloatGain(state, dt));
     state.stats.playtimeSeconds += dt;
 
-    if (Date.now() - lastSaveAt >= SAVE.autosaveMs) save();
+    for (const buff of pruneBuffs(state, now)) bus.emit(EVENTS.BUFF_EXPIRED, { buff });
+
+    const { spawned, missed } = updateStatusEvents(state, dt, rng);
+    if (spawned) bus.emit(EVENTS.STATUS_SPAWNED, spawned);
+    if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
+
+    if (now - lastSaveAt >= SAVE.autosaveMs) save();
     bus.emit(EVENTS.TICK, { state, dt });
   }
 
@@ -111,14 +127,45 @@ export function createGame({ storage = defaultStorage(), now = Date.now() } = {}
     return { ok: true };
   }
 
-  /** Buy chat bots — the Day 1 spending sink. */
+  /** Buy chat buddies — the core spending sink (AO-9). */
   function buyBots(amount = 1) {
     const { count, cost } = econ.affordableBots(state, amount);
-    if (count === 0) return { ok: false, reason: 'too-expensive' };
+    if (count === 0) {
+      const reason = state.chat.bots >= CHAT_BOT.maxPerRun ? 'buddy-list-full' : 'too-expensive';
+      return { ok: false, reason };
+    }
+
+    const milestonesBefore = econ.chatMilestoneCount(state);
     state.buzz -= cost;
     state.chat.bots += count;
     bus.emit(EVENTS.BOT_BOUGHT, { count, cost });
+
+    // Crossing a milestone is the reason to buy in bulk, so it gets announced.
+    if (econ.chatMilestoneCount(state) > milestonesBefore) {
+      bus.emit(EVENTS.MILESTONE, {
+        at: econ.chatMilestoneCount(state) * CHAT_BOT.milestoneEvery,
+        multiplier: econ.chatMilestoneMultiplier(state),
+      });
+    }
     return { ok: true, count, cost };
+  }
+
+  /**
+   * Claim the pending status-message bonus (AO-10). Timed buffs are applied by
+   * the event module; 'burst' bonuses are paid here, where the rate is known.
+   */
+  function claimStatusBonus() {
+    const now = Date.now();
+    const result = claimStatusEvent(state, now, rng);
+    if (!result.ok) return result;
+
+    let buzz = 0;
+    if (result.bonus.kind === 'burst') {
+      buzz = econ.buzzPerSecond(state, now) * result.bonus.magnitude;
+      grantBuzz(buzz, 'status-burst');
+    }
+    bus.emit(EVENTS.STATUS_CLAIMED, { bonus: result.bonus, buzz });
+    return { ...result, buzz };
   }
 
   function buyHardware(track) {
@@ -172,6 +219,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now() } = {}
     closeApp,
     installApp,
     buyBots,
+    claimStatusBonus,
     buyHardware,
     formatC,
     hardReset,

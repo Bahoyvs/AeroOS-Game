@@ -92,6 +92,21 @@ describe('resilience', () => {
     expect(deserialize(raw, 0).apps.aerochat.minimized).toBe(false);
   });
 
+  it('loads a save whose field has an object where the default is null', () => {
+    // chat.event defaults to null; a save taken mid-event carries an object.
+    const state = createInitialState(0);
+    state.chat.event = { index: 3, bonusId: 'battlefront', secondsLeft: 9 };
+    const loaded = deserialize(serialize(state), 0);
+
+    expect(loaded.chat.event).toEqual({ index: 3, bonusId: 'battlefront', secondsLeft: 9 });
+  });
+
+  it('replaces arrays wholesale rather than merging them', () => {
+    const state = createInitialState(0);
+    state.buffs = [{ id: 'x', kind: 'chat', magnitude: 0.5, expiresAt: 1000, label: 'x' }];
+    expect(deserialize(serialize(state), 0).buffs).toHaveLength(1);
+  });
+
   it('reports a failed write instead of throwing', () => {
     const broken = {
       getItem: () => null,

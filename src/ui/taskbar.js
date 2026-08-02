@@ -168,5 +168,10 @@ export function createTaskbar({ root, game, wm, launch }) {
   }, 500);
 
   update();
-  return { update, closeMenu: () => toggleMenu(false) };
+  return {
+    update,
+    closeMenu: () => toggleMenu(false),
+    /** Highlight a task button — used when an app wants attention (AO-10). */
+    flag: (id, on) => taskNodes.get(id)?.classList.toggle('needs-attention', on),
+  };
 }

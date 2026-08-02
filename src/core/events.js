@@ -43,6 +43,11 @@ export const EVENTS = {
   APP_INSTALLED: 'app:installed', // { id }
   OUT_OF_MEMORY: 'system:oom', // { id, needed, free }
   BOT_BOUGHT: 'chat:bot', // { count, cost }
+  MILESTONE: 'chat:milestone', // { at, multiplier }
+  STATUS_SPAWNED: 'status:spawned', // { index, bonusId, expiresAt }
+  STATUS_MISSED: 'status:missed', // { index, bonusId }
+  STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }
+  BUFF_EXPIRED: 'buff:expired', // { buff }
   HARDWARE_BOUGHT: 'hardware:bought', // { track, tier }
   PRESTIGE: 'prestige', // { dollars }
   SAVED: 'save:written', // { at }

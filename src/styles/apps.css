@@ -4,12 +4,13 @@
 
 .app-aerochat {
   display: grid;
-  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-rows: auto auto auto 1fr auto auto;
   gap: 8px;
 }
 
 .chat__me {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   gap: 10px;
   align-items: center;
   padding: 8px;
@@ -20,18 +21,73 @@
   font-size: 26px;
 }
 
-.chat__me small {
+.chat__me-text small {
   display: block;
   color: var(--text-muted);
   font-size: 0.72rem;
 }
 
-.chat__stats {
+.chat__rate {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--aero-blue-deep);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------ buddy milestones */
+
+.chat__milestone {
+  display: grid;
+  gap: 3px;
+}
+
+.chat__milestone-label {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
+
+.chat__milestone .meter__track {
+  height: 6px;
+  background: rgb(13 36 55 / 18%);
+  border-color: rgb(255 255 255 / 60%);
+}
+
+/* --------------------------------------------------------- active buffs */
+
+.chat__buffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chat__buffs:empty {
+  display: none;
+}
+
+.chat__buff {
+  display: inline-flex;
+  gap: 5px;
+  align-items: baseline;
+  padding: 2px 7px;
+  font-size: 0.68rem;
+  background: linear-gradient(180deg, #f4fff0, #d8f6c8);
+  border: 1px solid rgb(63 166 63 / 45%);
+  border-radius: 999px;
+}
+
+.chat__buff-value {
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
+.chat__buff-timer {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ buddy list */
 
 .chat__list {
   display: grid;
@@ -46,20 +102,34 @@
   border-radius: var(--radius-sm);
 }
 
+.chat__group {
+  margin-top: 4px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--aero-blue-deep);
+}
+
+.chat__group:first-child {
+  margin-top: 0;
+}
+
 .chat__buddy {
   display: grid;
-  grid-template-columns: 10px auto 1fr;
+  grid-template-columns: 18px auto 1fr;
   gap: 6px;
   align-items: baseline;
   font-size: 0.76rem;
 }
 
-.chat__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #d9ffcf, var(--ok));
-  box-shadow: 0 0 5px rgb(63 166 63 / 80%);
+.chat__buddy.is-away {
+  opacity: 0.55;
+}
+
+.chat__avatar-sm {
+  font-size: 13px;
+  line-height: 1;
 }
 
 .chat__nick {
@@ -77,16 +147,89 @@
   white-space: nowrap;
 }
 
+/* ------------------------------------------------- claimable status event */
+
+.chat__hot {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fffdf0 0%, #ffeeb8 60%, #ffe28f 100%);
+  border: 1px solid #e6b74a;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 0 rgb(230 183 74 / 70%);
+  animation: hot-pulse 1.4s var(--ease-aero) infinite;
+}
+
+@keyframes hot-pulse {
+  70% {
+    box-shadow: 0 0 0 7px rgb(230 183 74 / 0%);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(230 183 74 / 0%);
+  }
+}
+
+.chat__hot-text {
+  display: grid;
+  min-width: 0;
+}
+
+.chat__hot-text strong {
+  font-size: 0.76rem;
+}
+
+.chat__hot-text em {
+  overflow: hidden;
+  font-size: 0.7rem;
+  color: #6b4b06;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat__hot-claim {
+  display: grid;
+  justify-items: center;
+  font-size: 0.64rem;
+  color: #6b4b06;
+}
+
+.chat__hot-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.chat__hot-timer {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------- buy controls */
+
 .chat__actions {
   display: flex;
   gap: 6px;
 }
 
 .chat__buy {
+  display: grid;
   flex: 1;
-  padding: 6px 4px;
+  gap: 1px;
+  padding: 5px 4px;
   font-size: 0.74rem;
+  line-height: 1.15;
   cursor: pointer;
+}
+
+.chat__buy small {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .chat__buy:disabled {

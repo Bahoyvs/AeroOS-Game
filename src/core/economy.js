@@ -1,6 +1,7 @@
 import { BLOAT, CHAT_BOT, CLICK, OFFLINE, PRESTIGE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { HARDWARE_TRACKS, nextTierOf, tierOf } from '../data/hardware.js';
+import { buffMultiplier } from './buffs.js';
 
 /**
  * Every number the game shows is derived here. Functions are pure and take the
@@ -87,26 +88,65 @@ export function affordableBots(state, max = 100) {
 
 /* -------------------------------------------------------------- production */
 
+/**
+ * Buddy-count milestones (AO-9): every `milestoneEvery` buddies permanently
+ * boosts AeroChat for the rest of the run, so buying in bulk has a visible goal.
+ */
+export function chatMilestoneCount(state) {
+  return Math.floor(state.chat.bots / CHAT_BOT.milestoneEvery);
+}
+
+export function chatMilestoneMultiplier(state) {
+  return 1 + chatMilestoneCount(state) * CHAT_BOT.milestoneBonus;
+}
+
+/** Buddies still needed for the next milestone, and what it is worth. */
+export function nextChatMilestone(state) {
+  const next = (chatMilestoneCount(state) + 1) * CHAT_BOT.milestoneEvery;
+  if (next > CHAT_BOT.maxPerRun) return null;
+  return {
+    at: next,
+    remaining: next - state.chat.bots,
+    bonus: CHAT_BOT.milestoneBonus,
+  };
+}
+
+/** AeroChat's own multiplier stack: milestones × chat-kind buffs. */
+export function chatMultiplier(state, now = Date.now()) {
+  return chatMilestoneMultiplier(state) * buffMultiplier(state, 'chat', now);
+}
+
 /** Buzz/sec before global modifiers. Apps only produce while they are open. */
-export function baseBuzzPerSecond(state) {
+export function baseBuzzPerSecond(state, now = Date.now()) {
   let rate = 0;
-  if (state.apps.aerochat?.open) rate += state.chat.bots * CHAT_BOT.baseRate;
-  // Day 2+: RetroAmp multipliers and other producers hook in here.
+  if (state.apps.aerochat?.open) {
+    rate += state.chat.bots * CHAT_BOT.baseRate * chatMultiplier(state, now);
+  }
+  // Day 3+: RetroAmp and the other producers hook in here.
   return rate;
 }
 
-/** Global multiplier from hardware and system health. */
-export function globalMultiplier(state) {
-  return tierOf('cpu', state.hardware.cpu).tickRate * bloatPenalty(state);
+/** Global multiplier from hardware, system health and global-kind buffs. */
+export function globalMultiplier(state, now = Date.now()) {
+  return (
+    tierOf('cpu', state.hardware.cpu).tickRate *
+    bloatPenalty(state) *
+    buffMultiplier(state, 'global', now)
+  );
 }
 
-export function buzzPerSecond(state) {
-  return baseBuzzPerSecond(state) * globalMultiplier(state);
+export function buzzPerSecond(state, now = Date.now()) {
+  return baseBuzzPerSecond(state, now) * globalMultiplier(state, now);
 }
 
 /** Buzz granted by one press of the Nudge button. */
-export function clickPower(state) {
-  return CLICK.baseBuzz * tierOf('cpu', state.hardware.cpu).clickPower * bloatPenalty(state);
+export function clickPower(state, now = Date.now()) {
+  return (
+    CLICK.baseBuzz *
+    tierOf('cpu', state.hardware.cpu).clickPower *
+    bloatPenalty(state) *
+    buffMultiplier(state, 'click', now)
+  );
 }
 
 /* ----------------------------------------------------------------- offline */
@@ -119,12 +159,12 @@ export function offlineCapSeconds(state) {
  * Buzz earned while the tab was closed. Capped by the HDD tier and taxed by
  * OFFLINE.efficiency so being present always beats being away (GDD 5).
  */
-export function offlineEarnings(state, elapsedSeconds) {
+export function offlineEarnings(state, elapsedSeconds, now = Date.now()) {
   if (elapsedSeconds < OFFLINE.minSeconds) return { buzz: 0, seconds: 0, capped: false };
   const cap = offlineCapSeconds(state);
   const seconds = Math.min(elapsedSeconds, cap);
   return {
-    buzz: buzzPerSecond(state) * seconds * OFFLINE.efficiency,
+    buzz: buzzPerSecond(state, now) * seconds * OFFLINE.efficiency,
     seconds,
     capped: elapsedSeconds > cap,
   };

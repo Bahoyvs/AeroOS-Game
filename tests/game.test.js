@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createGame } from '../src/core/game.js';
 import { createMemoryStorage } from '../src/core/save.js';
-import { CHAT_BOT, PRESTIGE } from '../src/data/balance.js';
+import { CHAT_BOT, PRESTIGE, STATUS_BONUSES } from '../src/data/balance.js';
 
 const newGame = () => createGame({ storage: createMemoryStorage(), now: 0 });
 
@@ -103,6 +103,138 @@ describe('ticking', () => {
     game.openApp('aerochat');
     for (let i = 0; i < 100_000; i += 1) game.tick(1);
     expect(game.state.bloat).toBe(1);
+  });
+});
+
+describe('buddy milestones', () => {
+  it('emits a milestone event when the threshold is crossed', () => {
+    const game = newGame();
+    game.state.buzz = 1e9;
+    game.buyBots(CHAT_BOT.milestoneEvery - 1);
+
+    let milestone = null;
+    game.bus.on(game.events.MILESTONE, (payload) => (milestone = payload));
+    game.buyBots(1);
+
+    expect(milestone).toMatchObject({ at: CHAT_BOT.milestoneEvery });
+    expect(milestone.multiplier).toBeCloseTo(1 + CHAT_BOT.milestoneBonus);
+  });
+
+  it('does not emit when no threshold is crossed', () => {
+    const game = newGame();
+    game.state.buzz = 1e9;
+    let fired = 0;
+    game.bus.on(game.events.MILESTONE, () => (fired += 1));
+    game.buyBots(2);
+    expect(fired).toBe(0);
+  });
+
+  it('refuses to exceed the buddy cap', () => {
+    const game = newGame();
+    game.state.buzz = Infinity;
+    game.state.chat.bots = CHAT_BOT.maxPerRun;
+    expect(game.buyBots(1)).toEqual({ ok: false, reason: 'buddy-list-full' });
+  });
+});
+
+describe('status-message bonuses', () => {
+  /** Fast-forward simulation time until an event is pending. */
+  const runUntilEvent = (game, seconds = 500) => {
+    for (let i = 0; i < seconds && !game.state.chat.event; i += 1) game.tick(1);
+    return game.state.chat.event;
+  };
+
+  const readyGame = () => {
+    const game = createGame({ storage: createMemoryStorage(), rng: () => 0 });
+    game.openApp('aerochat');
+    game.state.buzz = 1e6;
+    game.buyBots(20);
+    return game;
+  };
+
+  it('spawns an event while AeroChat is open', () => {
+    const game = readyGame();
+    const event = runUntilEvent(game);
+    expect(event).not.toBeNull();
+    expect(event.index).toBeLessThan(game.state.chat.bots);
+  });
+
+  it('claiming applies the buff and raises production', () => {
+    const game = readyGame();
+    runUntilEvent(game);
+    const before = game.econ.buzzPerSecond(game.state);
+
+    const result = game.claimStatusBonus();
+    expect(result.ok).toBe(true);
+    expect(game.econ.buzzPerSecond(game.state)).toBeGreaterThan(before);
+    expect(game.state.stats.bonusesClaimed).toBe(1);
+  });
+
+  it('a burst bonus pays Buzz instead of a buff', () => {
+    const game = readyGame();
+    const burst = STATUS_BONUSES.find((b) => b.kind === 'burst');
+    game.state.chat.event = { index: 0, bonusId: burst.id, secondsLeft: 10 };
+
+    const before = game.state.buzz;
+    const result = game.claimStatusBonus();
+    expect(result.buzz).toBeGreaterThan(0);
+    expect(game.state.buzz).toBeCloseTo(before + result.buzz);
+    expect(game.state.buffs).toHaveLength(0);
+  });
+
+  it('refuses to claim when nothing is pending', () => {
+    expect(readyGame().claimStatusBonus()).toEqual({ ok: false, reason: 'no-event' });
+  });
+
+  it('lets an ignored event lapse without cost', () => {
+    const game = readyGame();
+    const event = runUntilEvent(game);
+    expect(event).not.toBeNull();
+    const buzzBefore = game.state.buzz;
+    for (let i = 0; i < 200 && game.state.chat.event === event; i += 1) game.tick(1);
+
+    expect(game.state.stats.bonusesMissed).toBe(1);
+    expect(game.state.buzz).toBeGreaterThan(buzzBefore); // production never stopped
+    expect(game.state.buffs).toHaveLength(0);
+  });
+
+  // Buffs run on the wall clock (so they keep expiring while the tab is
+  // closed), which is why this one needs fake timers rather than more ticks.
+  it('buffs expire on their own and emit', () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(0);
+      const game = readyGame();
+      runUntilEvent(game);
+      const { bonus } = game.claimStatusBonus();
+      expect(game.state.buffs).toHaveLength(1);
+
+      let expired = null;
+      game.bus.on(game.events.BUFF_EXPIRED, (payload) => (expired = payload));
+
+      vi.setSystemTime((bonus.durationSeconds + 1) * 1000);
+      game.tick(1);
+
+      expect(expired?.buff.id).toBe(bonus.id);
+      expect(game.state.buffs).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not carry a pending event across a reload', () => {
+    const storage = createMemoryStorage();
+    const first = createGame({ storage, rng: () => 0 });
+    first.openApp('aerochat');
+    first.state.buzz = 1e6;
+    first.buyBots(20);
+    runUntilEvent(first);
+    first.save();
+
+    const second = createGame({ storage, rng: () => 0 });
+    second.load();
+    expect(second.state.chat.event).toBeNull();
+    expect(second.state.stats.bonusesMissed).toBe(first.state.stats.bonusesMissed);
   });
 });
 
