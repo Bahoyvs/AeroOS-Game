@@ -149,11 +149,11 @@ export function createTaskbar({ root, game, wm, launch }) {
     }
   }
 
-  wm.on('focus', (id) => {
+  wm.on('focus', ({ id }) => {
     for (const [taskId, node] of taskNodes) node.classList.toggle('is-active', taskId === id);
   });
-  wm.on('close', removeTask);
-  wm.on('minimize', (id, minimized) => {
+  wm.on('close', ({ id }) => removeTask(id));
+  wm.on('minimize', ({ id, minimized }) => {
     taskNodes.get(id)?.classList.toggle('is-minimized', minimized);
     if (minimized) taskNodes.get(id)?.classList.remove('is-active');
   });
@@ -168,5 +168,10 @@ export function createTaskbar({ root, game, wm, launch }) {
   }, 500);
 
   update();
-  return { update, closeMenu: () => toggleMenu(false) };
+  return {
+    update,
+    closeMenu: () => toggleMenu(false),
+    /** Highlight a task button — used when an app wants attention (AO-10). */
+    flag: (id, on) => taskNodes.get(id)?.classList.toggle('needs-attention', on),
+  };
 }

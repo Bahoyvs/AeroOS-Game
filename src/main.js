@@ -6,6 +6,8 @@ import { createGame } from './core/game.js';
 import { createGameLoop } from './core/loop.js';
 import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
+import { buddyAt } from './data/buddies.js';
+import { getBonus } from './core/statusEvents.js';
 import { createDesktop } from './ui/desktop.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
@@ -27,6 +29,14 @@ function boot() {
       wm.toggleMinimize(id);
       return;
     }
+    // Defence in depth: if the state believes the app is open but no window
+    // exists, the two have drifted apart. Resync instead of dead-ending on an
+    // icon that does nothing (and leaking the app's RAM forever).
+    if (game.state.apps[id]?.open) {
+      console.warn(`[aeroos] ${id} was open with no window; resyncing`);
+      game.closeApp(id);
+    }
+
     const result = game.openApp(id);
     if (!result.ok) {
       if (result.reason === 'out-of-memory') return; // handled by the OOM listener
@@ -39,7 +49,7 @@ function boot() {
   }
 
   // Closing a window must release its memory, however it was closed.
-  wm.on('close', (id) => game.closeApp(id));
+  wm.on('close', ({ id }) => game.closeApp(id));
 
   game.bus.on(game.events.OUT_OF_MEMORY, ({ id, needed, free }) => {
     notify({
@@ -61,6 +71,39 @@ function boot() {
     launch,
   });
   const taskbar = createTaskbar({ root: document.getElementById('taskbar'), game, wm, launch });
+
+  // Status-message bonus events (AO-10). The taskbar flag matters most in PDA
+  // mode, where AeroChat may be sitting behind another full-screen window.
+  game.bus.on(game.events.STATUS_SPAWNED, ({ index, bonusId }) => {
+    taskbar.flag('aerochat', true);
+    notify({
+      title: `${buddyAt(index).name} changed status`,
+      body: `${getBonus(bonusId).status} — nudge back in AeroChat.`,
+      tone: 'info',
+    });
+  });
+
+  game.bus.on(game.events.STATUS_MISSED, () => taskbar.flag('aerochat', false));
+
+  game.bus.on(game.events.STATUS_CLAIMED, ({ bonus, buzz }) => {
+    taskbar.flag('aerochat', false);
+    notify({
+      title: bonus.label,
+      body:
+        bonus.kind === 'burst'
+          ? `+${formatNumber(buzz)} Buzz.`
+          : `+${Math.round(bonus.magnitude * 100)}% for ${bonus.durationSeconds}s.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
+    notify({
+      title: `${at} buddies online`,
+      body: `AeroChat production is now ×${multiplier.toFixed(2)}.`,
+      tone: 'success',
+    });
+  });
 
   // Restore whatever was open last session; a fresh save starts on AeroChat
   // alone, which is where the scripted tutorial (Day 7) will pick up.

@@ -15,6 +15,10 @@ most "missing" apps are scheduled, not forgotten.
   (constants) — not inline in a UI module.
 - New persisted fields need a default in `createInitialState()`; only bump `SAVE_VERSION`
   when an existing field changes meaning, and add a migration when you do.
+- Two clocks, deliberately: things that should keep running while the tab is closed (buffs,
+  offline earnings, autosave) use `Date.now()`; things that should only advance while the
+  player is watching (status events) take `dt`. Pick one on purpose — see ARCHITECTURE.md.
+- Randomness is injected (`createGame({ rng })`), never called directly in a mechanic.
 - Windows use `role="region"`. 7.css hides `.window[role=dialog]` — do not "fix" that back.
 - The PDA breakpoint is duplicated in `src/ui/windowManager.js` (`mobileQuery`) and
   `src/styles/mobile.css`. Change both together.

@@ -11,7 +11,81 @@ export const CHAT_BOT = {
   costGrowth: 1.15, // geometric price curve, standard idle pacing
   baseRate: 0.5, // Buzz/sec per bot before multipliers
   maxPerRun: 500,
+
+  // Buddy-count milestones: every `milestoneEvery` buddies adds a flat
+  // `milestoneBonus` to the AeroChat multiplier (additive, so 500 buddies is
+  // ×2.6 rather than an exponential blow-up).
+  milestoneEvery: 25,
+  milestoneBonus: 0.08,
 };
+
+/**
+ * Rotating status-message bonus events (AO-10, GDD 6).
+ *
+ * While AeroChat is open, a buddy occasionally posts a "hot" status. Clicking
+ * it within the claim window applies the bonus below; ignoring it costs
+ * nothing, so the mechanic rewards attention without punishing idling.
+ */
+export const STATUS_EVENT = {
+  minIntervalSeconds: 40,
+  maxIntervalSeconds: 85,
+  claimWindowSeconds: 15,
+  minBuddies: 1, // no events before the player has someone to hear from
+  ambientRotationSeconds: 25, // how often ordinary statuses reshuffle
+};
+
+/**
+ * Bonus table. `weight` is the relative roll chance; `kind` matches a buff kind
+ * in src/core/buffs.js, except 'burst' which pays Buzz immediately instead.
+ * Burst magnitude is measured in seconds of current production.
+ */
+export const STATUS_BONUSES = [
+  {
+    id: 'battlefront',
+    status: 'is playing Star Wars Battlefront II',
+    label: 'LAN night',
+    kind: 'chat',
+    magnitude: 0.25,
+    durationSeconds: 60,
+    weight: 30,
+  },
+  {
+    id: 'soft-signals',
+    status: 'is listening to SOFT SIGNALS',
+    label: 'Good playlist',
+    kind: 'global',
+    magnitude: 0.15,
+    durationSeconds: 90,
+    weight: 25,
+  },
+  {
+    id: 'serial-key',
+    status: 'found a working serial key',
+    label: 'Registered edition',
+    kind: 'click',
+    magnitude: 1.0,
+    durationSeconds: 45,
+    weight: 20,
+  },
+  {
+    id: 'burning-cd',
+    status: 'is burning you a mix CD',
+    label: 'Mix CD',
+    kind: 'burst',
+    magnitude: 45, // seconds of production, paid instantly
+    durationSeconds: 0,
+    weight: 15,
+  },
+  {
+    id: 'forwarding',
+    status: 'forwarded this to 10 people',
+    label: 'Chain mail',
+    kind: 'chat',
+    magnitude: 0.6,
+    durationSeconds: 25,
+    weight: 10,
+  },
+];
 
 export const CLICK = {
   baseBuzz: 1, // Nudge button payout before CPU click power

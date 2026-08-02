@@ -1,3 +1,5 @@
+import { createEventBus } from '../core/events.js';
+
 /**
  * Window manager (AO-4).
  *
@@ -14,6 +16,10 @@ const MIN_HEIGHT = 180;
 const CASCADE_STEP = 28;
 const TASKBAR_HEIGHT = 44;
 const ICON_COLUMN_WIDTH = 112; // keeps cascaded windows clear of desktop icons
+const EDGE_MARGIN = 8;
+
+/** Clamp that stays sane when max < min (a window dragged to the far edge). */
+const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
 
 export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }) {
   const windows = new Map();
@@ -21,7 +27,10 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
   const media = globalThis.matchMedia?.(mobileQuery) ?? { matches: false, addEventListener() {} };
   let nextZ = 10;
   let cascadeIndex = 0;
-  const handlers = { close: () => {}, focus: () => {}, minimize: () => {} };
+  // A bus, not a single callback slot: both main.js (release the app's RAM) and
+  // taskbar.js (drop the task button) listen for 'close', and an assignment-based
+  // registry silently let whichever registered last win.
+  const handlers = createEventBus();
 
   const isMobile = () => media.matches;
 
@@ -92,7 +101,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
       other.el.classList.toggle('active', otherId === id);
       other.el.classList.toggle('inactive', otherId !== id);
     }
-    handlers.focus(id);
+    handlers.emit('focus', { id });
   }
 
   /* ----------------------------------------------------------- drag/resize */
@@ -143,8 +152,13 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     entry.el.setPointerCapture(event.pointerId);
 
     const move = (e) => {
-      entry.rect.width = Math.max(MIN_WIDTH, origin.width + e.clientX - startX);
-      entry.rect.height = Math.max(MIN_HEIGHT, origin.height + e.clientY - startY);
+      // Clamp to the desktop: a window larger than the screen just pushes its
+      // own controls out of reach.
+      const maxWidth = window.innerWidth - entry.rect.x - EDGE_MARGIN;
+      const maxHeight = window.innerHeight - TASKBAR_HEIGHT - entry.rect.y - EDGE_MARGIN;
+
+      entry.rect.width = clamp(origin.width + e.clientX - startX, MIN_WIDTH, maxWidth);
+      entry.rect.height = clamp(origin.height + e.clientY - startY, MIN_HEIGHT, maxHeight);
       applyRect(entry);
       entry.onResize?.(entry.rect);
     };
@@ -213,7 +227,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     windows.delete(id);
     const i = focusOrder.indexOf(id);
     if (i !== -1) focusOrder.splice(i, 1);
-    handlers.close(id);
+    handlers.emit('close', { id });
 
     const top = focusOrder.at(-1);
     if (top) focus(top);
@@ -224,7 +238,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     if (!entry) return;
     entry.el.classList.add('is-minimized');
     entry.minimized = true;
-    handlers.minimize(id, true);
+    handlers.emit('minimize', { id, minimized: true });
     const next = focusOrder.filter((wid) => wid !== id && !windows.get(wid)?.minimized).at(-1);
     if (next) focus(next);
   }
@@ -234,7 +248,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     if (!entry) return;
     entry.el.classList.remove('is-minimized');
     entry.minimized = false;
-    handlers.minimize(id, false);
+    handlers.emit('minimize', { id, minimized: false });
     focus(id);
   }
 
@@ -275,8 +289,9 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     get isMobile() {
       return isMobile();
     },
+    /** Subscribe to 'focus' | 'close' | 'minimize'. Returns an unsubscribe. */
     on(event, fn) {
-      handlers[event] = fn;
+      return handlers.on(event, fn);
     },
   };
 }

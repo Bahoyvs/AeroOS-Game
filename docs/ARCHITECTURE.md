@@ -11,12 +11,15 @@ index.html
     │   ├── state.js          save shape + prestige reset
     │   ├── economy.js        every derived number (pure functions)
     │   ├── loop.js           fixed-timestep tick + rAF render
+    │   ├── buffs.js          typed, expiring, stacking multipliers
+    │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
     │   ├── save.js           localStorage, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
     ├── data/                 tuning — designers edit these, not the code
     │   ├── balance.js        rates, costs, caps, thresholds
     │   ├── apps.js           software roster (RAM cost, price, roadmap day)
+    │   ├── buddies.js        derived buddy identities (never stored)
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
@@ -53,6 +56,20 @@ input → game.<action>() → state mutation → bus.emit(EVENT)
 per animation frame. Production maths is therefore frame-rate independent, and a
 backgrounded tab is clamped to `maxCatchUpMs` rather than replaying hours in one frame —
 long absences are the job of offline earnings, not catch-up ticks.
+
+## Two clocks, on purpose
+
+Timed systems pick their clock according to what should happen while the player is away:
+
+- **Simulation time** (accumulated `dt`, only advances while the loop runs) — status-message
+  events in `core/statusEvents.js`. A claim window must not burn down in a background tab,
+  and a throttled tab must not silently miss bonuses.
+- **Wall clock** (`Date.now()` timestamps) — buffs in `core/buffs.js`, autosave, offline
+  earnings. A 60-second buff should be over when you come back an hour later.
+
+Both are testable: simulation-time systems take `dt`, wall-clock systems take an optional
+`now`, and randomness is injected (`createGame({ rng })`). No test needs fake timers except
+the ones deliberately exercising wall-clock expiry.
 
 ## State & saves
 

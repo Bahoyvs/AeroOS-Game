@@ -26,13 +26,18 @@ npm run dev      # http://localhost:5173
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
-## What works today (Day 1)
+## What works today (Days 1–2)
 
 - **Desktop shell** — draggable, resizable, overlapping windows with focus, minimize and a
   Start menu; on phones the same windows become full-screen PDA modals with RAM bars under
   the taskbar icons.
 - **Core loop** — Nudge for Buzz, buy AeroChat buddies, buddies generate passive Buzz while
   the window is open.
+- **AeroChat** — a living buddy list: Online/Away groups, per-buddy display pictures and
+  rotating status messages, ×1/×10/Max buying with live prices, and buddy-count milestones
+  that permanently boost the run.
+- **Status bonuses** — a buddy occasionally posts a "hot" status; click it in time for a
+  timed multiplier or an instant Buzz burst. Ignoring one costs nothing.
 - **Memory budget** — every app costs RAM; opening one that does not fit is refused with an
   out-of-memory balloon instead of silently failing.
 - **Bloat** — uptime and open apps degrade production and desaturate the desktop, building

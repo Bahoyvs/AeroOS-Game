@@ -5,6 +5,9 @@ Each day is a Jira epic (AO-2 style) with its sub-tasks, the files it touches, a
 definition of done. Ship the day's DoD before starting the next day — the schedule assumes
 every day ends on a build that runs.
 
+Ticket IDs for Days 1–2 match the Jira board. Later days are this plan's own numbering and
+should be re-mapped as those epics are created — the work is the contract, not the ID.
+
 **Ground rules for every day**
 
 - `npm run check` (tests + build) must pass before the day is closed.
@@ -32,38 +35,47 @@ survives a reload, mobile renders as full-screen modals. ✅
 
 ---
 
-## Day 2 — RetroAmp, multipliers and the software economy
+## Day 2 — AeroChat (AO-7) ✅ shipped
 
-**Goal:** more than one thing to spend Buzz on, and the first real multiplier stack.
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-8 | Build AeroChat buddy list UI | ✅ grouped Online/Away list, derived identities, rotating statuses |
+| AO-9 | Implement buy-a-bot mechanic (passive Buzz generation) | ✅ ×1/×10/Max with live costs, buddy-count milestones |
+| AO-10 | Add rotating status-message bonus events | ✅ claimable "hot" statuses backed by a typed buff system |
 
-- [ ] AO-7 — Implement RetroAmp (`src/apps/retroamp.js`): playlist selection, one permanent
-      small multiplier ("SOFT SIGNALS"), one short-burst high multiplier that costs extra RAM.
-- [ ] AO-8 — Route all multipliers through `globalMultiplier()`; add `state.buffs` (typed,
-      expiring) plus tests for stacking and expiry.
-- [ ] AO-9 — Buddy status messages grant timed bonuses (GDD 6) instead of being cosmetic.
-- [ ] AO-10 — Install/unlock flow polish: Start-menu purchase states, unlock balloons,
-      first-time-install animation.
+Built underneath these, because AO-10 needed it: `src/core/buffs.js` (typed, expiring,
+stacking multipliers) and `src/core/statusEvents.js` (spawn/claim/lapse with injected
+randomness). Both are the machinery RetroAmp, rewarded ads and every later timed bonus will
+reuse — a Day 3 playlist buff is now a table entry, not a new system.
 
-**Files:** `src/apps/retroamp.js`, `src/core/economy.js`, `src/core/state.js`, `src/ui/taskbar.js`
-**DoD:** two producers and at least two multiplier sources are live; buff expiry is tested.
+Buddies are *derived* from their index rather than stored, so a 500-buddy list costs nothing
+in the save file and identities stay stable across reloads.
+
+**DoD:** the buddy list reads as a living MSN window, buying has a visible goal, and status
+bonuses can be claimed, ignored or missed without ever punishing the player. ✅
 
 ---
 
-## Day 3 — Prestige pressure and the failure state
+## Day 3 — RetroAmp and prestige pressure
 
-**Goal:** make bloat *felt* and turn Format C: into relief rather than punishment (GDD 7).
+**Goal:** a second multiplier source, then make bloat *felt* so Format C: reads as relief
+rather than punishment (GDD 7).
 
-- [ ] AO-11 — RAM crash: exceeding capacity triggers a BSOD sequence, not just a refusal —
-      forced reboot, short production pause, no lost progress.
-- [ ] AO-12 — Bloat presentation: window trails, animation slowdown, heat widget going red,
+- [ ] AO-11 — RetroAmp (`src/apps/retroamp.js`): playlist selection driving buffs — a
+      permanent small multiplier ("SOFT SIGNALS") and a big short-burst one that costs extra
+      RAM. Playlists are a table on top of `core/buffs.js`; no new timing code.
+- [ ] AO-12 — RAM crash: exceeding capacity triggers a BSOD sequence rather than a refusal —
+      forced reboot, brief production pause, no lost progress.
+- [ ] AO-13 — Bloat presentation: window trails, animation slowdown, heat widget going red,
       taskbar clock drift. Hooks exist (`body.is-bloated` / `.is-critical`).
-- [ ] AO-13 — Format C: sequence: confirmation → nostalgic loading screen → clean desktop
+- [ ] AO-14 — Format C: sequence: confirmation → nostalgic loading screen → clean desktop
       (this screen is where the Day 7 interstitial ad slots in).
-- [ ] AO-14 — Offline-earnings modal ("Welcome back") replacing the current balloon, with
-      the HDD cap explained and a 2× slot reserved for the rewarded ad.
+- [ ] AO-15 — Offline-earnings modal ("Welcome back") replacing the current balloon, with the
+      HDD cap explained and a 2× slot reserved for the rewarded ad.
 
-**Files:** `src/ui/bsod.js`, `src/ui/bootScreen.js`, `src/styles/window.css`, `src/core/game.js`
-**DoD:** a player can be pushed into a crash and a prestige, and both feel authored.
+**Files:** `src/apps/retroamp.js`, `src/ui/bsod.js`, `src/ui/bootScreen.js`, `src/core/game.js`
+**DoD:** two multiplier sources are live, and a player can be pushed into a crash and a
+prestige that both feel authored.
 
 ---
 
@@ -71,13 +83,13 @@ survives a reload, mobile renders as full-screen modals. ✅
 
 **Goal:** the first mechanic that can go wrong, with the GDD's safety net intact.
 
-- [ ] AO-15 — LemonWire (`src/apps/lemonwire.js`): queued downloads, HDD-capped size,
+- [ ] AO-16 — LemonWire (`src/apps/lemonwire.js`): queued downloads, HDD-capped size,
       completion pays a large Buzz lump.
-- [ ] AO-16 — Virus events: production floor capped at 50% *or* LemonWire locked — never a
+- [ ] AO-17 — Virus events: production floor capped at 50% *or* LemonWire locked — never a
       ruined run (GDD 6).
-- [ ] AO-17 — Shield99 (`src/apps/shield99.js`): removes viruses, free trial rescue on the
+- [ ] AO-18 — Shield99 (`src/apps/shield99.js`): removes viruses, free trial rescue on the
       first virus of a run.
-- [ ] AO-18 — Tests for the virus floor, the rescue-once rule and HDD capacity limits.
+- [ ] AO-19 — Tests for the virus floor, the rescue-once rule and HDD capacity limits.
 
 **Files:** `src/apps/lemonwire.js`, `src/apps/shield99.js`, `src/data/balance.js`, `tests/`
 **DoD:** a virus can be caught, survived and cured; the worst case is provably a 50% floor.
@@ -88,12 +100,12 @@ survives a reload, mobile renders as full-screen modals. ✅
 
 **Goal:** give the GPU and the prestige loop something to matter for.
 
-- [ ] AO-19 — Aero Studio (`src/apps/aerostudio.js`): long render with a GPU-scaled cooldown
+- [ ] AO-20 — Aero Studio (`src/apps/aerostudio.js`): long render with a GPU-scaled cooldown
       (`cooldownMultiplier`), highest single payout in the game.
-- [ ] AO-20 — Shared cooldown/progress-job helper so future timed apps reuse one implementation.
-- [ ] AO-21 — AeroBurn (`src/apps/aeroburn.js`): burn Buzz to a CD that survives Format C:
+- [ ] AO-21 — Shared cooldown/progress-job helper so future timed apps reuse one implementation.
+- [ ] AO-22 — AeroBurn (`src/apps/aeroburn.js`): burn Buzz to a CD that survives Format C:
       and grants next-run starting boosts (persist through `resetForPrestige`).
-- [ ] AO-22 — Tests: CD carry-over survives prestige; GPU tiers measurably cut cooldowns.
+- [ ] AO-23 — Tests: CD carry-over survives prestige; GPU tiers measurably cut cooldowns.
 
 **Files:** `src/apps/aerostudio.js`, `src/apps/aeroburn.js`, `src/core/jobs.js`, `src/core/state.js`
 **DoD:** every hardware track (CPU/RAM/GPU/HDD) now changes something the player can feel.
@@ -104,12 +116,12 @@ survives a reload, mobile renders as full-screen modals. ✅
 
 **Goal:** something to do while idling, and an end-game ceiling.
 
-- [ ] AO-23 — Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
+- [ ] AO-24 — Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
       combo multipliers.
-- [ ] AO-24 — IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
+- [ ] AO-25 — IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
       large passive Buzz (GDD 5).
-- [ ] AO-25 — Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
-- [ ] AO-26 — Performance pass: keep the render step under budget with the pinball canvas,
+- [ ] AO-26 — Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
+- [ ] AO-27 — Performance pass: keep the render step under budget with the pinball canvas,
       many windows and 500 bots on a mid-range phone.
 
 **Files:** `src/apps/pinball.js`, `src/core/botnet.js`, `src/ui/miniMod.js`
@@ -121,14 +133,14 @@ survives a reload, mobile renders as full-screen modals. ✅
 
 **Goal:** the first 60 seconds and the portal build (GDD 7 & 8).
 
-- [ ] AO-27 — Hard-scripted tutorial: clean desktop with only AeroChat → first bot →
+- [ ] AO-28 — Hard-scripted tutorial: clean desktop with only AeroChat → first bot →
       RetroAmp unlock; CPU/RAM stay hidden until the first bottleneck.
-- [ ] AO-28 — Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
+- [ ] AO-29 — Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
       SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
-- [ ] AO-29 — Interstitial on Format C:, hidden behind the loading screen.
-- [ ] AO-30 — Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
+- [ ] AO-30 — Interstitial on Format C:, hidden behind the loading screen.
+- [ ] AO-31 — Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
       distortion layer, synthwave BGM, with a mute toggle honouring `state.settings`.
-- [ ] AO-31 — Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
+- [ ] AO-32 — Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
       CrazyGames/Poki SDK smoke test.
 
 **Files:** `src/core/tutorial.js`, `src/monetization/ads.js`, `src/core/audio.js`
