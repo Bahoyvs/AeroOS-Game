@@ -35,6 +35,8 @@ export function mount(body, { game }) {
       <div class="meter__track"><div class="meter__fill" data-role="milestone-bar"></div></div>
     </div>
 
+    <p class="chat__breakdown" data-role="breakdown"></p>
+
     <div class="chat__buffs" data-role="buffs" aria-live="polite"></div>
 
     <ul class="chat__list" data-role="list" aria-label="Buddy list"></ul>
@@ -56,6 +58,7 @@ export function mount(body, { game }) {
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
   const list = ref('list');
   const buffsRoot = ref('buffs');
+  const breakdown = ref('breakdown');
 
   for (const button of body.querySelectorAll('[data-buy]')) {
     button.addEventListener('click', () => {
@@ -146,6 +149,12 @@ export function mount(body, { game }) {
       return;
     }
 
+    // Group headers count the whole buddy list, not the drawn slice — showing
+    // "Online (12)" next to "28 buddies" reads as if the other 16 vanished.
+    let onlineTotal = 0;
+    for (let i = 0; i < s.chat.bots; i += 1) if (!isAway(i, epoch)) onlineTotal += 1;
+    const awayTotal = s.chat.bots - onlineTotal;
+
     // Newest buddies first — the list reads as "who just signed in".
     const shown = Math.min(s.chat.bots, VISIBLE_BUDDIES);
     const online = [];
@@ -156,11 +165,11 @@ export function mount(body, { game }) {
     }
 
     if (online.length > 0) {
-      list.appendChild(el('li', { class: 'chat__group', text: `Online (${online.length})` }));
+      list.appendChild(el('li', { class: 'chat__group', text: `Online (${onlineTotal})` }));
       for (const index of online) list.appendChild(buddyRow(index, epoch));
     }
     if (away.length > 0) {
-      list.appendChild(el('li', { class: 'chat__group', text: `Away (${away.length})` }));
+      list.appendChild(el('li', { class: 'chat__group', text: `Away (${awayTotal})` }));
       for (const index of away) list.appendChild(buddyRow(index, epoch));
     }
     if (s.chat.bots > shown) {
@@ -168,6 +177,33 @@ export function mount(body, { game }) {
     }
 
     list.appendChild(fillRow());
+  }
+
+  /* ------------------------------------------------------------ breakdown */
+
+  /**
+   * Shows the working behind the rate. Only factors that are actually doing
+   * something are listed, so a clean system reads "28 × 0.5 = 14 / sec" and a
+   * bloated one explains where the missing Buzz went.
+   */
+  function renderBreakdown(bd) {
+    const parts = [
+      el('span', { text: `${bd.bots} × ${bd.perBot}` }),
+      ...(bd.milestone !== 1
+        ? [el('span', { class: 'is-boost', text: `×${bd.milestone.toFixed(2)} buddies` })]
+        : []),
+      ...(bd.buffs !== 1
+        ? [el('span', { class: 'is-boost', text: `×${bd.buffs.toFixed(2)} bonus` })]
+        : []),
+      ...(bd.cpu !== 1 ? [el('span', { class: 'is-boost', text: `×${bd.cpu.toFixed(2)} CPU` })] : []),
+      ...(bd.bloat !== 1
+        ? [el('span', { class: 'is-drag', text: `×${bd.bloat.toFixed(2)} bloat` })]
+        : []),
+      el('span', { class: 'is-total', text: `= ${formatNumber(bd.total)} / sec` }),
+    ];
+
+    clear(breakdown);
+    breakdown.append(...parts);
   }
 
   /* ---------------------------------------------------------------- buffs */
@@ -234,6 +270,7 @@ export function mount(body, { game }) {
       }
     }
 
+    renderBreakdown(econ.rateBreakdown(s, now));
     renderList();
     renderBuffs(now);
 

@@ -236,6 +236,54 @@ describe('buddy milestones', () => {
   });
 });
 
+describe('rate breakdown', () => {
+  const producing = (bots) => {
+    const s = createInitialState(0);
+    s.chat.bots = bots;
+    s.apps.aerochat.open = true;
+    return s;
+  };
+
+  it('factors multiply back to the total', () => {
+    const s = producing(CHAT_BOT.milestoneEvery * 2 + 3);
+    s.hardware.cpu = 2;
+    s.bloat = 0.4;
+    addBuff(s, { id: 'b', kind: 'chat', magnitude: 0.25, durationSeconds: 60, label: 'b' }, 0);
+    addBuff(s, { id: 'g', kind: 'global', magnitude: 0.15, durationSeconds: 60, label: 'g' }, 0);
+
+    const bd = econ.rateBreakdown(s, 0);
+    expect(bd.base * bd.milestone * bd.buffs * bd.cpu * bd.bloat).toBeCloseTo(bd.total, 6);
+  });
+
+  it('reports the plain case with every factor neutral', () => {
+    const bd = econ.rateBreakdown(producing(10), 0);
+    expect(bd).toMatchObject({ bots: 10, milestone: 1, buffs: 1, cpu: 1, bloat: 1, open: true });
+    expect(bd.total).toBeCloseTo(bd.base);
+  });
+
+  it('shows bloat as the factor cancelling the milestone', () => {
+    // The case from the bug report: the advertised x1.08 looked like it did
+    // nothing because bloat quietly ate it.
+    const s = producing(28);
+    s.bloat = 0.11; // the value on screen when it was reported
+    const bd = econ.rateBreakdown(s, 0);
+
+    expect(bd.milestone).toBeCloseTo(1.08);
+    expect(bd.bloat).toBeCloseTo(0.945);
+    // Net effect ~x1.02: the advertised milestone is all but cancelled, which
+    // is exactly why the breakdown has to be visible in the UI.
+    expect(bd.total).toBeCloseTo(bd.base, 0);
+  });
+
+  it('reports zero while AeroChat is closed', () => {
+    const s = producing(10);
+    s.apps.aerochat.open = false;
+    const bd = econ.rateBreakdown(s, 0);
+    expect(bd.open).toBe(false);
+    expect(bd.total).toBe(0);
+  });
+});
+
 describe('buff integration', () => {
   const producing = () => {
     const s = createInitialState(0);
