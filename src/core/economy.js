@@ -139,6 +139,27 @@ export function buzzPerSecond(state, now = Date.now()) {
   return baseBuzzPerSecond(state, now) * globalMultiplier(state, now);
 }
 
+/**
+ * Every factor behind the AeroChat rate, so the UI can show its working.
+ * Without this the advertised milestone multiplier looks broken: bloat quietly
+ * cancels it, and "28 buddies" reads as exactly 28 × baseRate.
+ * The factors multiply to `total` — see tests/economy.test.js.
+ */
+export function rateBreakdown(state, now = Date.now()) {
+  const base = state.chat.bots * CHAT_BOT.baseRate;
+  return {
+    bots: state.chat.bots,
+    perBot: CHAT_BOT.baseRate,
+    base,
+    milestone: chatMilestoneMultiplier(state),
+    buffs: buffMultiplier(state, 'chat', now) * buffMultiplier(state, 'global', now),
+    cpu: tierOf('cpu', state.hardware.cpu).tickRate,
+    bloat: bloatPenalty(state),
+    open: state.apps.aerochat?.open === true,
+    total: buzzPerSecond(state, now),
+  };
+}
+
 /** Buzz granted by one press of the Nudge button. */
 export function clickPower(state, now = Date.now()) {
   return (

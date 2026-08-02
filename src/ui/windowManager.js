@@ -1,3 +1,5 @@
+import { createEventBus } from '../core/events.js';
+
 /**
  * Window manager (AO-4).
  *
@@ -25,7 +27,10 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
   const media = globalThis.matchMedia?.(mobileQuery) ?? { matches: false, addEventListener() {} };
   let nextZ = 10;
   let cascadeIndex = 0;
-  const handlers = { close: () => {}, focus: () => {}, minimize: () => {} };
+  // A bus, not a single callback slot: both main.js (release the app's RAM) and
+  // taskbar.js (drop the task button) listen for 'close', and an assignment-based
+  // registry silently let whichever registered last win.
+  const handlers = createEventBus();
 
   const isMobile = () => media.matches;
 
@@ -96,7 +101,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
       other.el.classList.toggle('active', otherId === id);
       other.el.classList.toggle('inactive', otherId !== id);
     }
-    handlers.focus(id);
+    handlers.emit('focus', { id });
   }
 
   /* ----------------------------------------------------------- drag/resize */
@@ -222,7 +227,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     windows.delete(id);
     const i = focusOrder.indexOf(id);
     if (i !== -1) focusOrder.splice(i, 1);
-    handlers.close(id);
+    handlers.emit('close', { id });
 
     const top = focusOrder.at(-1);
     if (top) focus(top);
@@ -233,7 +238,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     if (!entry) return;
     entry.el.classList.add('is-minimized');
     entry.minimized = true;
-    handlers.minimize(id, true);
+    handlers.emit('minimize', { id, minimized: true });
     const next = focusOrder.filter((wid) => wid !== id && !windows.get(wid)?.minimized).at(-1);
     if (next) focus(next);
   }
@@ -243,7 +248,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     if (!entry) return;
     entry.el.classList.remove('is-minimized');
     entry.minimized = false;
-    handlers.minimize(id, false);
+    handlers.emit('minimize', { id, minimized: false });
     focus(id);
   }
 
@@ -284,8 +289,9 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     get isMobile() {
       return isMobile();
     },
+    /** Subscribe to 'focus' | 'close' | 'minimize'. Returns an unsubscribe. */
     on(event, fn) {
-      handlers[event] = fn;
+      return handlers.on(event, fn);
     },
   };
 }

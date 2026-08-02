@@ -64,6 +64,32 @@
   border-color: rgb(255 255 255 / 60%);
 }
 
+/* ------------------------------------------------------- rate breakdown */
+
+.chat__breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  margin: -2px 0 0;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chat__breakdown .is-boost {
+  color: #2f7a2f;
+}
+
+.chat__breakdown .is-drag {
+  color: var(--error);
+}
+
+.chat__breakdown .is-total {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--aero-blue-deep);
+}
+
 /* --------------------------------------------------------- active buffs */
 
 .chat__buffs {
