@@ -100,12 +100,12 @@
 /* ------------------------------------------------------------ buddy list */
 
 .chat__list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   /* The only element that absorbs extra height when the window is resized. */
   flex: 1 1 auto;
   min-height: 72px;
   gap: 2px;
-  align-content: start;
   padding: 6px;
   margin: 0;
   overflow-y: auto;
@@ -158,6 +158,11 @@
   font-style: italic;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.chat__space {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* ------------------------------------------------- claimable status event */
