@@ -251,8 +251,16 @@ describe('rate breakdown', () => {
     addBuff(s, { id: 'b', kind: 'chat', magnitude: 0.25, durationSeconds: 60, label: 'b' }, 0);
     addBuff(s, { id: 'g', kind: 'global', magnitude: 0.15, durationSeconds: 60, label: 'g' }, 0);
 
+    s.apps.retroamp.installed = true;
+    s.apps.retroamp.open = true;
+    s.retroamp.playlist = 'soft-signals';
+
     const bd = econ.rateBreakdown(s, 0);
-    expect(bd.base * bd.milestone * bd.buffs * bd.cpu * bd.bloat).toBeCloseTo(bd.total, 6);
+    expect(bd.playlist).toBeGreaterThan(1);
+    expect(bd.base * bd.milestone * bd.buffs * bd.playlist * bd.cpu * bd.bloat).toBeCloseTo(
+      bd.total,
+      6,
+    );
   });
 
   it('reports the plain case with every factor neutral', () => {
