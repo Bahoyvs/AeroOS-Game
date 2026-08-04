@@ -11,6 +11,7 @@ import {
 } from '../data/hardware.js';
 import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
+import { canDownload, infectionPenalty, storageUsedGB } from './downloads.js';
 
 /**
  * Every number the game shows is derived here. Functions are pure and take the
@@ -41,9 +42,18 @@ export function ramCapacity(state) {
   return hardwareEffects(state).ramMB;
 }
 
-/** Storage ceiling for LemonWire downloads (Day 5). */
+/** Storage ceiling for LemonWire downloads — the HDD track's other job. */
 export function storageCapacityGB(state) {
   return hardwareEffects(state).storageGB;
+}
+
+export function storageFreeGB(state) {
+  return Math.round((storageCapacityGB(state) - storageUsedGB(state)) * 1000) / 1000;
+}
+
+/** Can this file be downloaded? Wraps the capacity lookup for the UI. */
+export function canDownloadFile(state, fileId) {
+  return canDownload(state, fileId, storageCapacityGB(state));
 }
 
 /** Cooldown scale for heavy apps like Aero Studio (Day 6). */
@@ -223,6 +233,7 @@ export function globalMultiplier(state, now = Date.now()) {
   return (
     hardwareEffects(state).production *
     bloatPenalty(state) *
+    infectionPenalty(state) *
     retroampMultiplier(state, now) *
     buffMultiplier(state, 'global', now)
   );
@@ -247,6 +258,7 @@ export function rateBreakdown(state, now = Date.now()) {
     milestone: chatMilestoneMultiplier(state),
     buffs: buffMultiplier(state, 'chat', now) * buffMultiplier(state, 'global', now),
     playlist: retroampMultiplier(state, now),
+    virus: infectionPenalty(state),
     cpu: hardwareEffects(state).production,
     bloat: bloatPenalty(state),
     open: state.apps.aerochat?.open === true,

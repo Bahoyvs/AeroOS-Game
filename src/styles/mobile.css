@@ -38,9 +38,15 @@
     display: none;
   }
 
+  /* The title bar is the sheet's drag handle (AO-23). */
   .aero-window .title-bar {
-    cursor: default;
+    cursor: grab;
+    touch-action: none;
     padding-top: max(0px, env(safe-area-inset-top));
+  }
+
+  .aero-window.is-sheet-dragging {
+    transition: none;
   }
 
   /* The gadget carries the Nudge button, so in PDA mode it is pinned above the

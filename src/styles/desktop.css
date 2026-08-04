@@ -579,3 +579,25 @@
   background: none;
   border: none;
 }
+
+/* Shield99 tray icon (AO-22) — status without opening the window. */
+.tray__shield {
+  padding: 0 2px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  border: none;
+  min-width: 0;
+  min-height: 0;
+  filter: grayscale(0.7);
+}
+
+.tray__shield[data-status='protected'] {
+  filter: none;
+}
+
+.tray__shield[data-status='infected'] {
+  filter: none;
+  animation: task-flash 1s var(--ease-aero) infinite;
+}

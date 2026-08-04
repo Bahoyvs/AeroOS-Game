@@ -48,6 +48,13 @@ export const EVENTS = {
   STATUS_MISSED: 'status:missed', // { index, bonusId }
   STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }
   BUFF_EXPIRED: 'buff:expired', // { buff }
+  DOWNLOAD_STARTED: 'lemonwire:started', // { job, file }
+  DOWNLOAD_DONE: 'lemonwire:done', // { file, payout }
+  DOWNLOAD_CANCELLED: 'lemonwire:cancelled', // { job }
+  FILE_DELETED: 'lemonwire:deleted', // { file }
+  VIRUS: 'security:virus', // { file, outcome: blocked | rescued | infected }
+  SCAN_STARTED: 'security:scan', // {}
+  SCAN_DONE: 'security:scanned', // { cured }
   PLAYLIST_LOADED: 'retroamp:loaded', // { playlist }
   PLAYLIST_ENDED: 'retroamp:ended', // { playlist, reason }
   TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }

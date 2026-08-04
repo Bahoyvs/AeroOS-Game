@@ -1,9 +1,11 @@
 import { CHAT_BOT, SAVE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
+import { getFile } from '../data/files.js';
 import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
 import { pruneBuffs } from './buffs.js';
+import * as dl from './downloads.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
@@ -82,6 +84,14 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const { spawned, missed } = updateStatusEvents(state, dt, rng);
     if (spawned) bus.emit(EVENTS.STATUS_SPAWNED, spawned);
     if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
+
+    for (const job of dl.updateDownloads(state, dt, rng)) completeDownload(job);
+
+    const scan = dl.updateScan(state, dt);
+    if (scan?.done) {
+      bus.emit(EVENTS.SCAN_DONE, { cured: scan.cured });
+      save();
+    }
 
     // A timed playlist burns out on the wall clock, so it also expires while
     // the tab is closed rather than resuming on return.
@@ -216,6 +226,58 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, playlist };
   }
 
+  /* ------------------------------------------------- LemonWire / Shield99 */
+
+  /** Queue a download (AO-21). Refusals explain themselves to the UI. */
+  function startDownload(fileId) {
+    const check = dl.canDownload(state, fileId, econ.storageCapacityGB(state));
+    if (!check.ok) return check;
+
+    const job = dl.startDownload(state, fileId);
+    bus.emit(EVENTS.DOWNLOAD_STARTED, { job, file: getFile(fileId) });
+    return { ok: true, job };
+  }
+
+  function cancelDownload(jobId) {
+    const result = dl.cancelDownload(state, jobId);
+    if (result.ok) bus.emit(EVENTS.DOWNLOAD_CANCELLED, { job: result.job });
+    return result;
+  }
+
+  function deleteFile(fileId) {
+    const result = dl.deleteFile(state, fileId);
+    if (result.ok) bus.emit(EVENTS.FILE_DELETED, { file: getFile(fileId) });
+    return result;
+  }
+
+  /**
+   * A finished download pays out, and an infected one meets the safety net
+   * (GDD 6): real-time protection blocks it, otherwise the run's free rescue
+   * catches it, otherwise the machine is infected — capped, never ruinous.
+   */
+  function completeDownload(job) {
+    const file = getFile(job.fileId);
+    const payout = dl.payoutFor(job.fileId, econ.buzzPerSecond(state));
+
+    state.lemonwire.library.push(job.fileId);
+    state.lemonwire.completed += 1;
+    grantBuzz(payout, 'download');
+    bus.emit(EVENTS.DOWNLOAD_DONE, { file, payout });
+
+    if (!job.infected) return;
+
+    const { outcome } = dl.resolveInfection(state);
+    bus.emit(EVENTS.VIRUS, { file, outcome });
+    if (outcome === 'infected') save();
+  }
+
+  /** Start a Shield99 scan (AO-22). Curing is what ends an infection. */
+  function startScan() {
+    const result = dl.startScan(state);
+    if (result.ok) bus.emit(EVENTS.SCAN_STARTED, {});
+    return result;
+  }
+
   /* -------------------------------------------------------------- tutorial */
 
   function checkTutorial() {
@@ -332,6 +394,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     claimStatusBonus,
     loadPlaylist,
     ejectPlaylist,
+    startDownload,
+    cancelDownload,
+    deleteFile,
+    startScan,
     skipOnboarding,
     currentTutorialStep: () => currentStep(state),
     buyHardware,

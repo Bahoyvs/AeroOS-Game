@@ -26,7 +26,7 @@ npm run dev      # http://localhost:5173
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
-## What works today (Days 1–4)
+## What works today (Days 1–5)
 
 - **Desktop shell** — draggable, resizable, overlapping windows with focus, minimize and a
   Start menu; on phones the same windows become full-screen PDA modals with RAM bars under
@@ -44,6 +44,11 @@ No framework and no global tooling: Node 20+ and npm are enough.
 - **RetroAmp** — a playlist deck that multiplies everything: SOFT SIGNALS is a small lift you
   leave running, IRON OVERDRIVE triples production for five minutes, eats 64 MB more than
   your machine has, and then cools down.
+- **LemonWire** — a P2P download sim where files take real disk space and trade risk for
+  reward. Downloads only run while the window is open.
+- **Shield99** — a tray icon that shows whether you are covered, real-time protection while
+  it is open, and one free rescue per run. A virus halves production and locks LemonWire
+  until you scan — it never takes progress away.
 - **Memory budget** — every app costs RAM; opening one that does not fit is refused with an
   out-of-memory balloon instead of silently failing.
 - **Bloat** — uptime and open apps degrade production and desaturate the desktop, building
@@ -56,8 +61,7 @@ No framework and no global tooling: Node 20+ and npm are enough.
 - **Saves** — versioned localStorage with migrations, autosave, and offline Buzz capped by
   your HDD.
 
-The rest of the software roster (LemonWire, Shield99, Aero Studio, AeroBurn,
-Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
+The rest of the software roster (Aero Studio, AeroBurn, Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
 naming the day it lands. See the roadmap.
 
 ## Layout

@@ -177,6 +177,43 @@ function boot() {
     });
   });
 
+  // LemonWire + Shield99 (AO-21/AO-22).
+  game.bus.on(game.events.DOWNLOAD_DONE, ({ file, payout }) => {
+    notify({
+      title: 'Download complete',
+      body: `${file.name} — +${formatNumber(payout)} Buzz.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.VIRUS, ({ file, outcome }) => {
+    const messages = {
+      blocked: ['Shield99 blocked a threat', `${file.name} was quarantined on arrival.`, 'success'],
+      rescued: [
+        'Shield99 free trial saved you',
+        `${file.name} was infected. That was your one free rescue — install and open Shield99 to stay covered.`,
+        'warn',
+      ],
+      infected: [
+        'Your machine is infected',
+        'Production is halved and LemonWire is locked. Run a Shield99 deep scan to clean it — nothing you have earned is lost.',
+        'error',
+      ],
+    };
+    const [title, bodyText, tone] = messages[outcome];
+    notify({ title, body: bodyText, tone });
+    if (outcome === 'infected') taskbar.flag('shield99', true);
+  });
+
+  game.bus.on(game.events.SCAN_DONE, ({ cured }) => {
+    taskbar.flag('shield99', false);
+    notify({
+      title: cured ? 'Machine cleaned' : 'Scan complete',
+      body: cured ? 'Production is back to normal.' : 'No threats found.',
+      tone: 'success',
+    });
+  });
+
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({
       title: `${at} buddies online`,

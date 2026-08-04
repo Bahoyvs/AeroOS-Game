@@ -704,3 +704,289 @@
   font-size: 0.66rem;
   color: var(--text-muted);
 }
+
+/* ------------------------------------------------------------- LemonWire */
+
+.app-lemonwire {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-lemonwire > * {
+  flex: 0 0 auto;
+}
+
+.lw__bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  color: #4a5c1d;
+  background: linear-gradient(180deg, #f6ffd9, #e2f4ae);
+  border: 1px solid #b9d465;
+  border-radius: var(--radius-sm);
+}
+
+.lw__logo {
+  font-size: 18px;
+}
+
+.lw__disk {
+  display: grid;
+  gap: 3px;
+}
+
+.lw__disk-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.lw__disk .meter__track {
+  height: 6px;
+  background: rgb(13 36 55 / 18%);
+  border-color: rgb(255 255 255 / 60%);
+}
+
+.lw__quarantine {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  font-size: 0.7rem;
+  color: #7a1f1f;
+  background: linear-gradient(180deg, #fff0ef, #ffdcd8);
+  border: 1px solid #d98b84;
+  border-radius: var(--radius-sm);
+}
+
+.lw__heading {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.lw__heading small {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.lw__results,
+.lw__queue,
+.lw__library {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.lw__results {
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.lw__result {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lw__result:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.lw__result.is-owned {
+  opacity: 0.5;
+}
+
+.lw__file-name {
+  overflow: hidden;
+  font-size: 0.72rem;
+  font-family: 'Lucida Console', Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lw__file-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.lw__risk {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.lw__risk.is-low {
+  color: #2f7a2f;
+}
+.lw__risk.is-medium {
+  color: #97791b;
+}
+.lw__risk.is-high {
+  color: #c2621c;
+}
+.lw__risk.is-extreme {
+  color: var(--error);
+}
+
+.lw__job {
+  display: grid;
+  gap: 3px;
+  padding: 6px 8px;
+  background: rgb(255 255 255 / 55%);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--radius-sm);
+}
+
+.lw__job-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lw__job .meter__track {
+  height: 6px;
+  background: rgb(13 36 55 / 18%);
+}
+
+.lw__job-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.lw__cancel,
+.lw__delete {
+  min-width: 0;
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 0.65rem;
+  cursor: pointer;
+}
+
+.lw__owned {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.7rem;
+}
+
+.lw__file-size {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.lw__empty {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+/* -------------------------------------------------------------- Shield99 */
+
+.app-shield {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.sh__hero {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, #eefaf0, #d3f0da);
+  border: 1px solid #86c398;
+}
+
+.app-shield[data-status='infected'] .sh__hero {
+  background: linear-gradient(180deg, #fff0ef, #ffd9d4);
+  border-color: #d98b84;
+}
+
+.sh__badge {
+  font-size: 30px;
+}
+
+.sh__state {
+  display: block;
+  font-size: 0.86rem;
+}
+
+.sh__sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.sh__scan {
+  display: grid;
+  gap: 6px;
+}
+
+.sh__scan .meter__track {
+  height: 8px;
+  background: rgb(13 36 55 / 18%);
+}
+
+.sh__button {
+  min-height: 32px;
+  cursor: pointer;
+}
+
+.sh__button.is-urgent {
+  font-weight: 700;
+  background: linear-gradient(180deg, #fff0ef 45%, #ffd9d4 0, #ffb3a9);
+  border-color: #c46f66;
+}
+
+.sh__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.sh__stats {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  font-size: 0.7rem;
+}
+
+.sh__stats div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sh__stats dt,
+.sh__stats dd {
+  margin: 0;
+}
+
+.sh__stats dt {
+  color: var(--text-muted);
+}
+
+.sh__note {
+  margin: 0;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}

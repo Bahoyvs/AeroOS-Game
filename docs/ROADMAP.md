@@ -6,7 +6,7 @@ definition of done. Ship the day's DoD before starting the next day — the sche
 every day ends on a build that runs.
 
 Ticket IDs are the Jira board's, and only exist for days the board has scoped
-(Days 1–4). Later days list the work without IDs — they get numbered when their
+(Days 1–5). Later days list the work without IDs — they get numbered when their
 epic is created.
 
 **Ground rules for every day**
@@ -111,25 +111,37 @@ own effect. ✅
 
 ---
 
-## Day 5 — LemonWire + Shield99 (risk layer)
+## Day 5 — LemonWire + Shield99 + mobile (AO-20) ✅ shipped
 
-**Goal:** the first mechanic that can go wrong, with the GDD's safety net intact.
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-21 | LemonWire P2P download sim with virus safety net (50% floor) | ✅ `src/apps/lemonwire.js`, `src/core/downloads.js` |
+| AO-22 | Shield99 tray icon + free first-virus rescue | ✅ `src/apps/shield99.js`, tray status in the taskbar |
+| AO-23 | Mobile: taskbar modal slide-up for apps | ✅ shipped Day 1; added swipe-down-to-dismiss |
+| AO-24 | Mobile: RAM usage bars under taskbar icons | ✅ shipped Day 1; fixed bars vanishing on big machines |
 
-Still outstanding from the original prestige-pressure plan, to fold in where it
-fits: bloat presentation (window trails, heat widget going red, taskbar clock
-drift — the `body.is-bloated` / `.is-critical` hooks exist and are unused), a RAM
-crash that BSODs instead of refusing, and the "welcome back" offline modal.
+LemonWire is the first mechanic that can go wrong, and the HDD track finally has
+a second job: downloads occupy real disk space, so a full disk means deleting
+something or buying a bigger drive. Files trade risk against reward — the
+sketchy 3 MB `system32_SPEED_BOOST_2005.exe` pays like a 4 GB ISO and infects
+three times out of four. Payouts are denominated in *seconds of current
+production*, so a download is still worth doing ten prestiges later.
 
-- [ ] LemonWire (`src/apps/lemonwire.js`): queued downloads, HDD-capped size,
-      completion pays a large Buzz lump.
-- [ ] Virus events: production floor capped at 50% *or* LemonWire locked — never a
-      ruined run (GDD 6).
-- [ ] Shield99 (`src/apps/shield99.js`): removes viruses, free trial rescue on the
-      first virus of a run.
-- [ ] Tests for the virus floor, the rescue-once rule and HDD capacity limits.
+The safety net is the GDD's, exactly (GDD 6): real-time protection blocks an
+infected file outright, otherwise the run's one free trial rescue catches it,
+otherwise the machine is infected — production halved, LemonWire locked, and
+**nothing already earned is taken away**. A second infection cannot stack below
+that floor, and a Shield99 scan always cures it.
 
-**Files:** `src/apps/lemonwire.js`, `src/apps/shield99.js`, `src/data/balance.js`, `tests/`
-**DoD:** a virus can be caught, survived and cured; the worst case is provably a 50% floor.
+AO-23 and AO-24 were largely satisfied on Day 1, because PDA mode was built as a
+first-class target rather than a fallback. What was actually missing: a
+share-of-capacity RAM bar is invisible once the player owns 8 GB (32 MB reads as
+0.4%), so bars keep a minimum width and carry the real numbers in their label;
+and a full-screen modal had no gesture to dismiss it, so the title bar is now a
+drag handle that slides the sheet away.
+
+**DoD:** a virus can be caught, survived and cured, and the worst case is
+provably a 50% floor — asserted in tests and measured in the browser. ✅
 
 ---
 

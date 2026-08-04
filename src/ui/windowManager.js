@@ -17,6 +17,7 @@ const CASCADE_STEP = 28;
 const TASKBAR_HEIGHT = 44;
 const ICON_COLUMN_WIDTH = 112; // keeps cascaded windows clear of desktop icons
 const EDGE_MARGIN = 8;
+const SHEET_DISMISS_PX = 90; // drag a PDA modal down this far to dismiss it
 
 /** Clamp that stays sane when max < min (a window dragged to the far edge). */
 const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
@@ -113,8 +114,43 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     };
   }
 
+  /**
+   * PDA mode (AO-23): a full-screen modal is dismissed by dragging its title
+   * bar down, the way a sheet behaves on a phone. Anything short of the
+   * threshold springs back, so a stray touch never loses the window.
+   */
+  function beginSheetDrag(entry, event) {
+    if (event.target.closest('.title-bar-controls')) return;
+
+    const startY = event.clientY;
+    let offset = 0;
+    entry.el.setPointerCapture(event.pointerId);
+    entry.el.classList.add('is-sheet-dragging');
+
+    const move = (e) => {
+      offset = Math.max(0, e.clientY - startY);
+      entry.el.style.transform = `translateY(${offset}px)`;
+    };
+    const end = () => {
+      entry.el.style.transform = '';
+      entry.el.classList.remove('is-sheet-dragging');
+      entry.el.removeEventListener('pointermove', move);
+      entry.el.removeEventListener('pointerup', end);
+      entry.el.removeEventListener('pointercancel', end);
+      if (offset >= SHEET_DISMISS_PX) minimize(entry.id);
+    };
+
+    entry.el.addEventListener('pointermove', move);
+    entry.el.addEventListener('pointerup', end);
+    entry.el.addEventListener('pointercancel', end);
+  }
+
   function beginDrag(entry, event) {
-    if (isMobile() || event.button !== 0) return;
+    if (isMobile()) {
+      beginSheetDrag(entry, event);
+      return;
+    }
+    if (event.button !== 0) return;
     if (event.target.closest('.title-bar-controls')) return;
 
     const startX = event.clientX;

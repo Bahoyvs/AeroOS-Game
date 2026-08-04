@@ -114,6 +114,25 @@ export const OFFLINE = {
   minSeconds: 60, // ignore alt-tabs shorter than this
 };
 
+export const LEMONWIRE = {
+  maxConcurrent: 3,
+  gbPerSecond: 0.06, // a 4 GB ISO lands in a bit over a minute
+  payoutSecondsPerGB: 45, // completion pays this many seconds of production per GB
+  riskPayoutBonus: 1.5, // ...multiplied by (1 + risk * this), so danger pays
+  minPayoutBuzz: 25, // an early download still feels like something
+};
+
+/**
+ * The safety net (GDD 6): a virus must never ruin a run. Production is
+ * multiplied by `productionFloor` and nothing stacks below it, LemonWire is
+ * locked until cured, and nothing the player already earned is taken away.
+ */
+export const SECURITY = {
+  productionFloor: 0.5,
+  scanSeconds: 6,
+  freeRescuesPerRun: 1,
+};
+
 export const TUTORIAL = {
   // "Hardware stats remain hidden until the first system bottleneck" (GDD 7).
   // 0.9 is above AeroChat + RetroAmp on a stock machine (96/128 = 0.75), so the

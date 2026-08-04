@@ -43,6 +43,20 @@ export function createInitialState(now = Date.now()) {
       nextEventIn: 0, // rolled on the first tick with AeroChat open
     },
 
+    lemonwire: {
+      queue: [], // active downloads: { id, fileId, downloadedGB }
+      library: [], // completed file ids, taking up HDD space
+      nextId: 1,
+      completed: 0,
+    },
+
+    // Shield99 / virus state (AO-22). `infection` is null or { at }.
+    security: {
+      infection: null,
+      rescuesUsed: 0, // the free trial rescue, one per run
+      scan: null,
+    },
+
     retroamp: {
       playlist: null, // id of the loaded playlist, or null
       endsAt: 0, // wall clock; only used by timed playlists
@@ -58,7 +72,13 @@ export function createInitialState(now = Date.now()) {
     bloat: 0,
 
     // Session bookkeeping
-    stats: { nudges: 0, playtimeSeconds: 0, bonusesClaimed: 0, bonusesMissed: 0 },
+    stats: {
+      nudges: 0,
+      playtimeSeconds: 0,
+      bonusesClaimed: 0,
+      bonusesMissed: 0,
+      threatsBlocked: 0,
+    },
     lastSeen: now,
     startedAt: now,
 

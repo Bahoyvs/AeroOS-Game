@@ -13,6 +13,7 @@ index.html
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
+    │   ├── downloads.js      LemonWire transfers + the virus safety net
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           localStorage, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
@@ -22,6 +23,7 @@ index.html
     │   ├── apps.js           software roster (RAM cost, price, roadmap day)
     │   ├── buddies.js        derived buddy identities (never stored)
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
+    │   ├── files.js          LemonWire's shared files (size, risk, seeders)
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
@@ -35,6 +37,8 @@ index.html
     │   ├── registry.js       id → implementation, placeholder fallback
     │   ├── aerochat.js       core idle engine
     │   ├── retroamp.js       playlist deck (global multipliers)
+    │   ├── lemonwire.js      P2P downloads, disk usage, quarantine
+    │   ├── shield99.js       antivirus window + the taskbar tray icon
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile

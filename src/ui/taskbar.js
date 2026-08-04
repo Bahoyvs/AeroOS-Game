@@ -1,5 +1,6 @@
 import { ALL_APPS, getApp } from '../data/apps.js';
 import { formatClock, formatNumber } from '../core/format.js';
+import { createTrayShield } from '../apps/shield99.js';
 import { clear, el, setBar, throttle } from './dom.js';
 
 /**
@@ -8,6 +9,9 @@ import { clear, el, setBar, throttle } from './dom.js';
  * On mobile this is the primary navigation hub, so each task button carries a
  * RAM bar underneath it — the PDA-mode requirement from GDD section 3.
  */
+/** Even a tiny app keeps a visible sliver of bar. */
+const MIN_RAM_BAR = 0.06;
+
 export function createTaskbar({ root, game, wm, launch }) {
   root.classList.add('taskbar', 'glass');
   root.innerHTML = `
@@ -140,14 +144,26 @@ export function createTaskbar({ root, game, wm, launch }) {
     updateTaskBars();
   }
 
-  /** RAM bars are relative to total capacity, so they read as "share of memory". */
+  /**
+   * Per-app RAM bars (AO-24, GDD 3). They read as "share of memory", but a
+   * 32 MB app against 8 GB of RAM is 0.4% and would be an invisible sliver, so
+   * every bar keeps a minimum width — the point is monitoring what is running,
+   * not measuring it to the pixel. The real numbers are in the label.
+   */
   function updateTaskBars() {
     const capacity = game.econ.ramCapacity(game.state) || 1;
     for (const [id, node] of taskNodes) {
-      setBar(node.querySelector('.task__ram-fill'), game.econ.appRam(game.state, id) / capacity, {
+      const mb = game.econ.appRam(game.state, id);
+      const share = mb / capacity;
+      setBar(node.querySelector('.task__ram-fill'), Math.max(share, MIN_RAM_BAR), {
         warn: 0.5,
         critical: 0.8,
       });
+      node.setAttribute(
+        'aria-label',
+        `${getApp(id).name} — ${mb} MB of ${capacity} MB (${Math.round(share * 100)}%)`,
+      );
+      node.title = `${getApp(id).name} · ${mb} MB`;
     }
   }
 
@@ -167,7 +183,17 @@ export function createTaskbar({ root, game, wm, launch }) {
   game.bus.on(game.events.PLAYLIST_LOADED, updateTaskBars);
   game.bus.on(game.events.PLAYLIST_ENDED, updateTaskBars);
 
+  // Shield99's tray icon (AO-22) lives left of the clock, like the real thing.
+  const tray = createTrayShield({ root: root.querySelector('.tray'), game, launch });
+  game.bus.on(game.events.APP_INSTALLED, tray.update);
+  game.bus.on(game.events.APP_OPENED, tray.update);
+  game.bus.on(game.events.APP_CLOSED, tray.update);
+  game.bus.on(game.events.VIRUS, tray.update);
+  game.bus.on(game.events.SCAN_DONE, tray.update);
+  game.bus.on(game.events.PRESTIGE, tray.update);
+
   const update = throttle(() => {
+    tray.update();
     clockNode.textContent = formatClock();
     trayBuzz.textContent = `${formatNumber(game.state.buzz)} Buzz`;
   }, 500);
