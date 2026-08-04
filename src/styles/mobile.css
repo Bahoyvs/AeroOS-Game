@@ -5,8 +5,10 @@
  */
 @media (max-width: 820px) {
   :root {
-    /* Fixed so the window stack can start exactly below the gadget. */
-    --gadget-height: 108px;
+    /* Fallback only. src/ui/desktop.js measures the gadget and overwrites this
+       on :root, so the window stack always starts exactly below it however the
+       content wraps — a fixed guess overflowed onto the window underneath. */
+    --gadget-height: 112px;
   }
 
   .aero-window {
@@ -57,13 +59,13 @@
     right: 0;
     left: 0;
     z-index: 700;
-    height: var(--gadget-height);
   }
 
   .gadget {
     width: auto;
-    height: 100%;
     gap: 4px 10px;
+    /* Nothing may escape the bar even mid-measure. */
+    overflow: hidden;
     border-top: 0;
     border-radius: 0;
     grid-template-areas:

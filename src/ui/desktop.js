@@ -90,6 +90,26 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     meterBloat: ref('meter-bloat'),
   };
 
+  /**
+   * PDA mode pins the gadget above the window stack and offsets windows by
+   * `--gadget-height`. A hard-coded value is a guess, and when the content is
+   * taller than the guess it spills over the window below — so publish the real
+   * measured height instead and let the CSS follow it.
+   */
+  function publishGadgetHeight() {
+    const height = Math.ceil(gadget.getBoundingClientRect().height);
+    if (height > 0) {
+      document.documentElement.style.setProperty('--gadget-height', `${height}px`);
+    }
+  }
+
+  if (globalThis.ResizeObserver) {
+    new ResizeObserver(publishGadgetHeight).observe(gadget);
+  } else {
+    window.addEventListener('resize', publishGadgetHeight);
+  }
+  requestAnimationFrame(publishGadgetHeight);
+
   nodes.nudge.addEventListener('click', (event) => {
     const amount = game.nudge();
     spawnFloater(event, `+${formatNumber(amount)}`);

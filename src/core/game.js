@@ -196,6 +196,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       return check;
     }
 
+    // Swapping is an eject followed by a load — never a silent overwrite, or
+    // the outgoing playlist escapes its cooldown.
+    if (state.retroamp.playlist && state.retroamp.playlist !== id) ejectPlaylist('swapped');
+
     const playlist = getPlaylist(id);
     state.retroamp.playlist = id;
     state.retroamp.startedAt = now;
@@ -212,11 +216,25 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const id = state.retroamp.playlist;
     if (!id) return { ok: false, reason: 'nothing-loaded' };
     const playlist = getPlaylist(id);
+    const now = Date.now();
 
-    // A burnt-out heavy playlist has to cool down before it can run again,
-    // otherwise the burst is just a permanent multiplier with extra clicks.
-    if (reason === 'burnt-out' && playlist.cooldownSeconds > 0) {
-      state.retroamp.cooldownUntil[id] = Date.now() + playlist.cooldownSeconds * 1000;
+    /**
+     * A timed playlist owes cooldown *however* it leaves the deck — burnt out,
+     * ejected by hand, or swapped for another one. Charging only on burn-out
+     * let the player swap to SOFT SIGNALS a second before the end and reload
+     * the burst immediately, which is an unlimited ×3.
+     *
+     * The debt is proportional to the burst actually consumed, so the duty
+     * cycle is the same whether it runs in one stretch or five: a fifth of the
+     * burst costs a fifth of the cooldown.
+     */
+    if (playlist.cooldownSeconds > 0 && playlist.durationSeconds) {
+      const used = Math.min(
+        playlist.durationSeconds,
+        Math.max(0, (now - state.retroamp.startedAt) / 1000),
+      );
+      const owed = playlist.cooldownSeconds * (used / playlist.durationSeconds);
+      if (owed > 0) state.retroamp.cooldownUntil[id] = now + owed * 1000;
     }
     state.retroamp.playlist = null;
     state.retroamp.endsAt = 0;

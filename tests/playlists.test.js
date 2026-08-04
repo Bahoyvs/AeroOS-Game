@@ -158,11 +158,55 @@ describe('the game actions', () => {
     expect(game.loadPlaylist('iron-overdrive')).toMatchObject({ reason: 'cooling-down' });
   });
 
-  it('ejecting by hand does not cost a cooldown', () => {
+  /**
+   * Regression: swapping to another playlist used to overwrite the loaded one
+   * without ever ejecting it, so the heavy burst never burnt out, never started
+   * its cooldown, and could be re-loaded immediately — an unlimited ×3.
+   */
+  it('swapping away from the burst still owes its cooldown', () => {
     const game = ready();
     game.loadPlaylist('iron-overdrive');
+    game.state.retroamp.startedAt = Date.now() - HEAVY.durationSeconds * 1000; // used it all
+
+    game.loadPlaylist('soft-signals');
+    expect(game.state.retroamp.playlist).toBe('soft-signals');
+    expect(econ.playlistCooldownLeft(game.state, 'iron-overdrive')).toBeGreaterThan(0);
+    expect(game.loadPlaylist('iron-overdrive')).toMatchObject({ reason: 'cooling-down' });
+  });
+
+  it('ejecting by hand owes cooldown too, so it cannot be re-loaded at once', () => {
+    const game = ready();
+    game.loadPlaylist('iron-overdrive');
+    game.state.retroamp.startedAt = Date.now() - HEAVY.durationSeconds * 1000;
+
     game.ejectPlaylist('ejected');
-    expect(econ.playlistCooldownLeft(game.state, 'iron-overdrive')).toBe(0);
+    expect(econ.playlistCooldownLeft(game.state, 'iron-overdrive')).toBeGreaterThan(0);
+    expect(game.loadPlaylist('iron-overdrive').reason).toBe('cooling-down');
+  });
+
+  it('charges cooldown in proportion to the burst actually used', () => {
+    const game = ready();
+    game.loadPlaylist('iron-overdrive');
+    // Swap away a fifth of the way in.
+    game.state.retroamp.startedAt = Date.now() - (HEAVY.durationSeconds / 5) * 1000;
+    game.ejectPlaylist('ejected');
+
+    const owed = econ.playlistCooldownLeft(game.state, 'iron-overdrive');
+    expect(owed).toBeGreaterThan(0);
+    expect(owed).toBeCloseTo(HEAVY.cooldownSeconds / 5, 0);
+    // The duty cycle is preserved: a fifth of the burst costs a fifth of the rest.
+    expect(owed / (HEAVY.durationSeconds / 5)).toBeCloseTo(
+      HEAVY.cooldownSeconds / HEAVY.durationSeconds,
+      1,
+    );
+  });
+
+  it('the permanent playlist never owes a cooldown', () => {
+    const game = ready();
+    game.loadPlaylist('soft-signals');
+    game.ejectPlaylist('ejected');
+    expect(econ.playlistCooldownLeft(game.state, 'soft-signals')).toBe(0);
+    expect(game.loadPlaylist('soft-signals').ok).toBe(true);
   });
 
   it('refuses to eject nothing', () => {
