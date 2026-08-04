@@ -11,6 +11,7 @@ import { getBonus } from './core/statusEvents.js';
 import { createDesktop } from './ui/desktop.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
+import { createTutorialCoach } from './ui/tutorial.js';
 import { createWindowManager } from './ui/windowManager.js';
 
 /** Boot the OS: wire the simulation to the shell and start the clock. */
@@ -97,6 +98,51 @@ function boot() {
     });
   });
 
+  const coach = createTutorialCoach({ root: document.getElementById('desktop'), game });
+
+  // Onboarding (AO-12): each objective is announced, and the first bottleneck
+  // hands the player their hardware.
+  game.bus.on(game.events.TUTORIAL_STEP, ({ completed, done }) => {
+    coach.update();
+    desktop.renderIcons();
+    if (done && completed.length > 0) {
+      notify({
+        title: 'You know the machine now',
+        body: 'The desktop is yours. Format C: when the bloat gets bad.',
+        tone: 'success',
+      });
+    }
+  });
+
+  game.bus.on(game.events.HARDWARE_REVEALED, () => {
+    desktop.renderIcons();
+    notify({
+      title: 'System bottleneck',
+      body: 'That is your hardware talking. My Computer is on the desktop now.',
+      tone: 'warn',
+    });
+  });
+
+  // RetroAmp (AO-13/AO-14).
+  game.bus.on(game.events.PLAYLIST_LOADED, ({ playlist }) => {
+    notify({
+      title: `♪ ${playlist.name}`,
+      body: playlist.durationSeconds
+        ? `+${Math.round(playlist.multiplier * 100)}% to everything for ${playlist.durationSeconds / 60} minutes.`
+        : `+${Math.round(playlist.multiplier * 100)}% to everything while it plays.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.PLAYLIST_ENDED, ({ playlist, reason }) => {
+    if (reason !== 'burnt-out') return;
+    notify({
+      title: `${playlist.name} burnt out`,
+      body: `Cooling down for ${playlist.cooldownSeconds / 60} minutes.`,
+      tone: 'warn',
+    });
+  });
+
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({
       title: `${at} buddies online`,
@@ -105,8 +151,8 @@ function boot() {
     });
   });
 
-  // Restore whatever was open last session; a fresh save starts on AeroChat
-  // alone, which is where the scripted tutorial (Day 7) will pick up.
+  // Restore whatever was open last session. A fresh save starts on AeroChat
+  // alone — the clean desktop the scripted tutorial (AO-12) opens on.
   const previouslyOpen = Object.entries(game.state.apps)
     .filter(([, entry]) => entry.open)
     .map(([id]) => id);
@@ -122,12 +168,10 @@ function boot() {
       tone: 'success',
     });
     game.clearOfflineReport();
-  } else if (!loaded.loaded) {
-    notify({
-      title: 'AeroOS is ready',
-      body: 'Add a buddy in AeroChat, then nudge for Buzz.',
-      tone: 'info',
-    });
+  } else if (!loaded.loaded && game.state.tutorial.done) {
+    // First-time players get the coach instead of a balloon telling them the
+    // same thing twice.
+    notify({ title: 'AeroOS is ready', body: 'Nudge for Buzz.', tone: 'info' });
   }
 
   const loop = createGameLoop({
@@ -135,6 +179,7 @@ function boot() {
     onRender: () => {
       desktop.update();
       taskbar.update();
+      coach.update();
     },
   });
   loop.start();

@@ -124,6 +124,16 @@
     width: auto;
   }
 
+  /* The coach sits above full-screen app modals in PDA mode, or the player
+     cannot read the objective they are being asked to complete. */
+  .coach {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 750;
+    width: auto;
+  }
+
   .tray__buzz {
     display: none;
   }

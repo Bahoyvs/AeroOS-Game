@@ -448,6 +448,70 @@
   opacity: 0.75;
 }
 
+/* ------------------------------------------------------- onboarding coach */
+
+.coach {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 400;
+  display: grid;
+  gap: 3px;
+  width: min(280px, calc(100vw - 24px));
+  padding: 10px 12px;
+  color: var(--text-invert);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+  border-left: 3px solid var(--aero-cyan);
+}
+
+.coach[hidden] {
+  display: none;
+}
+
+.coach.is-new {
+  animation: coach-pop 320ms var(--ease-aero);
+}
+
+@keyframes coach-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.coach__head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.coach__title {
+  font-size: 0.86rem;
+}
+
+.coach__hint {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  opacity: 0.9;
+}
+
+.coach__skip {
+  justify-self: start;
+  padding: 2px 0;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  color: var(--aero-cyan);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  text-shadow: inherit;
+}
+
 /* --------------------------------------------------------------- balloons */
 
 .toasts {

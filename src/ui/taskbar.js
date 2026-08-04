@@ -46,6 +46,8 @@ export function createTaskbar({ root, game, wm, launch }) {
       const entry = game.state.apps[app.id];
       const unlocked = game.econ.isAppUnlocked(game.state, app.id);
       if (!entry.installed && !unlocked) continue;
+      // Matches the desktop: no hardware in the menu until it is revealed.
+      if (app.system && !game.state.tutorial.hardwareRevealed) continue;
 
       const cost = app.install?.cost ?? 0;
       const affordable = game.state.buzz >= cost;
@@ -142,7 +144,7 @@ export function createTaskbar({ root, game, wm, launch }) {
   function updateTaskBars() {
     const capacity = game.econ.ramCapacity(game.state) || 1;
     for (const [id, node] of taskNodes) {
-      setBar(node.querySelector('.task__ram-fill'), getApp(id).ram / capacity, {
+      setBar(node.querySelector('.task__ram-fill'), game.econ.appRam(game.state, id) / capacity, {
         warn: 0.5,
         critical: 0.8,
       });
@@ -161,6 +163,9 @@ export function createTaskbar({ root, game, wm, launch }) {
   game.bus.on(game.events.APP_OPENED, ({ id }) => addTask(id));
   game.bus.on(game.events.APP_CLOSED, ({ id }) => removeTask(id));
   game.bus.on(game.events.HARDWARE_BOUGHT, updateTaskBars);
+  // A loaded playlist changes RetroAmp's footprint, so the bars must follow.
+  game.bus.on(game.events.PLAYLIST_LOADED, updateTaskBars);
+  game.bus.on(game.events.PLAYLIST_ENDED, updateTaskBars);
 
   const update = throttle(() => {
     clockNode.textContent = formatClock();

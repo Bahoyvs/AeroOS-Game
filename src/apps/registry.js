@@ -1,6 +1,7 @@
 import { getApp } from '../data/apps.js';
 import * as aerochat from './aerochat.js';
 import * as placeholder from './placeholder.js';
+import * as retroamp from './retroamp.js';
 import * as system from './system.js';
 
 /**
@@ -13,7 +14,7 @@ import * as system from './system.js';
 const IMPLEMENTATIONS = {
   system,
   aerochat,
-  // Day 2: retroamp
+  retroamp,
   // Day 4: lemonwire, shield99
   // Day 5: aerostudio, aeroburn
   // Day 6: pinball

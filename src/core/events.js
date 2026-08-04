@@ -48,6 +48,10 @@ export const EVENTS = {
   STATUS_MISSED: 'status:missed', // { index, bonusId }
   STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }
   BUFF_EXPIRED: 'buff:expired', // { buff }
+  PLAYLIST_LOADED: 'retroamp:loaded', // { playlist }
+  PLAYLIST_ENDED: 'retroamp:ended', // { playlist, reason }
+  TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }
+  HARDWARE_REVEALED: 'tutorial:hardware', // {}
   HARDWARE_BOUGHT: 'hardware:bought', // { track, tier }
   PRESTIGE: 'prestige', // { dollars }
   SAVED: 'save:written', // { at }

@@ -26,7 +26,7 @@ npm run dev      # http://localhost:5173
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
-## What works today (Days 1–2)
+## What works today (Days 1–3)
 
 - **Desktop shell** — draggable, resizable, overlapping windows with focus, minimize and a
   Start menu; on phones the same windows become full-screen PDA modals with RAM bars under
@@ -38,6 +38,12 @@ No framework and no global tooling: Node 20+ and npm are enough.
   that permanently boost the run.
 - **Status bonuses** — a buddy occasionally posts a "hot" status; click it in time for a
   timed multiplier or an instant Buzz burst. Ignoring one costs nothing.
+- **Scripted onboarding** — the desktop opens clean with only AeroChat and walks a new
+  player to their first buddy, RetroAmp and their first memory wall. Hardware stays hidden
+  until that wall; a returning save skips the tour entirely.
+- **RetroAmp** — a playlist deck that multiplies everything: SOFT SIGNALS is a small lift you
+  leave running, IRON OVERDRIVE triples production for five minutes, eats 64 MB more than
+  your machine has, and then cools down.
 - **Memory budget** — every app costs RAM; opening one that does not fit is refused with an
   out-of-memory balloon instead of silently failing.
 - **Bloat** — uptime and open apps degrade production and desaturate the desktop, building
@@ -48,7 +54,7 @@ No framework and no global tooling: Node 20+ and npm are enough.
 - **Saves** — versioned localStorage with migrations, autosave, and offline Buzz capped by
   your HDD.
 
-The rest of the software roster (RetroAmp, LemonWire, Shield99, Aero Studio, AeroBurn,
+The rest of the software roster (LemonWire, Shield99, Aero Studio, AeroBurn,
 Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
 naming the day it lands. See the roadmap.
 

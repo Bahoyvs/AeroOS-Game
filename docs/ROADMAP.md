@@ -1,11 +1,11 @@
 # One-week build plan
 
-Seven days from empty repo to a portal-submittable build of **AeroOS — The Messenger Era**.
+A week from empty repo to a portal-submittable build of **AeroOS — The Messenger Era**.
 Each day is a Jira epic (AO-2 style) with its sub-tasks, the files it touches, and a
 definition of done. Ship the day's DoD before starting the next day — the schedule assumes
 every day ends on a build that runs.
 
-Ticket IDs for Days 1–2 match the Jira board. Later days are this plan's own numbering and
+Ticket IDs for Days 1–3 match the Jira board. Later days are this plan's own numbering and
 should be re-mapped as those epics are created — the work is the contract, not the ID.
 
 **Ground rules for every day**
@@ -46,7 +46,7 @@ survives a reload, mobile renders as full-screen modals. ✅
 Built underneath these, because AO-10 needed it: `src/core/buffs.js` (typed, expiring,
 stacking multipliers) and `src/core/statusEvents.js` (spawn/claim/lapse with injected
 randomness). Both are the machinery RetroAmp, rewarded ads and every later timed bonus will
-reuse — a Day 3 playlist buff is now a table entry, not a new system.
+reuse — the Day 3 playlists are a table entry, not a new system.
 
 Buddies are *derived* from their index rather than stored, so a 500-buddy list costs nothing
 in the save file and identities stay stable across reloads.
@@ -56,30 +56,50 @@ bonuses can be claimed, ignored or missed without ever punishing the player. ✅
 
 ---
 
-## Day 3 — RetroAmp and prestige pressure
+## Day 3 — Tutorial gating + RetroAmp (AO-11) ✅ shipped
 
-**Goal:** a second multiplier source, then make bloat *felt* so Format C: reads as relief
-rather than punishment (GDD 7).
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-12 | Scripted tutorial unlock sequence (AeroChat only → bottleneck → RetroAmp) | ✅ five-step coach, hardware hidden until the first bottleneck |
+| AO-13 | Build RetroAmp app with playlist selection UI | ✅ `src/apps/retroamp.js` — LCD display, visualiser, playlist deck |
+| AO-14 | Two playlists (soft permanent + heavy 5-min burst) | ✅ SOFT SIGNALS ×1.15 forever, IRON OVERDRIVE ×3 for 5 min |
 
-- [ ] AO-11 — RetroAmp (`src/apps/retroamp.js`): playlist selection driving buffs — a
-      permanent small multiplier ("SOFT SIGNALS") and a big short-burst one that costs extra
-      RAM. Playlists are a table on top of `core/buffs.js`; no new timing code.
-- [ ] AO-12 — RAM crash: exceeding capacity triggers a BSOD sequence rather than a refusal —
-      forced reboot, brief production pause, no lost progress.
-- [ ] AO-13 — Bloat presentation: window trails, animation slowdown, heat widget going red,
-      taskbar clock drift. Hooks exist (`body.is-bloated` / `.is-critical`).
-- [ ] AO-14 — Format C: sequence: confirmation → nostalgic loading screen → clean desktop
-      (this screen is where the Day 7 interstitial ad slots in).
-- [ ] AO-15 — Offline-earnings modal ("Welcome back") replacing the current balloon, with the
-      HDD cap explained and a 2× slot reserved for the rewarded ad.
+The two tickets turned out to be one mechanism: the heavy playlist's memory cost **is** the
+tutorial's bottleneck. A stock machine runs AeroChat + RetroAmp at 96/128 MB, so loading
+IRON OVERDRIVE is refused — and that refusal is what reveals My Computer and the CPU/RAM
+readouts, exactly as GDD 7 describes. The player learns "I need better hardware" by being
+stopped by it rather than by being told.
 
-**Files:** `src/apps/retroamp.js`, `src/ui/bsod.js`, `src/ui/bootScreen.js`, `src/core/game.js`
-**DoD:** two multiplier sources are live, and a player can be pushed into a crash and a
-prestige that both feel authored.
+Playlist multipliers are **not** buffs: they derive from `state.retroamp`, so they survive a
+reload, and the multiplier only pays while the window is open — otherwise closing RetroAmp
+would hand back its 64 MB and keep the bonus for free.
+
+**DoD:** a first-time player goes clean desktop → first Buzz → first buddy → RetroAmp →
+playlist → memory wall in about a minute, and a returning save never re-enters the tour. ✅
 
 ---
 
-## Day 4 — LemonWire + Shield99 (risk layer)
+## Day 4 — Prestige pressure and the failure state
+
+**Goal:** make bloat *felt* so Format C: reads as relief rather than punishment (GDD 7).
+Deferred from the original Day 3 when the board scoped tutorial gating instead.
+
+- [ ] RAM crash: exceeding capacity triggers a BSOD sequence rather than a refusal — forced
+      reboot, brief production pause, no lost progress.
+- [ ] Bloat presentation: window trails, animation slowdown, heat widget going red, taskbar
+      clock drift. Hooks exist (`body.is-bloated` / `.is-critical`), and the AeroChat rate
+      breakdown already names bloat as the culprit — this makes it visible before the maths.
+- [ ] Format C: sequence: confirmation → nostalgic loading screen → clean desktop (this
+      screen is where the Day 7 interstitial ad slots in).
+- [ ] Offline-earnings modal ("Welcome back") replacing the current balloon, with the HDD cap
+      explained and a 2× slot reserved for the rewarded ad.
+
+**Files:** `src/ui/bsod.js`, `src/ui/bootScreen.js`, `src/styles/window.css`, `src/core/game.js`
+**DoD:** a player can be pushed into a crash and a prestige, and both feel authored.
+
+---
+
+## Day 5 — LemonWire + Shield99 (risk layer)
 
 **Goal:** the first mechanic that can go wrong, with the GDD's safety net intact.
 
@@ -96,7 +116,7 @@ prestige that both feel authored.
 
 ---
 
-## Day 5 — Aero Studio + AeroBurn (long-cycle payoffs)
+## Day 6 — Aero Studio + AeroBurn (long-cycle payoffs)
 
 **Goal:** give the GPU and the prestige loop something to matter for.
 
@@ -112,7 +132,7 @@ prestige that both feel authored.
 
 ---
 
-## Day 6 — Active play: Pinball, IoT Botnet, Mini-Mod
+## Day 7 — Active play: Pinball, IoT Botnet, Mini-Mod
 
 **Goal:** something to do while idling, and an end-game ceiling.
 
@@ -129,12 +149,10 @@ prestige that both feel authored.
 
 ---
 
-## Day 7 — Onboarding, monetization, audio, ship
+## Day 8 — Monetization, audio, ship
 
-**Goal:** the first 60 seconds and the portal build (GDD 7 & 8).
+**Goal:** the portal build (GDD 8). The first 60 seconds shipped on Day 3.
 
-- [ ] AO-28 — Hard-scripted tutorial: clean desktop with only AeroChat → first bot →
-      RetroAmp unlock; CPU/RAM stay hidden until the first bottleneck.
 - [ ] AO-29 — Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
       SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
 - [ ] AO-30 — Interstitial on Format C:, hidden behind the loading screen.
@@ -143,9 +161,8 @@ prestige that both feel authored.
 - [ ] AO-32 — Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
       CrazyGames/Poki SDK smoke test.
 
-**Files:** `src/core/tutorial.js`, `src/monetization/ads.js`, `src/core/audio.js`
-**DoD:** a first-time player is producing Buzz within 60 seconds, ads are wired behind the
-adapter, and `dist/` runs from a static host.
+**Files:** `src/monetization/ads.js`, `src/core/audio.js`
+**DoD:** ads are wired behind the adapter and `dist/` runs from a static host.
 
 ---
 

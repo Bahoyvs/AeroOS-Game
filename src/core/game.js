@@ -1,5 +1,6 @@
 import { CHAT_BOT, SAVE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
+import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
 import { pruneBuffs } from './buffs.js';
@@ -7,6 +8,14 @@ import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
 import { createInitialState, resetForPrestige } from './state.js';
+import {
+  advanceTutorial,
+  currentStep,
+  resumeTutorial,
+  revealHardware,
+  shouldRevealHardware,
+  skipTutorial,
+} from './tutorial.js';
 
 /**
  * The game object owns the only mutable state in the app. UI modules read it
@@ -39,6 +48,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     pruneBuffs(state, now);
     state.chat.event = null;
     state.chat.nextEventIn = 0;
+    resumeTutorial(state);
 
     const offline = econ.offlineEarnings(state, result.elapsedSeconds, now);
     if (offline.buzz > 0) {
@@ -73,6 +83,17 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     if (spawned) bus.emit(EVENTS.STATUS_SPAWNED, spawned);
     if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
 
+    // A timed playlist burns out on the wall clock, so it also expires while
+    // the tab is closed rather than resuming on return.
+    if (state.retroamp.playlist && state.retroamp.endsAt > 0 && state.retroamp.endsAt <= now) {
+      ejectPlaylist('burnt-out');
+    }
+
+    if (shouldRevealHardware(state, econ.ramUsed(state), econ.ramCapacity(state))) {
+      noticeBottleneck();
+    }
+    checkTutorial();
+
     if (now - lastSaveAt >= SAVE.autosaveMs) save();
     bus.emit(EVENTS.TICK, { state, dt });
   }
@@ -93,9 +114,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       if (check.reason === 'out-of-memory') {
         bus.emit(EVENTS.OUT_OF_MEMORY, {
           id,
-          needed: getApp(id).ram,
+          needed: econ.appRam(state, id),
           free: econ.ramFree(state),
         });
+        noticeBottleneck();
       }
       return check;
     }
@@ -148,6 +170,82 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       });
     }
     return { ok: true, count, cost };
+  }
+
+  /* ------------------------------------------------------------- RetroAmp */
+
+  /** Load a playlist (AO-14). Timed playlists start their countdown here. */
+  function loadPlaylist(id) {
+    const now = Date.now();
+    const check = econ.canLoadPlaylist(state, id, now);
+    if (!check.ok) {
+      if (check.reason === 'out-of-memory') {
+        bus.emit(EVENTS.OUT_OF_MEMORY, { id: 'retroamp', needed: check.needed, free: check.free });
+        noticeBottleneck();
+      }
+      return check;
+    }
+
+    const playlist = getPlaylist(id);
+    state.retroamp.playlist = id;
+    state.retroamp.startedAt = now;
+    state.retroamp.endsAt = playlist.durationSeconds
+      ? now + playlist.durationSeconds * 1000
+      : 0;
+
+    bus.emit(EVENTS.PLAYLIST_LOADED, { playlist });
+    checkTutorial();
+    return { ok: true, playlist };
+  }
+
+  function ejectPlaylist(reason = 'ejected') {
+    const id = state.retroamp.playlist;
+    if (!id) return { ok: false, reason: 'nothing-loaded' };
+    const playlist = getPlaylist(id);
+
+    // A burnt-out heavy playlist has to cool down before it can run again,
+    // otherwise the burst is just a permanent multiplier with extra clicks.
+    if (reason === 'burnt-out' && playlist.cooldownSeconds > 0) {
+      state.retroamp.cooldownUntil[id] = Date.now() + playlist.cooldownSeconds * 1000;
+    }
+    state.retroamp.playlist = null;
+    state.retroamp.endsAt = 0;
+    state.retroamp.startedAt = 0;
+
+    bus.emit(EVENTS.PLAYLIST_ENDED, { playlist, reason });
+    return { ok: true, playlist };
+  }
+
+  /* -------------------------------------------------------------- tutorial */
+
+  function checkTutorial() {
+    const completed = advanceTutorial(state);
+    if (completed.length > 0) {
+      bus.emit(EVENTS.TUTORIAL_STEP, {
+        completed,
+        next: currentStep(state),
+        done: state.tutorial.done,
+      });
+    }
+  }
+
+  /**
+   * The first time the machine is pushed to its limit, hardware appears
+   * (GDD 7). Called on any out-of-memory refusal, and from the tick once the
+   * player is simply running close to full.
+   */
+  function noticeBottleneck() {
+    if (!revealHardware(state)) return;
+    bus.emit(EVENTS.HARDWARE_REVEALED, {});
+    checkTutorial();
+    save();
+  }
+
+  function skipOnboarding() {
+    skipTutorial(state);
+    bus.emit(EVENTS.HARDWARE_REVEALED, {});
+    bus.emit(EVENTS.TUTORIAL_STEP, { completed: [], next: null, done: true });
+    save();
   }
 
   /**
@@ -220,6 +318,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     installApp,
     buyBots,
     claimStatusBonus,
+    loadPlaylist,
+    ejectPlaylist,
+    skipOnboarding,
+    currentTutorialStep: () => currentStep(state),
     buyHardware,
     formatC,
     hardReset,

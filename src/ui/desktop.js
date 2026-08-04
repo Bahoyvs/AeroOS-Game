@@ -13,6 +13,8 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     clear(iconRoot);
     for (const app of ALL_APPS) {
       if (!game.state.apps[app.id]?.installed) continue;
+      // My Computer stays hidden until the first bottleneck reveals hardware.
+      if (app.system && !game.state.tutorial.hardwareRevealed) continue;
 
       const icon = el(
         'button',
@@ -54,12 +56,12 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     </div>
     <div class="gadget__rate" data-role="rate">0 / sec</div>
 
-    <div class="meter">
+    <div class="meter" data-role="meter-ram" hidden>
       <div class="meter__label"><span>Memory</span><span data-role="ram-text">0 / 0</span></div>
       <div class="meter__track"><div class="meter__fill" data-role="ram-bar"></div></div>
     </div>
 
-    <div class="meter">
+    <div class="meter" data-role="meter-bloat" hidden>
       <div class="meter__label"><span>System bloat</span><span data-role="bloat-text">0%</span></div>
       <div class="meter__track"><div class="meter__fill meter__fill--bloat" data-role="bloat-bar"></div></div>
     </div>
@@ -84,6 +86,8 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     nudgePower: ref('nudge-power'),
     dollars: ref('dollars'),
     prestigeBadge: ref('prestige-badge'),
+    meterRam: ref('meter-ram'),
+    meterBloat: ref('meter-bloat'),
   };
 
   nodes.nudge.addEventListener('click', (event) => {
@@ -122,6 +126,11 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     nodes.bloatText.textContent = `${Math.round(s.bloat * 100)}%`;
     setBar(nodes.bloatBar, s.bloat, { warn: 0.6, critical: 0.85 });
 
+    const revealed = s.tutorial.hardwareRevealed;
+    nodes.meterRam.hidden = !revealed;
+    nodes.meterBloat.hidden = !revealed;
+    nodes.dollars.hidden = !revealed;
+
     const ready = econ.canPrestige(s);
     nodes.prestigeBadge.hidden = !ready;
     document.body.classList.toggle('is-bloated', econ.bloatLevel(s) !== 'ok');
@@ -130,6 +139,7 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
 
   game.bus.on(game.events.APP_INSTALLED, renderIcons);
   game.bus.on(game.events.PRESTIGE, renderIcons);
+  game.bus.on(game.events.HARDWARE_REVEALED, renderIcons);
 
   renderIcons();
   update();

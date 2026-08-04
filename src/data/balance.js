@@ -114,6 +114,17 @@ export const OFFLINE = {
   minSeconds: 60, // ignore alt-tabs shorter than this
 };
 
+export const TUTORIAL = {
+  // "Hardware stats remain hidden until the first system bottleneck" (GDD 7).
+  // 0.9 is above AeroChat + RetroAmp on a stock machine (96/128 = 0.75), so the
+  // reveal lands on the heavy playlist rather than on simply opening two apps.
+  bottleneckRamRatio: 0.9,
+
+  // A save at or past these numbers is not a first-time player.
+  experiencedBuzz: 5000,
+  experiencedBuddies: 10,
+};
+
 export const SAVE = {
   key: 'aeroos.save.v1',
   autosaveMs: 15000,

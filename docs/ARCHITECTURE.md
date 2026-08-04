@@ -13,6 +13,7 @@ index.html
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
+    │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           localStorage, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
@@ -20,16 +21,19 @@ index.html
     │   ├── balance.js        rates, costs, caps, thresholds
     │   ├── apps.js           software roster (RAM cost, price, roadmap day)
     │   ├── buddies.js        derived buddy identities (never stored)
+    │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
     │   ├── desktop.js        icons + Aero gadget (Buzz, meters, Nudge)
     │   ├── taskbar.js        Start menu, task buttons with RAM bars, tray
     │   ├── notify.js         balloon notifications
+    │   ├── tutorial.js       the onboarding coach panel
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
     │   ├── registry.js       id → implementation, placeholder fallback
     │   ├── aerochat.js       core idle engine
+    │   ├── retroamp.js       playlist deck (global multipliers)
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile
@@ -70,6 +74,20 @@ Timed systems pick their clock according to what should happen while the player 
 Both are testable: simulation-time systems take `dt`, wall-clock systems take an optional
 `now`, and randomness is injected (`createGame({ rng })`). No test needs fake timers except
 the ones deliberately exercising wall-clock expiry.
+
+## Multipliers: buffs vs. derived state
+
+Two ways to multiply production, and the choice is about persistence:
+
+- **Buffs** (`core/buffs.js`) are timed and stored as a list with wall-clock expiry — status
+  bonuses, later the rewarded-ad overclock. They are meant to run out.
+- **Derived multipliers** are computed from durable state: buddy milestones from
+  `chat.bots`, the playlist from `retroamp.playlist`. They survive a reload because there is
+  nothing to expire — a permanent playlist stored as an `Infinity` buff would not, since
+  `JSON.stringify(Infinity)` is `null`.
+
+If a bonus should still be there after a refresh, derive it. If it should tick away whether
+or not the player is watching, make it a buff.
 
 ## State & saves
 

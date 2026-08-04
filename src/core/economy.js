@@ -1,6 +1,7 @@
 import { BLOAT, CHAT_BOT, CLICK, OFFLINE, PRESTIGE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { HARDWARE_TRACKS, nextTierOf, tierOf } from '../data/hardware.js';
+import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
 
 /**
@@ -15,10 +16,20 @@ export function ramCapacity(state) {
   return tierOf('ram', state.hardware.ram).capacity;
 }
 
+/** Extra memory the loaded playlist charges on top of RetroAmp itself. */
+export function playlistRam(state) {
+  return state.retroamp.playlist ? getPlaylist(state.retroamp.playlist).ram : 0;
+}
+
+/** An app's live footprint — RetroAmp's grows with a heavy playlist loaded. */
+export function appRam(state, id) {
+  return getApp(id).ram + (id === 'retroamp' ? playlistRam(state) : 0);
+}
+
 export function ramUsed(state) {
   let used = 0;
   for (const [id, app] of Object.entries(state.apps)) {
-    if (app.open) used += getApp(id).ram;
+    if (app.open) used += appRam(state, id);
   }
   return used;
 }
@@ -33,7 +44,52 @@ export function canOpenApp(state, id) {
   const entry = state.apps[id];
   if (!entry?.installed) return { ok: false, reason: 'not-installed' };
   if (entry.open) return { ok: false, reason: 'already-open' };
-  if (app.ram > ramFree(state)) return { ok: false, reason: 'out-of-memory' };
+  if (appRam(state, id) > ramFree(state)) return { ok: false, reason: 'out-of-memory' };
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------- playlists */
+
+/** Global multiplier from the loaded playlist (AO-14). 1 when nothing plays. */
+export function retroampMultiplier(state, now = Date.now()) {
+  const id = state.retroamp.playlist;
+  if (!id) return 1;
+  // The music only pays while the window is open — otherwise closing RetroAmp
+  // would hand back its 64 MB and keep the multiplier for free. The burn-out
+  // clock keeps running regardless, so closing it is not a way to bank a burst.
+  if (!state.apps.retroamp?.open) return 1;
+  const playlist = getPlaylist(id);
+  // A burnt-out playlist stops paying immediately; the tick ejects it.
+  if (playlist.durationSeconds && state.retroamp.endsAt <= now) return 1;
+  return 1 + playlist.multiplier;
+}
+
+export function playlistSecondsLeft(state, now = Date.now()) {
+  const id = state.retroamp.playlist;
+  if (!id || !getPlaylist(id).durationSeconds) return null;
+  return Math.max(0, (state.retroamp.endsAt - now) / 1000);
+}
+
+export function playlistCooldownLeft(state, id, now = Date.now()) {
+  return Math.max(0, ((state.retroamp.cooldownUntil[id] ?? 0) - now) / 1000);
+}
+
+/**
+ * Can this playlist be loaded right now? Swapping only charges the *difference*
+ * in memory, since the outgoing playlist frees its own.
+ */
+export function canLoadPlaylist(state, id, now = Date.now()) {
+  const playlist = getPlaylist(id);
+  if (!state.apps.retroamp?.open) return { ok: false, reason: 'not-open' };
+  if (state.retroamp.playlist === id) return { ok: false, reason: 'already-loaded' };
+
+  const cooling = playlistCooldownLeft(state, id, now);
+  if (cooling > 0) return { ok: false, reason: 'cooling-down', seconds: cooling };
+
+  const extra = playlist.ram - playlistRam(state);
+  if (extra > ramFree(state)) {
+    return { ok: false, reason: 'out-of-memory', needed: extra, free: ramFree(state) };
+  }
   return { ok: true };
 }
 
@@ -122,7 +178,8 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
   if (state.apps.aerochat?.open) {
     rate += state.chat.bots * CHAT_BOT.baseRate * chatMultiplier(state, now);
   }
-  // Day 3+: RetroAmp and the other producers hook in here.
+  // Later producers (LemonWire payouts, Aero Studio renders) hook in here.
+  // RetroAmp is not a producer — it multiplies, via globalMultiplier.
   return rate;
 }
 
@@ -131,6 +188,7 @@ export function globalMultiplier(state, now = Date.now()) {
   return (
     tierOf('cpu', state.hardware.cpu).tickRate *
     bloatPenalty(state) *
+    retroampMultiplier(state, now) *
     buffMultiplier(state, 'global', now)
   );
 }
@@ -153,6 +211,7 @@ export function rateBreakdown(state, now = Date.now()) {
     base,
     milestone: chatMilestoneMultiplier(state),
     buffs: buffMultiplier(state, 'chat', now) * buffMultiplier(state, 'global', now),
+    playlist: retroampMultiplier(state, now),
     cpu: tierOf('cpu', state.hardware.cpu).tickRate,
     bloat: bloatPenalty(state),
     open: state.apps.aerochat?.open === true,

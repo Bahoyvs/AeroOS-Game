@@ -24,10 +24,12 @@ export const APPS = [
     id: 'retroamp',
     name: 'RetroAmp',
     icon: '🎵',
-    day: 2,
+    day: 3,
     ram: 64,
-    install: { cost: 250, unlockAt: 150 },
-    window: { width: 320, height: 240 },
+    // Cheap and unlocked early on purpose: the scripted tutorial (GDD 7) hands
+    // the player RetroAmp right after their first buddy.
+    install: { cost: 50, unlockAt: 20 },
+    window: { width: 340, height: 330 },
     blurb: 'Playlists give global Buzz multipliers. Heavy metal costs RAM.',
   },
   {

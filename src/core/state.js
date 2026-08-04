@@ -43,7 +43,15 @@ export function createInitialState(now = Date.now()) {
       nextEventIn: 0, // rolled on the first tick with AeroChat open
     },
 
-    // Timed bonuses from status events, RetroAmp playlists, rewarded ads...
+    retroamp: {
+      playlist: null, // id of the loaded playlist, or null
+      endsAt: 0, // wall clock; only used by timed playlists
+      cooldownUntil: {}, // playlist id -> timestamp it can be loaded again
+      startedAt: 0,
+    },
+
+    // Timed bonuses from status events and rewarded ads. Playlist multipliers
+    // are NOT buffs: they are derived from `retroamp` so they survive a reload.
     buffs: [],
 
     // Pressure loop (GDD 7)
@@ -55,7 +63,10 @@ export function createInitialState(now = Date.now()) {
     startedAt: now,
 
     settings: { sfx: true, bgm: true, reducedMotion: false },
-    tutorial: { step: 0, done: false },
+
+    // Scripted onboarding (GDD 7). `hardwareRevealed` gates My Computer and the
+    // CPU/RAM readouts until the player hits their first memory bottleneck.
+    tutorial: { step: 0, done: false, hardwareRevealed: false },
   };
 }
 
