@@ -17,6 +17,13 @@ const STAGES = {
   wipe: 2600,
 };
 
+/**
+ * How long a stage must be on screen before a click can skip it. Without this,
+ * the click that confirmed the dialog — or an impatient double-click — lands on
+ * the overlay the instant it appears and the sequence blows past unseen.
+ */
+const SKIP_GRACE_MS = 800;
+
 const DUMP_LINES = [
   'A problem has been detected and AeroOS has been shut down to prevent damage',
   'to your buddy list.',
@@ -46,16 +53,35 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
   const overlay = el('div', { class: 'bsod', hidden: '' });
   root.appendChild(overlay);
 
+  /**
+   * Hold a stage for `ms`, or until the player deliberately clicks past it.
+   *
+   * The duration is NOT shortened for reduced-motion preferences: "reduce
+   * motion" asks for less movement, not less reading time, and clamping it here
+   * made the whole sequence flash by in under a second. The moving parts are
+   * disabled in CSS instead.
+   */
   const wait = (ms) =>
     new Promise((resolve) => {
+      let armed = false;
+
       const done = () => {
+        clearTimeout(armTimer);
         clearTimeout(timer);
-        overlay.removeEventListener('click', done);
+        overlay.removeEventListener('click', onClick);
+        overlay.classList.remove('is-armed');
         resolve();
       };
-      // Any click skips the rest of the current stage.
-      const timer = setTimeout(done, reducedMotion() ? Math.min(ms, 400) : ms);
-      overlay.addEventListener('click', done, { once: true });
+      const onClick = () => {
+        if (armed) done();
+      };
+
+      const armTimer = setTimeout(() => {
+        armed = true;
+        overlay.classList.add('is-armed');
+      }, Math.min(SKIP_GRACE_MS, ms));
+      const timer = setTimeout(done, ms);
+      overlay.addEventListener('click', onClick);
     });
 
   function renderBsod() {
@@ -87,7 +113,7 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
 
     // Tick the checklist in one by one so the wipe reads as work being done.
     const items = [...overlay.querySelectorAll('.bsod__steps li')];
-    const step = reducedMotion() ? 0 : STAGES.wipe / (items.length + 2);
+    const step = STAGES.wipe / (items.length + 2);
     items.forEach((item, i) => setTimeout(() => item.classList.add('is-done'), step * i));
   }
 
@@ -110,6 +136,7 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
 
     overlay.classList.add('is-leaving');
     await new Promise((resolve) => setTimeout(resolve, reducedMotion() ? 0 : 400));
+
 
     overlay.hidden = true;
     overlay.classList.remove('is-leaving');

@@ -55,10 +55,16 @@
   white-space: pre-wrap;
 }
 
+/* The prompt only appears once clicking actually skips (see SKIP_GRACE_MS). */
 .bsod__hint {
   margin: 24px 0 0;
   font-size: 0.7rem;
   text-align: center;
+  opacity: 0;
+  transition: opacity 200ms linear;
+}
+
+.bsod.is-armed .bsod__hint {
   opacity: 0.6;
   animation: bsod-blink 1.2s steps(2) infinite;
 }
