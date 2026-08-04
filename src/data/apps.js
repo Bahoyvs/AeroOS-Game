@@ -12,7 +12,7 @@ export const APPS = [
   {
     id: 'aerochat',
     name: 'AeroChat',
-    icon: '💬',
+    icon: '/icons/aerochat.png',
     day: 1,
     ram: 32,
     // Core idle engine: bots are bought with Buzz and generate Buzz.
@@ -23,7 +23,7 @@ export const APPS = [
   {
     id: 'retroamp',
     name: 'RetroAmp',
-    icon: '🎵',
+    icon: '/icons/retroamp.png',
     day: 3,
     ram: 64,
     // Cheap and unlocked early on purpose: the scripted tutorial (GDD 7) hands
@@ -35,7 +35,7 @@ export const APPS = [
   {
     id: 'lemonwire',
     name: 'LemonWire',
-    icon: '🍋',
+    icon: '/icons/lemonwire.png',
     day: 5,
     ram: 96,
     install: { cost: 2000, unlockAt: 1200 },
@@ -45,7 +45,7 @@ export const APPS = [
   {
     id: 'shield99',
     name: 'Shield99',
-    icon: '🛡️',
+    icon: '/icons/shield99.png',
     day: 5,
     ram: 48,
     install: { cost: 3000, unlockAt: 2500 },
@@ -55,7 +55,7 @@ export const APPS = [
   {
     id: 'aerostudio',
     name: 'Aero Studio',
-    icon: '🎬',
+    icon: '/icons/aerostudio.png',
     day: 7,
     ram: 192,
     install: { cost: 12000, unlockAt: 8000 },
@@ -65,7 +65,7 @@ export const APPS = [
   {
     id: 'aeroburn',
     name: 'AeroBurn',
-    icon: '💿',
+    icon: '/icons/aeroburn.png',
     day: 6,
     ram: 64,
     install: { cost: 12000, unlockAt: 9000 },
@@ -75,7 +75,7 @@ export const APPS = [
   {
     id: 'pinball',
     name: 'Galactic Pinball 3D',
-    icon: '🕹️',
+    icon: '/icons/pinball.png',
     day: 7,
     ram: 128,
     install: { cost: 6000, unlockAt: 5000 },
@@ -89,7 +89,7 @@ export const SYSTEM_APPS = [
   {
     id: 'system',
     name: 'My Computer',
-    icon: '🖥️',
+    icon: '/icons/system.png',
     day: 1,
     ram: 0,
     system: true,

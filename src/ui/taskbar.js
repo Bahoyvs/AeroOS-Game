@@ -77,7 +77,7 @@ export function createTaskbar({ root, game, wm, launch }) {
             },
           },
           [
-            el('span', { class: 'start-menu__icon', 'aria-hidden': 'true', text: app.icon }),
+            el('img', { class: 'start-menu__icon', 'aria-hidden': 'true', src: app.icon, alt: '' }),
             el('span', { class: 'start-menu__label' }, [
               el('strong', { text: app.name }),
               el('small', {
@@ -128,7 +128,7 @@ export function createTaskbar({ root, game, wm, launch }) {
         onclick: () => wm.toggleMinimize(id),
       },
       [
-        el('span', { class: 'task__icon', 'aria-hidden': 'true', text: app.icon }),
+        el('img', { class: 'task__icon', 'aria-hidden': 'true', src: app.icon, alt: '' }),
         el('span', { class: 'task__label', text: app.name }),
         el('span', { class: 'task__ram' }, el('span', { class: 'task__ram-fill' })),
       ],

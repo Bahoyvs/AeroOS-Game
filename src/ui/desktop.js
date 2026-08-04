@@ -33,7 +33,7 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
           },
         },
         [
-          el('span', { class: 'desktop-icon__glyph', 'aria-hidden': 'true', text: app.icon }),
+          el('img', { class: 'desktop-icon__glyph', 'aria-hidden': 'true', src: app.icon, alt: '' }),
           el('span', { class: 'desktop-icon__label', text: app.name }),
         ],
       );

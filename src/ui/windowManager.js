@@ -49,7 +49,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     el.innerHTML = `
       <div class="title-bar" data-drag-handle>
         <div class="title-bar-text">
-          <span class="aero-window__icon" aria-hidden="true">${app.icon ?? ''}</span>
+          <img class="aero-window__icon" aria-hidden="true" src="${app.icon ?? ''}" alt="">
           ${app.name}
         </div>
         <div class="title-bar-controls">

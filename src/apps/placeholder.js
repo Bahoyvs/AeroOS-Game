@@ -10,7 +10,7 @@ export function mount(body, { app }) {
   body.classList.add('app-placeholder');
   body.append(
     el('div', { class: 'placeholder' }, [
-      el('span', { class: 'placeholder__glyph', 'aria-hidden': 'true', text: app.icon }),
+      el('img', { class: 'placeholder__glyph', 'aria-hidden': 'true', src: app.icon, alt: '' }),
       el('h3', { class: 'placeholder__title', text: app.name }),
       el('p', { class: 'placeholder__blurb', text: app.blurb }),
       el('p', { class: 'placeholder__day', text: `Scheduled for Day ${app.day} — see docs/ROADMAP.md` }),

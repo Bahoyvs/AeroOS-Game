@@ -51,6 +51,9 @@
 
 .aero-window__icon {
   margin-right: 4px;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .aero-window__body {

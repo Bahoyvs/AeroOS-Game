@@ -41,7 +41,9 @@
 }
 
 .desktop-icon__glyph {
-  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
   filter: drop-shadow(0 2px 4px rgb(0 30 60 / 55%));
 }
 
@@ -312,6 +314,9 @@
 
 .task__icon {
   grid-area: icon;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .task__label {
@@ -436,7 +441,9 @@
 }
 
 .start-menu__icon {
-  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
 
 .start-menu__label {
