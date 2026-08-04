@@ -124,6 +124,10 @@ export function mount(body, { game }) {
     return row;
   }
 
+  function fillRow() {
+    return el('li', { class: 'chat__space', 'aria-hidden': 'true' });
+  }
+
   let listKey = null;
 
   function renderList(force = false) {
@@ -141,6 +145,7 @@ export function mount(body, { game }) {
       list.appendChild(
         el('li', { class: 'chat__empty', text: 'Nobody online yet. Add your first buddy.' }),
       );
+      list.appendChild(fillRow());
       return;
     }
 
@@ -170,6 +175,8 @@ export function mount(body, { game }) {
     if (s.chat.bots > shown) {
       list.appendChild(el('li', { class: 'chat__more', text: `+${s.chat.bots - shown} more buddies online` }));
     }
+
+    list.appendChild(fillRow());
   }
 
   /* ------------------------------------------------------------ breakdown */
