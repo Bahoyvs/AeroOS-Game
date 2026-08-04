@@ -8,15 +8,29 @@ import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
+import { HEAT } from './data/balance.js';
+import { createAudio } from './ui/audio.js';
+import { confirmFormat, createFormatSequence } from './ui/bsod.js';
 import { createDesktop } from './ui/desktop.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
+import { createTutorialCoach } from './ui/tutorial.js';
+import { showWelcomeBack } from './ui/welcomeBack.js';
 import { createWindowManager } from './ui/windowManager.js';
 
 /** Boot the OS: wire the simulation to the shell and start the clock. */
 function boot() {
   const game = createGame();
   const loaded = game.load();
+
+  // Audio (AO-26). Synthesised, so there is nothing to preload; the context
+  // only starts on the first real gesture, per the autoplay policy.
+  const audio = createAudio({
+    settings: () => game.state.settings,
+    heat: () => game.econ.heatRatio(game.state),
+  });
+  document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
+  document.addEventListener('keydown', () => audio.unlock(), { once: true });
 
   const wm = createWindowManager({ root: document.getElementById('windows') });
   const notify = createNotifier(document.getElementById('toasts'));
@@ -59,9 +73,75 @@ function boot() {
     });
   });
 
+  // Format C: (AO-17). The game announces the intent; the shell owns the
+  // confirmation, the BSOD and the reboot screen, and calls formatC() at the
+  // beat where the machine actually wipes.
+  const formatSequence = createFormatSequence({
+    root: document.body,
+    reducedMotion: () =>
+      game.state.settings.reducedMotion ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches,
+  });
+
+  game.bus.on(game.events.FORMAT_REQUESTED, ({ dollars }) => {
+    if (formatSequence.busy) return;
+    confirmFormat({
+      root: document.body,
+      dollars,
+      onConfirm: async () => {
+        const summary = await formatSequence.run(() => {
+          const result = game.formatC();
+          return {
+            dollars: result.dollars ?? 0,
+            prestigeCount: game.state.prestigeCount,
+            ramMB: game.econ.ramCapacity(game.state),
+          };
+        });
+        notify({
+          title: 'Format complete',
+          body: `Banked $${summary.dollars.toFixed(2)}. Spend it on hardware in My Computer.`,
+          tone: 'success',
+        });
+      },
+    });
+  });
+
   game.bus.on(game.events.PRESTIGE, () => {
     for (const id of wm.openIds) wm.close(id);
     launch('aerochat');
+    audio.play('chime');
+  });
+
+  // One place for every sound the simulation triggers (AO-26).
+  const SOUNDS = {
+    [game.events.BOT_BOUGHT]: 'buy',
+    [game.events.APP_INSTALLED]: 'hdd',
+    [game.events.APP_OPENED]: 'click',
+    [game.events.OUT_OF_MEMORY]: 'error',
+    [game.events.HARDWARE_BOUGHT]: 'coin',
+    [game.events.STATUS_CLAIMED]: 'coin',
+    [game.events.DOWNLOAD_STARTED]: 'hdd',
+    [game.events.DOWNLOAD_DONE]: 'coin',
+    [game.events.SCAN_DONE]: 'chime',
+    [game.events.BURN_STARTED]: 'burn',
+    [game.events.BURN_DONE]: 'chime',
+    [game.events.DISC_PLAYED]: 'coin',
+    [game.events.PLAYLIST_LOADED]: 'click',
+  };
+  for (const [event, sound] of Object.entries(SOUNDS)) {
+    game.bus.on(event, () => audio.play(sound));
+  }
+  game.bus.on(game.events.VIRUS, ({ outcome }) =>
+    audio.play(outcome === 'infected' ? 'virus' : 'chime'),
+  );
+
+  game.bus.on(game.events.SETTINGS, ({ settings }) => {
+    audio.setEnabled({ sfx: settings.sfx !== false, bgm: settings.bgm !== false });
+    if (settings.sfx !== false) audio.play('click');
+  });
+
+  game.bus.on(game.events.BUZZ_GAINED, ({ source }) => {
+    if (source === 'nudge') audio.play('nudge');
   });
 
   const desktop = createDesktop({
@@ -97,6 +177,124 @@ function boot() {
     });
   });
 
+  const coach = createTutorialCoach({ root: document.getElementById('desktop'), game });
+
+  // Onboarding (AO-12): each objective is announced, and the first bottleneck
+  // hands the player their hardware.
+  game.bus.on(game.events.TUTORIAL_STEP, ({ completed, done }) => {
+    coach.update();
+    desktop.renderIcons();
+    if (done && completed.length > 0) {
+      notify({
+        title: 'You know the machine now',
+        body: 'The desktop is yours. Format C: when the bloat gets bad.',
+        tone: 'success',
+      });
+    }
+  });
+
+  game.bus.on(game.events.HARDWARE_REVEALED, () => {
+    desktop.renderIcons();
+    notify({
+      title: 'System bottleneck',
+      body: 'That is your hardware talking. My Computer is on the desktop now.',
+      tone: 'warn',
+    });
+  });
+
+  // RetroAmp (AO-13/AO-14).
+  game.bus.on(game.events.PLAYLIST_LOADED, ({ playlist }) => {
+    notify({
+      title: `♪ ${playlist.name}`,
+      body: playlist.durationSeconds
+        ? `+${Math.round(playlist.multiplier * 100)}% to everything for ${playlist.durationSeconds / 60} minutes.`
+        : `+${Math.round(playlist.multiplier * 100)}% to everything while it plays.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.PLAYLIST_ENDED, ({ playlist, reason }) => {
+    if (reason !== 'burnt-out') return;
+    notify({
+      title: `${playlist.name} burnt out`,
+      body: `Cooling down for ${playlist.cooldownSeconds / 60} minutes.`,
+      tone: 'warn',
+    });
+  });
+
+  // LemonWire + Shield99 (AO-21/AO-22).
+  game.bus.on(game.events.DOWNLOAD_DONE, ({ file, payout }) => {
+    notify({
+      title: 'Download complete',
+      body: `${file.name} — +${formatNumber(payout)} Buzz.`,
+      tone: 'success',
+    });
+  });
+
+  // Deleting is not instant, and the player has to learn that the first time.
+  game.bus.on(game.events.FILE_DELETED, ({ file, secondsLeft }) => {
+    notify({
+      title: 'Moved to the Recycle Bin',
+      body: `${file.name} still takes up its space for ${formatDuration(secondsLeft)}.`,
+      tone: 'warn',
+    });
+  });
+
+  game.bus.on(game.events.TRASH_EMPTIED, ({ file }) => {
+    notify({
+      title: 'Recycle Bin emptied',
+      body: `${file.name} is gone — its disk space is free again.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.VIRUS, ({ file, outcome }) => {
+    const messages = {
+      blocked: ['Shield99 blocked a threat', `${file.name} was quarantined on arrival.`, 'success'],
+      rescued: [
+        'Shield99 free trial saved you',
+        `${file.name} was infected. That was your one free rescue — install and open Shield99 to stay covered.`,
+        'warn',
+      ],
+      infected: [
+        'Your machine is infected',
+        'Production is halved and LemonWire is locked. Run a Shield99 deep scan to clean it — nothing you have earned is lost.',
+        'error',
+      ],
+    };
+    const [title, bodyText, tone] = messages[outcome];
+    notify({ title, body: bodyText, tone });
+    if (outcome === 'infected') taskbar.flag('shield99', true);
+  });
+
+  game.bus.on(game.events.SCAN_DONE, ({ cured }) => {
+    taskbar.flag('shield99', false);
+    notify({
+      title: cured ? 'Machine cleaned' : 'Scan complete',
+      body: cured ? 'Production is back to normal.' : 'No threats found.',
+      tone: 'success',
+    });
+  });
+
+  // AeroBurn (AO-29).
+  game.bus.on(game.events.BURN_DONE, ({ cd }) => {
+    notify({
+      title: `${cd.name} burned`,
+      body: 'It survives the next Format C:. Play it whenever you like.',
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.DISC_PLAYED, ({ cd, buzz }) => {
+    notify({
+      title: `Playing ${cd.name}`,
+      body: buzz > 0
+        ? `+${formatNumber(buzz)} Buzz recovered.`
+        : `+${Math.round(cd.buff.magnitude * 100)}% for ${cd.buff.durationSeconds / 60} minutes.`,
+      tone: 'success',
+    });
+  });
+
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({
       title: `${at} buddies online`,
@@ -105,8 +303,8 @@ function boot() {
     });
   });
 
-  // Restore whatever was open last session; a fresh save starts on AeroChat
-  // alone, which is where the scripted tutorial (Day 7) will pick up.
+  // Restore whatever was open last session. A fresh save starts on AeroChat
+  // alone — the clean desktop the scripted tutorial (AO-12) opens on.
   const previouslyOpen = Object.entries(game.state.apps)
     .filter(([, entry]) => entry.open)
     .map(([id]) => id);
@@ -114,20 +312,23 @@ function boot() {
   if (previouslyOpen.length > 0) previouslyOpen.forEach(launch);
   else launch('aerochat');
 
+  // Offline earnings get a dialog rather than a balloon (AO-28): a report that
+  // fades in four seconds is a poor way to explain an HDD cap.
   const offline = game.offlineReport;
   if (offline?.buzz > 0) {
-    notify({
-      title: 'Welcome back',
-      body: `Your buddies kept chatting for ${formatDuration(offline.seconds)} — ${formatNumber(offline.buzz)} Buzz.${offline.capped ? ' Upgrade your HDD to bank more.' : ''}`,
-      tone: 'success',
+    showWelcomeBack({
+      root: document.body,
+      offline,
+      hoursCap: offline.cappedHours,
+      // Day 7 hangs the rewarded "2× offline Buzz" ad (GDD 8) off this seam.
+      onDouble: null,
+      onClose: () => audio.unlock(),
     });
     game.clearOfflineReport();
-  } else if (!loaded.loaded) {
-    notify({
-      title: 'AeroOS is ready',
-      body: 'Add a buddy in AeroChat, then nudge for Buzz.',
-      tone: 'info',
-    });
+  } else if (!loaded.loaded && game.state.tutorial.done) {
+    // First-time players get the coach instead of a balloon telling them the
+    // same thing twice.
+    notify({ title: 'AeroOS is ready', body: 'Nudge for Buzz.', tone: 'info' });
   }
 
   const loop = createGameLoop({
@@ -135,8 +336,28 @@ function boot() {
     onRender: () => {
       desktop.update();
       taskbar.update();
+      coach.update();
+      audio.update();
+      maybeHitch();
     },
   });
+  /**
+   * The occasional stutter at critical heat (AO-27). Rare, short and purely
+   * cosmetic — the machine is struggling, not broken.
+   */
+  let hitchCooldown = 0;
+  function maybeHitch() {
+    const now = performance.now();
+    if (now < hitchCooldown) return;
+    hitchCooldown = now + 900;
+
+    const ratio = game.econ.heatRatio(game.state);
+    if (ratio < 0.85 || Math.random() > HEAT.hitchChancePerSecond) return;
+
+    document.body.classList.add('is-hitching');
+    setTimeout(() => document.body.classList.remove('is-hitching'), 110);
+  }
+
   loop.start();
 
   // Never lose progress to a tab close or a phone switching apps.
@@ -148,7 +369,7 @@ function boot() {
   document.getElementById('boot')?.classList.add('is-done');
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch };
+  globalThis.AeroOS = { game, wm, launch, audio };
 }
 
 if (document.readyState === 'loading') {

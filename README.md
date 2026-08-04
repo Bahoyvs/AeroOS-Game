@@ -26,7 +26,7 @@ npm run dev      # http://localhost:5173
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
-## What works today (Days 1–2)
+## What works today (Days 1–6)
 
 - **Desktop shell** — draggable, resizable, overlapping windows with focus, minimize and a
   Start menu; on phones the same windows become full-screen PDA modals with RAM bars under
@@ -38,18 +38,39 @@ No framework and no global tooling: Node 20+ and npm are enough.
   that permanently boost the run.
 - **Status bonuses** — a buddy occasionally posts a "hot" status; click it in time for a
   timed multiplier or an instant Buzz burst. Ignoring one costs nothing.
+- **Scripted onboarding** — the desktop opens clean with only AeroChat and walks a new
+  player to their first buddy, RetroAmp and their first memory wall. Hardware stays hidden
+  until that wall; a returning save skips the tour entirely.
+- **RetroAmp** — a playlist deck that multiplies everything: SOFT SIGNALS is a small lift you
+  leave running, IRON OVERDRIVE triples production for five minutes, eats 64 MB more than
+  your machine has, and then cools down.
+- **LemonWire** — a P2P download sim where files take real disk space and trade risk for
+  reward: dangerous files crawl in and pay a premium for the wait, a suspiciously popular
+  malware stub is not actually well-seeded, and deleting only moves a file to a Recycle Bin
+  that holds its space for five minutes. Downloads only run while the window is open.
+- **Shield99** — a tray icon that shows whether you are covered, real-time protection while
+  it is open, and one free rescue per run. A virus halves production and locks LemonWire
+  until you scan — it never takes progress away.
 - **Memory budget** — every app costs RAM; opening one that does not fit is refused with an
   out-of-memory balloon instead of silently failing.
 - **Bloat** — uptime and open apps degrade production and desaturate the desktop, building
   pressure toward a prestige.
-- **Format C:** — wipes software, banks Dollars from lifetime Buzz, keeps hardware.
-- **Hardware** — CPU/RAM/GPU/HDD tier tables wired to tick rate, memory, cooldowns and the
-  offline-earnings cap.
+- **Format C:** — a confirmation, an authentic blue stop screen, a BIOS-style wipe that
+  reports the machine you are about to get, and a clean desktop. Skippable at any point.
+  Wipes software, banks Dollars from lifetime Buzz, keeps hardware.
+- **Hardware shop** — CPU/RAM/GPU/HDD tracks where every tier states what it adds as a flat
+  percentage, with tier pips and live affordability.
+- **AeroBurn** — burn Buzz onto a disc that survives a Format C:. MIX stores value across
+  the wipe, OVERCLOCK stores a production burst for the next run.
+- **Heat and tension** — the machine gets visibly and audibly worse as it bloats: a heat
+  gauge climbing to 94°C, window animations dragging, the desktop hitching, and the audio
+  distorting.
+- **Sound** — every effect and the soundtrack are synthesised in the browser, so there are
+  no audio files to ship. Mute lives in the taskbar tray.
 - **Saves** — versioned localStorage with migrations, autosave, and offline Buzz capped by
-  your HDD.
+  your HDD, reported in a dialog that explains the cap when it bites.
 
-The rest of the software roster (RetroAmp, LemonWire, Shield99, Aero Studio, AeroBurn,
-Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
+The rest of the software roster (Aero Studio, Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
 naming the day it lands. See the roadmap.
 
 ## Layout

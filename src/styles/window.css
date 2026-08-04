@@ -51,6 +51,9 @@
 
 .aero-window__icon {
   margin-right: 4px;
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
 }
 
 .aero-window__body {
@@ -81,4 +84,40 @@
 /* The system feeling slow is a mechanic, not a bug (GDD 7). */
 body.is-critical .aero-window {
   transition-duration: 520ms;
+}
+
+/* --------------------------------------------------- prestige tension (AO-27) */
+
+/**
+ * The machine is supposed to *feel* worse before a Format C: (GDD 7). Windows
+ * lose their crispness, animations drag, and at critical heat the whole desktop
+ * hitches — the same escalation the audio distortion follows.
+ */
+body[data-heat='warn'] .aero-window {
+  transition-duration: 300ms;
+}
+
+body[data-heat='critical'] .aero-window {
+  transition-duration: 620ms;
+  box-shadow: 0 10px 30px rgb(48 4 4 / 35%), inset 0 1px 0 rgb(255 255 255 / 55%);
+}
+
+/* Dragging a window at critical heat smears, like a machine that cannot keep up. */
+body[data-heat='critical'] .aero-window.is-dragging {
+  filter: blur(0.4px);
+}
+
+body[data-heat='critical'] .title-bar {
+  filter: saturate(0.8);
+}
+
+/* A brief, deliberate stutter of the whole desktop. */
+body.is-hitching .desktop,
+body.is-hitching .taskbar {
+  transform: translate(1px, -1px);
+  filter: contrast(1.08) saturate(0.85);
+}
+
+body.is-hitching .aero-window {
+  transform: translate(-1px, 1px);
 }

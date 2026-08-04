@@ -1,12 +1,13 @@
 # One-week build plan
 
-Seven days from empty repo to a portal-submittable build of **AeroOS — The Messenger Era**.
+A week from empty repo to a portal-submittable build of **AeroOS — The Messenger Era**.
 Each day is a Jira epic (AO-2 style) with its sub-tasks, the files it touches, and a
 definition of done. Ship the day's DoD before starting the next day — the schedule assumes
 every day ends on a build that runs.
 
-Ticket IDs for Days 1–2 match the Jira board. Later days are this plan's own numbering and
-should be re-mapped as those epics are created — the work is the contract, not the ID.
+Ticket IDs are the Jira board's, and only exist for days the board has scoped
+(Days 1–6). Later days list the work without IDs — they get numbered when their
+epic is created.
 
 **Ground rules for every day**
 
@@ -46,7 +47,7 @@ survives a reload, mobile renders as full-screen modals. ✅
 Built underneath these, because AO-10 needed it: `src/core/buffs.js` (typed, expiring,
 stacking multipliers) and `src/core/statusEvents.js` (spawn/claim/lapse with injected
 randomness). Both are the machinery RetroAmp, rewarded ads and every later timed bonus will
-reuse — a Day 3 playlist buff is now a table entry, not a new system.
+reuse — the Day 3 playlists are a table entry, not a new system.
 
 Buddies are *derived* from their index rather than stored, so a 500-buddy list costs nothing
 in the save file and identities stay stable across reloads.
@@ -56,72 +57,175 @@ bonuses can be claimed, ignored or missed without ever punishing the player. ✅
 
 ---
 
-## Day 3 — RetroAmp and prestige pressure
+## Day 3 — Tutorial gating + RetroAmp (AO-11) ✅ shipped
 
-**Goal:** a second multiplier source, then make bloat *felt* so Format C: reads as relief
-rather than punishment (GDD 7).
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-12 | Scripted tutorial unlock sequence (AeroChat only → bottleneck → RetroAmp) | ✅ five-step coach, hardware hidden until the first bottleneck |
+| AO-13 | Build RetroAmp app with playlist selection UI | ✅ `src/apps/retroamp.js` — LCD display, visualiser, playlist deck |
+| AO-14 | Two playlists (soft permanent + heavy 5-min burst) | ✅ SOFT SIGNALS ×1.15 forever, IRON OVERDRIVE ×3 for 5 min |
 
-- [ ] AO-11 — RetroAmp (`src/apps/retroamp.js`): playlist selection driving buffs — a
-      permanent small multiplier ("SOFT SIGNALS") and a big short-burst one that costs extra
-      RAM. Playlists are a table on top of `core/buffs.js`; no new timing code.
-- [ ] AO-12 — RAM crash: exceeding capacity triggers a BSOD sequence rather than a refusal —
-      forced reboot, brief production pause, no lost progress.
-- [ ] AO-13 — Bloat presentation: window trails, animation slowdown, heat widget going red,
-      taskbar clock drift. Hooks exist (`body.is-bloated` / `.is-critical`).
-- [ ] AO-14 — Format C: sequence: confirmation → nostalgic loading screen → clean desktop
-      (this screen is where the Day 7 interstitial ad slots in).
-- [ ] AO-15 — Offline-earnings modal ("Welcome back") replacing the current balloon, with the
-      HDD cap explained and a 2× slot reserved for the rewarded ad.
+The two tickets turned out to be one mechanism: the heavy playlist's memory cost **is** the
+tutorial's bottleneck. A stock machine runs AeroChat + RetroAmp at 96/128 MB, so loading
+IRON OVERDRIVE is refused — and that refusal is what reveals My Computer and the CPU/RAM
+readouts, exactly as GDD 7 describes. The player learns "I need better hardware" by being
+stopped by it rather than by being told.
 
-**Files:** `src/apps/retroamp.js`, `src/ui/bsod.js`, `src/ui/bootScreen.js`, `src/core/game.js`
-**DoD:** two multiplier sources are live, and a player can be pushed into a crash and a
-prestige that both feel authored.
+Playlist multipliers are **not** buffs: they derive from `state.retroamp`, so they survive a
+reload, and the multiplier only pays while the window is open — otherwise closing RetroAmp
+would hand back its 64 MB and keep the bonus for free.
 
----
-
-## Day 4 — LemonWire + Shield99 (risk layer)
-
-**Goal:** the first mechanic that can go wrong, with the GDD's safety net intact.
-
-- [ ] AO-16 — LemonWire (`src/apps/lemonwire.js`): queued downloads, HDD-capped size,
-      completion pays a large Buzz lump.
-- [ ] AO-17 — Virus events: production floor capped at 50% *or* LemonWire locked — never a
-      ruined run (GDD 6).
-- [ ] AO-18 — Shield99 (`src/apps/shield99.js`): removes viruses, free trial rescue on the
-      first virus of a run.
-- [ ] AO-19 — Tests for the virus floor, the rescue-once rule and HDD capacity limits.
-
-**Files:** `src/apps/lemonwire.js`, `src/apps/shield99.js`, `src/data/balance.js`, `tests/`
-**DoD:** a virus can be caught, survived and cured; the worst case is provably a 50% floor.
+**DoD:** a first-time player goes clean desktop → first Buzz → first buddy → RetroAmp →
+playlist → memory wall in about a minute, and a returning save never re-enters the tour. ✅
 
 ---
 
-## Day 5 — Aero Studio + AeroBurn (long-cycle payoffs)
+## Day 4 — Format C: prestige system (AO-15) ✅ shipped
 
-**Goal:** give the GPU and the prestige loop something to matter for.
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-16 | Dollars currency + lifetime Buzz calculation | ✅ payout curve made legible: progress bar and "next $ at N Buzz" |
+| AO-17 | BSOD / wipe animation for Format C: | ✅ confirm → stop screen → POST wipe → clean desktop, skippable |
+| AO-18 | Hardware upgrade shop (CPU/RAM/GPU/HDD) | ✅ tier pips, current effect, and what the next purchase adds |
+| AO-19 | Hardware stats as simplified flat-percentage effects | ✅ tiers contribute additive percentages instead of replacing a stat |
 
-- [ ] AO-20 — Aero Studio (`src/apps/aerostudio.js`): long render with a GPU-scaled cooldown
-      (`cooldownMultiplier`), highest single payout in the game.
-- [ ] AO-21 — Shared cooldown/progress-job helper so future timed apps reuse one implementation.
-- [ ] AO-22 — AeroBurn (`src/apps/aeroburn.js`): burn Buzz to a CD that survives Format C:
-      and grants next-run starting boosts (persist through `resetForPrestige`).
-- [ ] AO-23 — Tests: CD carry-over survives prestige; GPU tiers measurably cut cooldowns.
+AO-19 was the structural one. A tier used to *replace* an absolute stat
+(`tickRate: 2.1`, `capacity: 1024`), so a shop row could not say what a purchase
+was worth without diffing two opaque multipliers. Tiers now contribute flat
+percentages that accumulate, and every capacity is derived the same way from a
+base machine — so "+25% production" in the shop is literally the number applied.
+Tier indices are unchanged, so old saves keep their hardware.
 
-**Files:** `src/apps/aerostudio.js`, `src/apps/aeroburn.js`, `src/core/jobs.js`, `src/core/state.js`
-**DoD:** every hardware track (CPU/RAM/GPU/HDD) now changes something the player can feel.
+Click power was deliberately re-tuned in the process: it ran 1× → 120× across the
+CPU track, which cannot be expressed as a sane percentage. It is now roughly
+double the production bonus per tier (1× → 9.4×).
+
+The BSOD is a real beat, not a fade — the wipe happens *between* the stop screen
+and the POST screen, so the reboot reports the machine the player is about to
+get. It is skippable at every stage: an unskippable cutscene on a repeatable
+action is a churn machine on a 30-minute-session platform.
+
+**DoD:** a player can see what a Format C: is worth before committing, watch the
+machine die and come back, and spend the proceeds on upgrades that state their
+own effect. ✅
 
 ---
 
-## Day 6 — Active play: Pinball, IoT Botnet, Mini-Mod
+## Day 5 — LemonWire + Shield99 + mobile (AO-20) ✅ shipped
 
-**Goal:** something to do while idling, and an end-game ceiling.
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-21 | LemonWire P2P download sim with virus safety net (50% floor) | ✅ `src/apps/lemonwire.js`, `src/core/downloads.js` |
+| AO-22 | Shield99 tray icon + free first-virus rescue | ✅ `src/apps/shield99.js`, tray status in the taskbar |
+| AO-23 | Mobile: taskbar modal slide-up for apps | ✅ shipped Day 1; added swipe-down-to-dismiss |
+| AO-24 | Mobile: RAM usage bars under taskbar icons | ✅ shipped Day 1; fixed bars vanishing on big machines |
 
-- [ ] AO-24 — Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
+LemonWire is the first mechanic that can go wrong, and the HDD track finally has
+a second job: downloads occupy real disk space, so a full disk means deleting
+something or buying a bigger drive. Files trade risk against reward — the
+sketchy 3 MB `system32_SPEED_BOOST_2005.exe` pays like a 4 GB ISO and infects
+three times out of four. Payouts are denominated in *seconds of current
+production*, so a download is still worth doing ten prestiges later.
+
+The safety net is the GDD's, exactly (GDD 6): real-time protection blocks an
+infected file outright, otherwise the run's one free trial rescue catches it,
+otherwise the machine is infected — production halved, LemonWire locked, and
+**nothing already earned is taken away**. A second infection cannot stack below
+that floor, and a Shield99 scan always cures it.
+
+AO-23 and AO-24 were largely satisfied on Day 1, because PDA mode was built as a
+first-class target rather than a fallback. What was actually missing: a
+share-of-capacity RAM bar is invisible once the player owns 8 GB (32 MB reads as
+0.4%), so bars keep a minimum width and carry the real numbers in their label;
+and a full-screen modal had no gesture to dismiss it, so the title bar is now a
+drag handle that slides the sheet away.
+
+**DoD:** a virus can be caught, survived and cured, and the worst case is
+provably a 50% floor — asserted in tests and measured in the browser. ✅
+
+### Follow-up — the risk/reward overhaul ✅
+
+The shipped version priced risk but did not *pace* it: every file downloaded at
+the same speed, so `system32_SPEED_BOOST_2005.exe` — 3 MB, 302 "seeders", 75%
+infection — finished before anything else and paid the same. Risk was a coin
+flip you took for free.
+
+Three changes make the choice real:
+
+1. **Speed is per file, not per queue.** Seeders help up to ×2 (`seedersPerSpeedUnit`),
+   risk throttles in bands (`riskSpeedTiers`), and above `fakeSwarmAtRisk` the
+   advertised swarm is ignored outright — 302 peers on a malware stub are bots.
+   The extreme band runs at ×0.002, so the 3 MB file takes ~25 seconds.
+2. **Payout scales inversely to speed**, so waiting 200× longer earns 200× more.
+   Pure inversion cancels exactly, though — it paid every file the *same* Buzz
+   per second of waiting, leaving risk as downside with no upside. So
+   `riskPayoutBonus` adds a premium on top; the danger curve now rises
+   monotonically from ×2.9 to ×5.7 of current production per second of transfer.
+3. **Deleting is not instant.** A deleted file goes to a Recycle Bin that holds
+   its disk space for `trashSeconds` (5 minutes) and cannot be re-downloaded
+   while it sits there. Disk pressure is now a decision with a cost rather than
+   a button you press between transfers.
+
+**DoD:** the most dangerous file in the list is the slowest and the richest per
+second spent, and freeing space costs five minutes. ✅
+
+---
+
+## Day 6 — Juice + audio + offline (AO-25) ✅ shipped
+
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-26 | Source/generate SFX and BGM, integrate into game | ✅ `src/ui/audio.js` — everything synthesised, plus a tray mute |
+| AO-27 | Prestige-tension escalation (system lag, red heat widgets, distortion audio) | ✅ heat gauge, dragging window transitions, desktop hitches, distortion bus |
+| AO-28 | Offline earnings calculation | ✅ calculation shipped Day 1; now reported in a dialog that explains the HDD cap |
+| AO-29 | AeroBurn CD system (1–2 CD types, survive prestige wipe) | ✅ MIX and OVERCLOCK discs, carried through Format C: |
+
+**Audio ships as code, not assets.** Every sound is synthesised with WebAudio —
+mechanical clicks, HDD chatter, a startup chime, the BSOD fall, a CD-writer
+spin-up — and the BGM is a scheduled arpeggio rather than a loop file. That
+keeps the bundle tiny, sidesteps the portal CSP entirely, and makes AO-27's
+"distortion audio" a knob instead of a second set of files: a waveshaper on the
+master bus whose curve follows system heat. The context only starts on a real
+gesture (autoplay policy) and the tray has a mute.
+
+**Heat is bloat with a face on it.** Players cannot read a 0..1 float, but they
+understand 91°C. Heat rises with bloat and with what they keep open, and drives
+one escalation across the whole shell: gauge colour, window transitions
+dragging from 180 ms to 620 ms, occasional desktop hitches, and audio
+distortion — all from `econ.heatRatio`.
+
+**AO-28 was mostly done and honestly reported as such.** The calculation has
+existed since Day 1, capped by HDD tier and unit-tested. What it lacked was a
+moment: a balloon that fades in four seconds could not explain why 26 hours away
+paid only 2 hours of Buzz. The dialog now shows away-vs-counted, and the
+rewarded "2× offline Buzz" ad from GDD 8 has a seam waiting (`onDouble`).
+
+**AeroBurn** discs are the only soft-currency asset that outlives a wipe. One
+design fix fell out of testing: the burner itself now survives Format C: too,
+because otherwise the discs were unreachable until the player re-earned its
+install cost — precisely when the "starting boost for the next run" is meant to
+help.
+
+**DoD:** the machine sounds and feels worse as it bloats, offline time is
+explained rather than announced, and a disc burned before a wipe pays out
+after it. ✅
+
+---
+
+## Day 7 — Aero Studio, Pinball, IoT Botnet, Mini-Mod
+
+**Goal:** the last of the software roster, something to do while idling, and an
+end-game ceiling.
+
+- [ ] Aero Studio: a long GPU-scaled render with the biggest single payout —
+      the GPU track still has no consumer, so this is what makes it felt.
+
+- [ ] Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
       combo multipliers.
-- [ ] AO-25 — IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
+- [ ] IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
       large passive Buzz (GDD 5).
-- [ ] AO-26 — Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
-- [ ] AO-27 — Performance pass: keep the render step under budget with the pinball canvas,
+- [ ] Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
+- [ ] Performance pass: keep the render step under budget with the pinball canvas,
       many windows and 500 bots on a mid-range phone.
 
 **Files:** `src/apps/pinball.js`, `src/core/botnet.js`, `src/ui/miniMod.js`
@@ -129,23 +233,20 @@ prestige that both feel authored.
 
 ---
 
-## Day 7 — Onboarding, monetization, audio, ship
+## Day 8 — Monetization, audio, ship
 
-**Goal:** the first 60 seconds and the portal build (GDD 7 & 8).
+**Goal:** the portal build (GDD 8). The first 60 seconds shipped on Day 3.
 
-- [ ] AO-28 — Hard-scripted tutorial: clean desktop with only AeroChat → first bot →
-      RetroAmp unlock; CPU/RAM stay hidden until the first bottleneck.
-- [ ] AO-29 — Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
+- [ ] Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
       SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
-- [ ] AO-30 — Interstitial on Format C:, hidden behind the loading screen.
-- [ ] AO-31 — Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
+- [ ] Interstitial on Format C:, hidden behind the loading screen.
+- [ ] Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
       distortion layer, synthwave BGM, with a mute toggle honouring `state.settings`.
-- [ ] AO-32 — Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
+- [ ] Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
       CrazyGames/Poki SDK smoke test.
 
-**Files:** `src/core/tutorial.js`, `src/monetization/ads.js`, `src/core/audio.js`
-**DoD:** a first-time player is producing Buzz within 60 seconds, ads are wired behind the
-adapter, and `dist/` runs from a static host.
+**Files:** `src/monetization/ads.js`, `src/core/audio.js`
+**DoD:** ads are wired behind the adapter and `dist/` runs from a static host.
 
 ---
 

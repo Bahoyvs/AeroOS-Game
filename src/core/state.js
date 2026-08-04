@@ -1,4 +1,5 @@
 import { ALL_APPS } from '../data/apps.js';
+import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
@@ -43,19 +44,58 @@ export function createInitialState(now = Date.now()) {
       nextEventIn: 0, // rolled on the first tick with AeroChat open
     },
 
-    // Timed bonuses from status events, RetroAmp playlists, rewarded ads...
+    lemonwire: {
+      queue: [], // active downloads: { id, fileId, downloadedGB }
+      library: [], // completed file ids, taking up HDD space
+      trash: [], // [{ fileId, secondsLeft }] — deleted, but still on the disk
+      nextId: 1,
+      completed: 0,
+    },
+
+    // AeroBurn (AO-29). Discs survive Format C: — see resetForPrestige.
+    aeroburn: {
+      discs: [], // [{ typeId, spent }]
+      burning: null, // { typeId, secondsLeft, total, spent }
+      burned: 0,
+    },
+
+    // Shield99 / virus state (AO-22). `infection` is null or { at }.
+    security: {
+      infection: null,
+      rescuesUsed: 0, // the free trial rescue, one per run
+      scan: null,
+    },
+
+    retroamp: {
+      playlist: null, // id of the loaded playlist, or null
+      endsAt: 0, // wall clock; only used by timed playlists
+      cooldownUntil: {}, // playlist id -> timestamp it can be loaded again
+      startedAt: 0,
+    },
+
+    // Timed bonuses from status events and rewarded ads. Playlist multipliers
+    // are NOT buffs: they are derived from `retroamp` so they survive a reload.
     buffs: [],
 
     // Pressure loop (GDD 7)
     bloat: 0,
 
     // Session bookkeeping
-    stats: { nudges: 0, playtimeSeconds: 0, bonusesClaimed: 0, bonusesMissed: 0 },
+    stats: {
+      nudges: 0,
+      playtimeSeconds: 0,
+      bonusesClaimed: 0,
+      bonusesMissed: 0,
+      threatsBlocked: 0,
+    },
     lastSeen: now,
     startedAt: now,
 
     settings: { sfx: true, bgm: true, reducedMotion: false },
-    tutorial: { step: 0, done: false },
+
+    // Scripted onboarding (GDD 7). `hardwareRevealed` gates My Computer and the
+    // CPU/RAM readouts until the player hits their first memory bottleneck.
+    tutorial: { step: 0, done: false, hardwareRevealed: false },
   };
 }
 
@@ -65,6 +105,18 @@ export function createInitialState(now = Date.now()) {
  */
 export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
   const fresh = createInitialState(now);
+  // Burned discs outlive the wipe — that is the entire point of AeroBurn.
+  carryDiscsThroughPrestige(state, fresh);
+
+  /**
+   * ...and so does the burner itself, which is the one exception to "all
+   * software is wiped". A CD drive is part of the machine, and without it the
+   * discs would be unreachable until the player re-earned its install cost —
+   * precisely when the "starting boost for the next run" (GDD 6) is meant to
+   * be doing its job.
+   */
+  fresh.apps.aeroburn.installed = state.apps.aeroburn.installed;
+
   return {
     ...fresh,
     dollars: state.dollars + dollarsEarned,
@@ -72,6 +124,7 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
     lifetimeBuzz: state.lifetimeBuzz,
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
+    aeroburn: fresh.aeroburn,
     stats: { ...state.stats },
     settings: { ...state.settings },
     tutorial: { ...state.tutorial, done: true },
