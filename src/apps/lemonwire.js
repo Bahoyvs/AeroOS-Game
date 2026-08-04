@@ -1,5 +1,11 @@
 import { FILES, getFile, riskLabel } from '../data/files.js';
-import { progressOf, secondsLeft, storageUsedGB } from '../core/downloads.js';
+import {
+  progressOf,
+  secondsLeft,
+  speedModifiers,
+  storageUsedGB,
+  trashUsedGB,
+} from '../core/downloads.js';
 import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 
@@ -12,6 +18,14 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
  */
 
 const sizeText = (gb) => (gb < 1 ? `${Math.round(gb * 1024)} MB` : `${gb} GB`);
+
+/** Transfer speed as words, so the risk/reward trade is legible before clicking. */
+function speedLabel(total) {
+  if (total >= 1.5) return 'fast';
+  if (total >= 0.75) return 'steady';
+  if (total >= 0.15) return 'slow';
+  return 'crawling';
+}
 
 export function mount(body, { game }) {
   body.classList.add('app-lemonwire');
@@ -26,6 +40,7 @@ export function mount(body, { game }) {
         <span>Disk</span><span data-role="disk-text">0 / 0 GB</span>
       </div>
       <div class="meter__track"><div class="meter__fill" data-role="disk-bar"></div></div>
+      <div class="lw__disk-trash" data-role="disk-trash" hidden></div>
     </div>
 
     <div class="lw__quarantine" data-role="quarantine" hidden>
@@ -41,24 +56,35 @@ export function mount(body, { game }) {
 
     <h4 class="lw__heading">Library <small data-role="library-count"></small></h4>
     <ul class="lw__library" data-role="library"></ul>
+
+    <h4 class="lw__heading" data-role="trash-heading" hidden>
+      Recycle Bin <small data-role="trash-count"></small>
+    </h4>
+    <ul class="lw__library" data-role="trash" hidden></ul>
   `;
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
   const resultsRoot = ref('results');
   const queueRoot = ref('queue');
   const libraryRoot = ref('library');
+  const trashRoot = ref('trash');
   const rows = new Map();
 
   /* -------------------------------------------------------------- results */
 
   for (const file of FILES) {
     const risk = riskLabel(file.risk);
+    const speed = speedLabel(speedModifiers(file.id).total);
     const button = el(
       'button',
       {
         type: 'button',
         class: 'lw__result',
         dataset: { fileId: file.id },
+        // The trade the app is built around, spelled out before the click.
+        title: `${file.name}\n${sizeText(file.sizeGB)} · ${speed} transfer · ${risk} risk${
+          file.risk >= 0.25 ? ' — dangerous files trickle in, and pay accordingly' : ''
+        }`,
         onclick: () => {
           const result = game.startDownload(file.id);
           if (!result.ok) {
@@ -67,6 +93,7 @@ export function mount(body, { game }) {
               'queue-full': ['Too many transfers', 'Finish or cancel one first.'],
               'already-downloading': ['Already downloading', 'Check your transfers.'],
               'already-have-it': ['Already in your library', 'You downloaded this one.'],
+              'in-trash': ['Still in the Recycle Bin', 'Wait for the bin to empty before downloading it again.'],
               infected: ['LemonWire is locked', 'Clean the infection with Shield99 first.'],
             };
             const [title, bodyText] = messages[result.reason] ?? ['Cannot download', ''];
@@ -80,6 +107,7 @@ export function mount(body, { game }) {
         el('span', { class: 'lw__file-meta' }, [
           el('span', { text: sizeText(file.sizeGB) }),
           el('span', { text: `${file.seeders} seeders` }),
+          el('span', { class: `lw__speed is-${speed}`, text: speed }),
           el('span', { class: `lw__risk is-${risk}`, text: `${risk} risk` }),
         ]),
       ],
@@ -166,7 +194,8 @@ export function mount(body, { game }) {
           el('button', {
             type: 'button',
             class: 'lw__delete',
-            text: 'Delete',
+            text: 'Move to Trash',
+            title: 'Deleted files keep their disk space until the Recycle Bin empties itself.',
             onclick: () => {
               game.deleteFile(fileId);
               update();
@@ -174,6 +203,43 @@ export function mount(body, { game }) {
           }),
         ]),
       );
+    }
+  }
+
+  /* --------------------------------------------------------------- trash */
+
+  /**
+   * The Recycle Bin. Its whole job is to make "delete" cost something: the
+   * space is still gone, and the countdown says for how long.
+   */
+  let trashKey = null;
+
+  function renderTrash() {
+    const trash = game.state.lemonwire.trash;
+    const key = trash.map((item) => item.fileId).join(',');
+
+    ref('trash-heading').hidden = trash.length === 0;
+    trashRoot.hidden = trash.length === 0;
+    ref('trash-count').textContent = `(${sizeText(trashUsedGB(game.state))} held)`;
+
+    if (key !== trashKey) {
+      trashKey = key;
+      clear(trashRoot);
+      for (const item of trash) {
+        const meta = getFile(item.fileId);
+        trashRoot.appendChild(
+          el('li', { class: 'lw__owned is-trashed', dataset: { fileId: item.fileId } }, [
+            el('span', { class: 'lw__file-name', text: meta.name }),
+            el('span', { class: 'lw__file-size', text: sizeText(meta.sizeGB) }),
+            el('span', { class: 'lw__trash-timer', dataset: { role: `trash-${item.fileId}` } }),
+          ]),
+        );
+      }
+    }
+
+    for (const item of trash) {
+      const timer = trashRoot.querySelector(`[data-role="trash-${item.fileId}"]`);
+      if (timer) timer.textContent = `frees in ${formatDuration(Math.ceil(item.secondsLeft))}`;
     }
   }
 
@@ -188,6 +254,11 @@ export function mount(body, { game }) {
     const capacity = econ.storageCapacityGB(s);
     ref('disk-text').textContent = `${used.toFixed(2)} / ${capacity} GB`;
     setBar(ref('disk-bar'), capacity === 0 ? 0 : used / capacity, { warn: 0.8, critical: 0.95 });
+
+    // Space the player thinks they freed, and has not.
+    const held = trashUsedGB(s);
+    ref('disk-trash').hidden = held === 0;
+    ref('disk-trash').textContent = `🗑 ${sizeText(held)} in Trash — not free yet`;
 
     ref('quarantine').hidden = !infected;
     ref('status').textContent = infected
@@ -205,6 +276,7 @@ export function mount(body, { game }) {
 
     renderQueue();
     renderLibrary();
+    renderTrash();
   }, 150);
 
   update();

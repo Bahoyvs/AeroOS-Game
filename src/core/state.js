@@ -47,6 +47,7 @@ export function createInitialState(now = Date.now()) {
     lemonwire: {
       queue: [], // active downloads: { id, fileId, downloadedGB }
       library: [], // completed file ids, taking up HDD space
+      trash: [], // [{ fileId, secondsLeft }] — deleted, but still on the disk
       nextId: 1,
       completed: 0,
     },

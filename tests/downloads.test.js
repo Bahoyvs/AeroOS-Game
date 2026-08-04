@@ -47,6 +47,55 @@ describe('the file list', () => {
   it('scales with the player output, so it stays relevant', () => {
     expect(dl.payoutFor('battlefront', 1000)).toBeGreaterThan(dl.payoutFor('battlefront', 10));
   });
+
+  it('pays a premium for waiting, not merely compensation', () => {
+    // Inverse scaling alone would make every file worth the same Buzz per
+    // second of waiting, which would leave risk as pure downside. The risk
+    // bonus is what buys the choice: measured per second spent transferring,
+    // the dangerous file must beat the safe one.
+    const rate = 10;
+    const perSecondOfWaiting = (id) => {
+      const seconds = getFile(id).sizeGB / (LEMONWIRE.gbPerSecond * dl.speedModifiers(id).total);
+      return dl.payoutFor(id, rate) / seconds;
+    };
+    expect(perSecondOfWaiting('speed-boost')).toBeGreaterThan(perSecondOfWaiting('wallpapers'));
+    expect(perSecondOfWaiting('cam-movie')).toBeGreaterThan(perSecondOfWaiting('wallpapers'));
+  });
+});
+
+describe('transfer speed', () => {
+  it('rewards seeders, within a cap', () => {
+    // 48 seeders would be ×2.4 uncapped.
+    expect(dl.speedModifiers('wallpapers').seeders).toBe(LEMONWIRE.maxSeederModifier);
+    expect(dl.speedModifiers('battlefront').seeders).toBeCloseTo(6 / LEMONWIRE.seedersPerSpeedUnit);
+  });
+
+  it('ignores the advertised swarm on dangerous files', () => {
+    // 302 peers sharing a 3 MB "speed boost" are bots. Believing them made the
+    // most dangerous file in the list the fastest to download.
+    expect(getFile('speed-boost').seeders).toBeGreaterThan(LEMONWIRE.seedersPerSpeedUnit);
+    expect(dl.speedModifiers('speed-boost').seeders).toBe(1);
+  });
+
+  it('throttles by risk in bands, hardest at the extreme', () => {
+    const safe = dl.speedModifiers('wallpapers');
+    const high = dl.speedModifiers('cam-movie'); // 28% risk
+    const extreme = dl.speedModifiers('speed-boost'); // 75% risk
+
+    expect(safe.risk).toBe(1);
+    expect(high.risk).toBeLessThan(safe.risk);
+    expect(extreme.risk).toBeLessThan(high.risk);
+  });
+
+  it('makes the sketchy file slow in wall time despite being tiny', () => {
+    const s = wired();
+    const boost = dl.startDownload(s, 'speed-boost'); // 3 MB
+    const solo = dl.secondsLeft(s, boost);
+    dl.cancelDownload(s, boost.id);
+
+    const safe = dl.startDownload(s, 'wallpapers'); // 200 MB, 66× larger
+    expect(solo).toBeGreaterThan(dl.secondsLeft(s, safe));
+  });
 });
 
 describe('starting downloads', () => {
@@ -93,16 +142,60 @@ describe('starting downloads', () => {
     expect(dl.storageUsedGB(s)).toBeCloseTo(before + 4);
   });
 
-  it('frees space again when a download is cancelled or a file deleted', () => {
+  it('frees space again when a download is cancelled', () => {
     const s = wired();
     const job = dl.startDownload(s, 'battlefront');
     dl.cancelDownload(s, job.id);
     expect(dl.storageUsedGB(s)).toBe(0);
+  });
+});
 
+describe('the Recycle Bin', () => {
+  it('does not hand the space back when a file is deleted', () => {
+    const s = wired();
     s.lemonwire.library.push('battlefront');
-    expect(dl.deleteFile(s, 'battlefront').ok).toBe(true);
-    expect(dl.storageUsedGB(s)).toBe(0);
+
+    expect(dl.deleteFile(s, 'battlefront')).toMatchObject({
+      ok: true,
+      secondsLeft: LEMONWIRE.trashSeconds,
+    });
+    expect(s.lemonwire.library).toEqual([]);
+    expect(dl.trashUsedGB(s)).toBe(4);
+    expect(dl.storageUsedGB(s)).toBe(4); // still on the disk
+
     expect(dl.deleteFile(s, 'battlefront').reason).toBe('not-in-library');
+  });
+
+  it('empties on simulation time, and only then frees the disk', () => {
+    const s = wired();
+    s.lemonwire.library.push('battlefront');
+    dl.deleteFile(s, 'battlefront');
+
+    expect(dl.updateTrash(s, LEMONWIRE.trashSeconds - 1)).toEqual([]);
+    expect(dl.storageUsedGB(s)).toBe(4);
+
+    const emptied = dl.updateTrash(s, 1);
+    expect(emptied).toHaveLength(1);
+    expect(emptied[0].fileId).toBe('battlefront');
+    expect(s.lemonwire.trash).toEqual([]);
+    expect(dl.storageUsedGB(s)).toBe(0);
+  });
+
+  it('blocks re-downloading a file that is still in the bin', () => {
+    const s = wired();
+    s.lemonwire.library.push('wallpapers');
+    dl.deleteFile(s, 'wallpapers');
+
+    expect(dl.canDownload(s, 'wallpapers', capacity(s)).reason).toBe('in-trash');
+    dl.updateTrash(s, LEMONWIRE.trashSeconds);
+    expect(dl.canDownload(s, 'wallpapers', capacity(s)).ok).toBe(true);
+  });
+
+  it('counts against the disk, so deleting cannot make room right now', () => {
+    const s = wired({ hdd: 0 });
+    s.lemonwire.library.push('battlefront'); // 4 GB on a 4 GB disk
+    dl.deleteFile(s, 'battlefront');
+    expect(dl.canDownload(s, 'cam-movie', 4).reason).toBe('no-space');
   });
 });
 
@@ -117,13 +210,19 @@ describe('transfer progress', () => {
 
   it('shares bandwidth between concurrent transfers', () => {
     const one = wired();
-    dl.startDownload(one, 'battlefront');
-    const solo = dl.speedPerJobGB(one);
+    const solo = dl.speedPerJobGB(one, dl.startDownload(one, 'battlefront'));
 
     const many = wired();
-    dl.startDownload(many, 'battlefront');
+    const job = dl.startDownload(many, 'battlefront');
     dl.startDownload(many, 'cam-movie');
-    expect(dl.speedPerJobGB(many)).toBeCloseTo(solo / 2);
+    expect(dl.speedPerJobGB(many, job)).toBeCloseTo(solo / 2);
+  });
+
+  it('gives each transfer its own speed, not the queue average', () => {
+    const s = wired();
+    const fast = dl.startDownload(s, 'wallpapers');
+    const slow = dl.startDownload(s, 'speed-boost');
+    expect(dl.speedPerJobGB(s, fast)).toBeGreaterThan(dl.speedPerJobGB(s, slow));
   });
 
   it('completes and reports an ETA that shrinks', () => {
@@ -315,6 +414,23 @@ describe('through the game', () => {
     expect(game.state.security.rescuesUsed).toBe(0);
     expect(game.state.lemonwire.library).toEqual([]);
     expect(game.state.lemonwire.queue).toEqual([]);
+    expect(game.state.lemonwire.trash).toEqual([]);
+  });
+
+  it('empties the bin on the tick and announces the space', () => {
+    const game = playing();
+    game.state.lemonwire.library.push('battlefront');
+
+    const emptied = [];
+    game.bus.on(game.events.TRASH_EMPTIED, ({ file }) => emptied.push(file.id));
+
+    expect(game.deleteFile('battlefront').ok).toBe(true);
+    game.tick(LEMONWIRE.trashSeconds - 1);
+    expect(emptied).toEqual([]);
+
+    game.tick(1);
+    expect(emptied).toEqual(['battlefront']);
+    expect(game.state.lemonwire.trash).toEqual([]);
   });
 
   it('survives a save and reload mid-transfer', () => {

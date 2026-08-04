@@ -751,6 +751,11 @@
   border-color: rgb(255 255 255 / 60%);
 }
 
+.lw__disk-trash {
+  font-size: 0.65rem;
+  color: #8a6a1c;
+}
+
 .lw__quarantine {
   display: grid;
   gap: 2px;
@@ -825,8 +830,17 @@
   color: var(--text-muted);
 }
 
-.lw__risk {
+.lw__speed {
   margin-left: auto;
+  font-style: italic;
+}
+
+.lw__speed.is-slow,
+.lw__speed.is-crawling {
+  color: #97791b;
+}
+
+.lw__risk {
   font-weight: 700;
 }
 
@@ -892,6 +906,20 @@
 .lw__file-size {
   color: var(--text-muted);
   font-size: 0.65rem;
+}
+
+.lw__owned.is-trashed {
+  opacity: 0.6;
+}
+
+.lw__owned.is-trashed .lw__file-name {
+  text-decoration: line-through;
+}
+
+.lw__trash-timer {
+  font-size: 0.65rem;
+  color: #8a6a1c;
+  font-variant-numeric: tabular-nums;
 }
 
 .lw__empty {

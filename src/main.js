@@ -231,6 +231,23 @@ function boot() {
     });
   });
 
+  // Deleting is not instant, and the player has to learn that the first time.
+  game.bus.on(game.events.FILE_DELETED, ({ file, secondsLeft }) => {
+    notify({
+      title: 'Moved to the Recycle Bin',
+      body: `${file.name} still takes up its space for ${formatDuration(secondsLeft)}.`,
+      tone: 'warn',
+    });
+  });
+
+  game.bus.on(game.events.TRASH_EMPTIED, ({ file }) => {
+    notify({
+      title: 'Recycle Bin emptied',
+      body: `${file.name} is gone — its disk space is free again.`,
+      tone: 'success',
+    });
+  });
+
   game.bus.on(game.events.VIRUS, ({ file, outcome }) => {
     const messages = {
       blocked: ['Shield99 blocked a threat', `${file.name} was quarantined on arrival.`, 'success'],

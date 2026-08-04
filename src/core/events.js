@@ -51,7 +51,8 @@ export const EVENTS = {
   DOWNLOAD_STARTED: 'lemonwire:started', // { job, file }
   DOWNLOAD_DONE: 'lemonwire:done', // { file, payout }
   DOWNLOAD_CANCELLED: 'lemonwire:cancelled', // { job }
-  FILE_DELETED: 'lemonwire:deleted', // { file }
+  FILE_DELETED: 'lemonwire:deleted', // { file, secondsLeft }
+  TRASH_EMPTIED: 'lemonwire:trashed', // { file } — its disk space came back
   VIRUS: 'security:virus', // { file, outcome: blocked | rescued | infected }
   SCAN_STARTED: 'security:scan', // {}
   SCAN_DONE: 'security:scanned', // { cured }

@@ -45,7 +45,9 @@ No framework and no global tooling: Node 20+ and npm are enough.
   leave running, IRON OVERDRIVE triples production for five minutes, eats 64 MB more than
   your machine has, and then cools down.
 - **LemonWire** — a P2P download sim where files take real disk space and trade risk for
-  reward. Downloads only run while the window is open.
+  reward: dangerous files crawl in and pay a premium for the wait, a suspiciously popular
+  malware stub is not actually well-seeded, and deleting only moves a file to a Recycle Bin
+  that holds its space for five minutes. Downloads only run while the window is open.
 - **Shield99** — a tray icon that shows whether you are covered, real-time protection while
   it is open, and one free rescue per run. A virus halves production and locks LemonWire
   until you scan — it never takes progress away.

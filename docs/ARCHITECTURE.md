@@ -13,7 +13,7 @@ index.html
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
-    │   ├── downloads.js      LemonWire transfers + the virus safety net
+    │   ├── downloads.js      LemonWire transfers, the Recycle Bin, virus safety net
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           localStorage, migrations, offline elapsed time
@@ -77,7 +77,9 @@ Timed systems pick their clock according to what should happen while the player 
 
 - **Simulation time** (accumulated `dt`, only advances while the loop runs) — status-message
   events in `core/statusEvents.js`. A claim window must not burn down in a background tab,
-  and a throttled tab must not silently miss bonuses.
+  and a throttled tab must not silently miss bonuses. LemonWire's Recycle Bin is here too,
+  for the same reason its transfers are: the cost of deleting a file is time spent *at the
+  machine*, and a bin that emptied itself overnight would cost nothing.
 - **Wall clock** (`Date.now()` timestamps) — buffs in `core/buffs.js`, autosave, offline
   earnings. A 60-second buff should be over when you come back an hour later.
 

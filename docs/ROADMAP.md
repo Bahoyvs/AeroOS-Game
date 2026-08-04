@@ -143,6 +143,32 @@ drag handle that slides the sheet away.
 **DoD:** a virus can be caught, survived and cured, and the worst case is
 provably a 50% floor — asserted in tests and measured in the browser. ✅
 
+### Follow-up — the risk/reward overhaul ✅
+
+The shipped version priced risk but did not *pace* it: every file downloaded at
+the same speed, so `system32_SPEED_BOOST_2005.exe` — 3 MB, 302 "seeders", 75%
+infection — finished before anything else and paid the same. Risk was a coin
+flip you took for free.
+
+Three changes make the choice real:
+
+1. **Speed is per file, not per queue.** Seeders help up to ×2 (`seedersPerSpeedUnit`),
+   risk throttles in bands (`riskSpeedTiers`), and above `fakeSwarmAtRisk` the
+   advertised swarm is ignored outright — 302 peers on a malware stub are bots.
+   The extreme band runs at ×0.002, so the 3 MB file takes ~25 seconds.
+2. **Payout scales inversely to speed**, so waiting 200× longer earns 200× more.
+   Pure inversion cancels exactly, though — it paid every file the *same* Buzz
+   per second of waiting, leaving risk as downside with no upside. So
+   `riskPayoutBonus` adds a premium on top; the danger curve now rises
+   monotonically from ×2.9 to ×5.7 of current production per second of transfer.
+3. **Deleting is not instant.** A deleted file goes to a Recycle Bin that holds
+   its disk space for `trashSeconds` (5 minutes) and cannot be re-downloaded
+   while it sits there. Disk pressure is now a decision with a cost rather than
+   a button you press between transfers.
+
+**DoD:** the most dangerous file in the list is the slowest and the richest per
+second spent, and freeing space costs five minutes. ✅
+
 ---
 
 ## Day 6 — Juice + audio + offline (AO-25) ✅ shipped

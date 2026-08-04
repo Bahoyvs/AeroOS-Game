@@ -12,11 +12,45 @@ import { getFile } from '../data/files.js';
  * protected *at that moment* is what matters. Randomness is injected.
  */
 
-/** Total gigabytes on disk: finished files plus what is currently downloading. */
+/* ------------------------------------------------------- risk vs reward */
+
+/**
+ * How fast a file transfers, relative to the base rate.
+ *
+ * Seeders help — up to a cap, so a huge swarm cannot trivialise everything.
+ * Risk hurts, in bands: a high-risk file trickles and an extreme-risk one
+ * barely moves. Above `fakeSwarmAtRisk` the advertised seeder count is ignored
+ * entirely: 302 peers sharing a 3 MB "speed boost" are bots, and treating them
+ * as real made the most dangerous file in the list the fastest to download.
+ */
+export function speedModifiers(fileId) {
+  const file = getFile(fileId);
+
+  const tier = LEMONWIRE.riskSpeedTiers.find(({ atRisk }) => file.risk >= atRisk);
+  const risk = tier ? tier.modifier : 1;
+
+  const seeders = file.risk >= LEMONWIRE.fakeSwarmAtRisk
+    ? 1
+    : Math.min(
+        LEMONWIRE.maxSeederModifier,
+        Math.max(LEMONWIRE.minSeederModifier, file.seeders / LEMONWIRE.seedersPerSpeedUnit),
+      );
+
+  return { seeders, risk, total: seeders * risk };
+}
+
+/** Total gigabytes on disk: library, active transfers, and the trash. */
 export function storageUsedGB(state) {
   const library = state.lemonwire.library.reduce((sum, id) => sum + getFile(id).sizeGB, 0);
   const active = state.lemonwire.queue.reduce((sum, job) => sum + getFile(job.fileId).sizeGB, 0);
-  return Math.round((library + active) * 1000) / 1000;
+  const trash = state.lemonwire.trash.reduce((sum, item) => sum + getFile(item.fileId).sizeGB, 0);
+  return Math.round((library + active + trash) * 1000) / 1000;
+}
+
+export function trashUsedGB(state) {
+  return Math.round(
+    state.lemonwire.trash.reduce((sum, item) => sum + getFile(item.fileId).sizeGB, 0) * 1000,
+  ) / 1000;
 }
 
 export function canDownload(state, fileId, capacityGB) {
@@ -30,6 +64,11 @@ export function canDownload(state, fileId, capacityGB) {
     return { ok: false, reason: 'already-downloading' };
   }
   if (state.lemonwire.library.includes(fileId)) return { ok: false, reason: 'already-have-it' };
+  // Still physically on the disk until the trash empties — no download-and-
+  // delete farming loop.
+  if (state.lemonwire.trash.some((item) => item.fileId === fileId)) {
+    return { ok: false, reason: 'in-trash' };
+  }
 
   const free = capacityGB - storageUsedGB(state);
   if (file.sizeGB > free) {
@@ -54,17 +93,43 @@ export function cancelDownload(state, jobId) {
   return { ok: true, job };
 }
 
+/**
+ * "Delete" moves a file to the trash. It keeps occupying the disk until the bin
+ * empties itself, which is what makes storage a real constraint rather than a
+ * button you press between downloads.
+ */
 export function deleteFile(state, fileId) {
   const index = state.lemonwire.library.indexOf(fileId);
   if (index === -1) return { ok: false, reason: 'not-in-library' };
+
   state.lemonwire.library.splice(index, 1);
-  return { ok: true };
+  state.lemonwire.trash.push({ fileId, secondsLeft: LEMONWIRE.trashSeconds });
+  return { ok: true, secondsLeft: LEMONWIRE.trashSeconds };
 }
 
-/** Bandwidth is shared, so three downloads each run at a third of the speed. */
-export function speedPerJobGB(state) {
+/** Empty the bin on simulation time. Returns the files whose space came back. */
+export function updateTrash(state, dt) {
+  if (state.lemonwire.trash.length === 0) return [];
+
+  const emptied = [];
+  for (const item of state.lemonwire.trash) {
+    item.secondsLeft -= dt;
+    if (item.secondsLeft <= 0) emptied.push(item);
+  }
+  if (emptied.length > 0) {
+    state.lemonwire.trash = state.lemonwire.trash.filter((item) => item.secondsLeft > 0);
+  }
+  return emptied;
+}
+
+/**
+ * Speed for one transfer: the base rate, shared between concurrent downloads,
+ * scaled by that file's own seeders and risk.
+ */
+export function speedPerJobGB(state, job) {
   const jobs = state.lemonwire.queue.length;
-  return jobs === 0 ? 0 : LEMONWIRE.gbPerSecond / jobs;
+  if (jobs === 0 || !job) return 0;
+  return (LEMONWIRE.gbPerSecond / jobs) * speedModifiers(job.fileId).total;
 }
 
 export function progressOf(job) {
@@ -72,7 +137,7 @@ export function progressOf(job) {
 }
 
 export function secondsLeft(state, job) {
-  const speed = speedPerJobGB(state);
+  const speed = speedPerJobGB(state, job);
   if (speed <= 0) return Infinity;
   return Math.max(0, (getFile(job.fileId).sizeGB - job.downloadedGB) / speed);
 }
@@ -85,11 +150,10 @@ export function secondsLeft(state, job) {
 export function updateDownloads(state, dt, rng = Math.random) {
   if (!state.apps.lemonwire?.open || state.lemonwire.queue.length === 0) return [];
 
-  const speed = speedPerJobGB(state);
   const finished = [];
 
   for (const job of state.lemonwire.queue) {
-    job.downloadedGB += speed * dt;
+    job.downloadedGB += speedPerJobGB(state, job) * dt;
     if (job.downloadedGB >= getFile(job.fileId).sizeGB) {
       finished.push({ ...job, infected: rng() < getFile(job.fileId).risk });
     }
@@ -102,10 +166,21 @@ export function updateDownloads(state, dt, rng = Math.random) {
   return finished;
 }
 
-/** Buzz a finished file is worth, in seconds of the player's current output. */
+/**
+ * Buzz a finished file is worth, in seconds of the player's current output.
+ *
+ * The payout scales *inversely* to the speed modifiers — a transfer that took
+ * 200× longer pays 200× more — plus a risk premium on top. The premium is what
+ * makes the choice real: pure inverse scaling would pay every file the same
+ * Buzz per second of waiting, leaving risk as downside with no upside.
+ */
 export function payoutFor(fileId, buzzPerSecond) {
   const file = getFile(fileId);
-  const seconds = file.sizeGB * LEMONWIRE.payoutSecondsPerGB * (1 + file.risk * LEMONWIRE.riskPayoutBonus);
+  const { total } = speedModifiers(fileId);
+
+  const seconds =
+    (file.sizeGB * LEMONWIRE.payoutSecondsPerGB * (1 + file.risk * LEMONWIRE.riskPayoutBonus)) /
+    total;
   return Math.max(LEMONWIRE.minPayoutBuzz, buzzPerSecond * seconds);
 }
 

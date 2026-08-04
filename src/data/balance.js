@@ -116,10 +116,46 @@ export const OFFLINE = {
 
 export const LEMONWIRE = {
   maxConcurrent: 3,
-  gbPerSecond: 0.06, // a 4 GB ISO lands in a bit over a minute
+  gbPerSecond: 0.06, // base rate before per-file modifiers
   payoutSecondsPerGB: 45, // completion pays this many seconds of production per GB
-  riskPayoutBonus: 1.5, // ...multiplied by (1 + risk * this), so danger pays
   minPayoutBuzz: 25, // an early download still feels like something
+
+  /**
+   * Risk vs reward. A file's seeders and risk scale its download *speed*, and
+   * the payout scales inversely — wait ten times as long, earn ten times as
+   * much. Two knobs keep that from collapsing into a pointless choice:
+   *
+   * `riskPayoutBonus` is the premium *on top of* the inverse. Without it the
+   * Buzz-per-second-of-waiting is identical for every file (the inverse cancels
+   * exactly), so risk would add infection chance for no upside at all.
+   *
+   * `fakeSwarmAtRisk` is why a virus advertising 302 seeders does not download
+   * instantly: above this risk the swarm is bots, so the seeder count buys no
+   * speed. Without it a popular malware file is the *fastest* in the list.
+   */
+  riskPayoutBonus: 1.5,
+  fakeSwarmAtRisk: 0.25,
+
+  seedersPerSpeedUnit: 20, // 20 seeders = normal speed
+  minSeederModifier: 0.1, // a dead torrent still crawls
+  maxSeederModifier: 2, // ...and a huge swarm cannot exceed double speed
+
+  /**
+   * Speed multiplier by risk band: high risk trickles, extreme risk barely
+   * moves. Because payout is the inverse of speed, the extreme modifier is a
+   * single dial trading *how long* against *how much* at constant Buzz per
+   * second of waiting — 0.002 makes the 3 MB "speed boost" a ~25 second wait
+   * for roughly two minutes of production, which is the jackpot the file is
+   * pretending to be. Halve it for a longer, richer gamble.
+   */
+  riskSpeedTiers: [
+    { atRisk: 0.5, modifier: 0.002 },
+    { atRisk: 0.25, modifier: 0.2 },
+  ],
+
+  // Deleting only moves a file to the trash; the space stays used until this
+  // much simulation time has passed (AO: Trash Bin).
+  trashSeconds: 300,
 };
 
 /**

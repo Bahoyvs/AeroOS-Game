@@ -89,6 +89,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
     for (const job of dl.updateDownloads(state, dt, rng)) completeDownload(job);
 
+    for (const item of dl.updateTrash(state, dt)) {
+      bus.emit(EVENTS.TRASH_EMPTIED, { file: getFile(item.fileId) });
+    }
+
     const disc = burner.updateBurn(state, dt);
     if (disc) {
       bus.emit(EVENTS.BURN_DONE, { cd: getCD(disc.typeId), disc });
@@ -276,9 +280,12 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return result;
   }
 
+  /** Moves the file to the trash — the disk does not come back straight away. */
   function deleteFile(fileId) {
     const result = dl.deleteFile(state, fileId);
-    if (result.ok) bus.emit(EVENTS.FILE_DELETED, { file: getFile(fileId) });
+    if (result.ok) {
+      bus.emit(EVENTS.FILE_DELETED, { file: getFile(fileId), secondsLeft: result.secondsLeft });
+    }
     return result;
   }
 
