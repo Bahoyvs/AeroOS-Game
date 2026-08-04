@@ -26,7 +26,7 @@ npm run dev      # http://localhost:5173
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
-## What works today (Days 1–5)
+## What works today (Days 1–6)
 
 - **Desktop shell** — draggable, resizable, overlapping windows with focus, minimize and a
   Start menu; on phones the same windows become full-screen PDA modals with RAM bars under
@@ -58,10 +58,17 @@ No framework and no global tooling: Node 20+ and npm are enough.
   Wipes software, banks Dollars from lifetime Buzz, keeps hardware.
 - **Hardware shop** — CPU/RAM/GPU/HDD tracks where every tier states what it adds as a flat
   percentage, with tier pips and live affordability.
+- **AeroBurn** — burn Buzz onto a disc that survives a Format C:. MIX stores value across
+  the wipe, OVERCLOCK stores a production burst for the next run.
+- **Heat and tension** — the machine gets visibly and audibly worse as it bloats: a heat
+  gauge climbing to 94°C, window animations dragging, the desktop hitching, and the audio
+  distorting.
+- **Sound** — every effect and the soundtrack are synthesised in the browser, so there are
+  no audio files to ship. Mute lives in the taskbar tray.
 - **Saves** — versioned localStorage with migrations, autosave, and offline Buzz capped by
-  your HDD.
+  your HDD, reported in a dialog that explains the cap when it bites.
 
-The rest of the software roster (Aero Studio, AeroBurn, Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
+The rest of the software roster (Aero Studio, Galactic Pinball) is declared with real RAM costs and prices, and opens a placeholder window
 naming the day it lands. See the roadmap.
 
 ## Layout

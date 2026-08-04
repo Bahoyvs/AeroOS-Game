@@ -183,6 +183,33 @@ export function createTaskbar({ root, game, wm, launch }) {
   game.bus.on(game.events.PLAYLIST_LOADED, updateTaskBars);
   game.bus.on(game.events.PLAYLIST_ENDED, updateTaskBars);
 
+  /**
+   * Sound toggle (AO-26). Generated audio still needs an off switch, and the
+   * tray is where a mid-2000s OS put it.
+   */
+  const trayRoot = root.querySelector('.tray');
+  const audioButton = el('button', {
+    type: 'button',
+    class: 'tray__audio',
+    onclick: () => {
+      const muted = game.state.settings.sfx === false && game.state.settings.bgm === false;
+      game.setSettings({ sfx: muted, bgm: muted });
+      updateAudioButton();
+    },
+  });
+  trayRoot.prepend(audioButton);
+
+  function updateAudioButton() {
+    const { sfx, bgm } = game.state.settings;
+    const muted = sfx === false && bgm === false;
+    audioButton.textContent = muted ? '🔇' : '🔊';
+    audioButton.title = muted ? 'Sound off — click to unmute' : 'Sound on — click to mute';
+    audioButton.setAttribute('aria-label', audioButton.title);
+    audioButton.dataset.muted = String(muted);
+  }
+  updateAudioButton();
+  game.bus.on(game.events.SETTINGS, updateAudioButton);
+
   // Shield99's tray icon (AO-22) lives left of the clock, like the real thing.
   const tray = createTrayShield({ root: root.querySelector('.tray'), game, launch });
   game.bus.on(game.events.APP_INSTALLED, tray.update);

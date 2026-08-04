@@ -990,3 +990,193 @@
   line-height: 1.45;
   color: var(--text-muted);
 }
+
+/* -------------------------------------------------------------- AeroBurn */
+
+.app-aeroburn {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.app-aeroburn > * {
+  flex: 0 0 auto;
+}
+
+.burn__drive {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 10px;
+  background: linear-gradient(180deg, #2a2f38, #14181e);
+  border: 1px solid #0b0e12;
+  border-radius: var(--radius-sm);
+  color: #d7e3ef;
+}
+
+.burn__disc {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, #14181e 0 22%, transparent 23%),
+    conic-gradient(from 0deg, #7fe4ff, #d6ff8f, #ffd9a3, #ff9ecb, #7fe4ff);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 25%);
+}
+
+.burn__disc.is-spinning {
+  animation: disc-spin 1.1s linear infinite;
+}
+
+@keyframes disc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.burn__status {
+  display: grid;
+  gap: 4px;
+}
+
+.burn__status strong {
+  font-size: 0.78rem;
+}
+
+.burn__status span {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+.burn__status .meter__track {
+  height: 6px;
+  background: rgb(0 0 0 / 45%);
+  border-color: rgb(255 255 255 / 18%);
+}
+
+.burn__types,
+.burn__shelf {
+  display: grid;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.burn__type {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.burn__type:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.burn__type-label {
+  padding: 3px 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: rgb(13 36 55 / 12%);
+  border-radius: var(--radius-sm);
+}
+
+.burn__type-text {
+  display: grid;
+  min-width: 0;
+}
+
+.burn__type-text strong {
+  font-size: 0.76rem;
+}
+
+.burn__type-text small {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.burn__type-cost {
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.burn__type-cost.is-affordable {
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
+.burn__heading {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.burn__slot {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 9px;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgb(255 255 255 / 55%);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--radius-sm);
+}
+
+.burn__slot-disc {
+  display: grid;
+  place-content: center;
+  width: 26px;
+  height: 26px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #123;
+  background: radial-gradient(circle at 50% 50%, #fff 0 24%, var(--disc-color) 25%);
+  border: 1px solid rgb(13 36 55 / 25%);
+  border-radius: 50%;
+}
+
+.burn__slot-text {
+  display: grid;
+  min-width: 0;
+}
+
+.burn__slot-text strong {
+  font-size: 0.74rem;
+}
+
+.burn__slot-text small {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}
+
+.burn__play {
+  min-width: 0;
+  min-height: 26px;
+  padding: 0 12px;
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.burn__empty {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.burn__note {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+}

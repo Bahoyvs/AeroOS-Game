@@ -6,7 +6,7 @@ definition of done. Ship the day's DoD before starting the next day — the sche
 every day ends on a build that runs.
 
 Ticket IDs are the Jira board's, and only exist for days the board has scoped
-(Days 1–5). Later days list the work without IDs — they get numbered when their
+(Days 1–6). Later days list the work without IDs — they get numbered when their
 epic is created.
 
 **Ground rules for every day**
@@ -145,25 +145,54 @@ provably a 50% floor — asserted in tests and measured in the browser. ✅
 
 ---
 
-## Day 6 — Aero Studio + AeroBurn (long-cycle payoffs)
+## Day 6 — Juice + audio + offline (AO-25) ✅ shipped
 
-**Goal:** give the GPU and the prestige loop something to matter for.
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-26 | Source/generate SFX and BGM, integrate into game | ✅ `src/ui/audio.js` — everything synthesised, plus a tray mute |
+| AO-27 | Prestige-tension escalation (system lag, red heat widgets, distortion audio) | ✅ heat gauge, dragging window transitions, desktop hitches, distortion bus |
+| AO-28 | Offline earnings calculation | ✅ calculation shipped Day 1; now reported in a dialog that explains the HDD cap |
+| AO-29 | AeroBurn CD system (1–2 CD types, survive prestige wipe) | ✅ MIX and OVERCLOCK discs, carried through Format C: |
 
-- [ ] Aero Studio (`src/apps/aerostudio.js`): long render with a GPU-scaled cooldown
-      (`cooldownMultiplier`), highest single payout in the game.
-- [ ] Shared cooldown/progress-job helper so future timed apps reuse one implementation.
-- [ ] AeroBurn (`src/apps/aeroburn.js`): burn Buzz to a CD that survives Format C:
-      and grants next-run starting boosts (persist through `resetForPrestige`).
-- [ ] Tests: CD carry-over survives prestige; GPU tiers measurably cut cooldowns.
+**Audio ships as code, not assets.** Every sound is synthesised with WebAudio —
+mechanical clicks, HDD chatter, a startup chime, the BSOD fall, a CD-writer
+spin-up — and the BGM is a scheduled arpeggio rather than a loop file. That
+keeps the bundle tiny, sidesteps the portal CSP entirely, and makes AO-27's
+"distortion audio" a knob instead of a second set of files: a waveshaper on the
+master bus whose curve follows system heat. The context only starts on a real
+gesture (autoplay policy) and the tray has a mute.
 
-**Files:** `src/apps/aerostudio.js`, `src/apps/aeroburn.js`, `src/core/jobs.js`, `src/core/state.js`
-**DoD:** every hardware track (CPU/RAM/GPU/HDD) now changes something the player can feel.
+**Heat is bloat with a face on it.** Players cannot read a 0..1 float, but they
+understand 91°C. Heat rises with bloat and with what they keep open, and drives
+one escalation across the whole shell: gauge colour, window transitions
+dragging from 180 ms to 620 ms, occasional desktop hitches, and audio
+distortion — all from `econ.heatRatio`.
+
+**AO-28 was mostly done and honestly reported as such.** The calculation has
+existed since Day 1, capped by HDD tier and unit-tested. What it lacked was a
+moment: a balloon that fades in four seconds could not explain why 26 hours away
+paid only 2 hours of Buzz. The dialog now shows away-vs-counted, and the
+rewarded "2× offline Buzz" ad from GDD 8 has a seam waiting (`onDouble`).
+
+**AeroBurn** discs are the only soft-currency asset that outlives a wipe. One
+design fix fell out of testing: the burner itself now survives Format C: too,
+because otherwise the discs were unreachable until the player re-earned its
+install cost — precisely when the "starting boost for the next run" is meant to
+help.
+
+**DoD:** the machine sounds and feels worse as it bloats, offline time is
+explained rather than announced, and a disc burned before a wipe pays out
+after it. ✅
 
 ---
 
-## Day 7 — Active play: Pinball, IoT Botnet, Mini-Mod
+## Day 7 — Aero Studio, Pinball, IoT Botnet, Mini-Mod
 
-**Goal:** something to do while idling, and an end-game ceiling.
+**Goal:** the last of the software roster, something to do while idling, and an
+end-game ceiling.
+
+- [ ] Aero Studio: a long GPU-scaled render with the biggest single payout —
+      the GPU track still has no consumer, so this is what makes it felt.
 
 - [ ] Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
       combo multipliers.

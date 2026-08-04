@@ -1,4 +1,5 @@
 import { ALL_APPS } from '../data/apps.js';
+import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
@@ -50,6 +51,13 @@ export function createInitialState(now = Date.now()) {
       completed: 0,
     },
 
+    // AeroBurn (AO-29). Discs survive Format C: — see resetForPrestige.
+    aeroburn: {
+      discs: [], // [{ typeId, spent }]
+      burning: null, // { typeId, secondsLeft, total, spent }
+      burned: 0,
+    },
+
     // Shield99 / virus state (AO-22). `infection` is null or { at }.
     security: {
       infection: null,
@@ -96,6 +104,18 @@ export function createInitialState(now = Date.now()) {
  */
 export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
   const fresh = createInitialState(now);
+  // Burned discs outlive the wipe — that is the entire point of AeroBurn.
+  carryDiscsThroughPrestige(state, fresh);
+
+  /**
+   * ...and so does the burner itself, which is the one exception to "all
+   * software is wiped". A CD drive is part of the machine, and without it the
+   * discs would be unreachable until the player re-earned its install cost —
+   * precisely when the "starting boost for the next run" (GDD 6) is meant to
+   * be doing its job.
+   */
+  fresh.apps.aeroburn.installed = state.apps.aeroburn.installed;
+
   return {
     ...fresh,
     dollars: state.dollars + dollarsEarned,
@@ -103,6 +123,7 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
     lifetimeBuzz: state.lifetimeBuzz,
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
+    aeroburn: fresh.aeroburn,
     stats: { ...state.stats },
     settings: { ...state.settings },
     tutorial: { ...state.tutorial, done: true },

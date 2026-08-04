@@ -8,17 +8,29 @@ import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
+import { HEAT } from './data/balance.js';
+import { createAudio } from './ui/audio.js';
 import { confirmFormat, createFormatSequence } from './ui/bsod.js';
 import { createDesktop } from './ui/desktop.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
 import { createTutorialCoach } from './ui/tutorial.js';
+import { showWelcomeBack } from './ui/welcomeBack.js';
 import { createWindowManager } from './ui/windowManager.js';
 
 /** Boot the OS: wire the simulation to the shell and start the clock. */
 function boot() {
   const game = createGame();
   const loaded = game.load();
+
+  // Audio (AO-26). Synthesised, so there is nothing to preload; the context
+  // only starts on the first real gesture, per the autoplay policy.
+  const audio = createAudio({
+    settings: () => game.state.settings,
+    heat: () => game.econ.heatRatio(game.state),
+  });
+  document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
+  document.addEventListener('keydown', () => audio.unlock(), { once: true });
 
   const wm = createWindowManager({ root: document.getElementById('windows') });
   const notify = createNotifier(document.getElementById('toasts'));
@@ -97,6 +109,39 @@ function boot() {
   game.bus.on(game.events.PRESTIGE, () => {
     for (const id of wm.openIds) wm.close(id);
     launch('aerochat');
+    audio.play('chime');
+  });
+
+  // One place for every sound the simulation triggers (AO-26).
+  const SOUNDS = {
+    [game.events.BOT_BOUGHT]: 'buy',
+    [game.events.APP_INSTALLED]: 'hdd',
+    [game.events.APP_OPENED]: 'click',
+    [game.events.OUT_OF_MEMORY]: 'error',
+    [game.events.HARDWARE_BOUGHT]: 'coin',
+    [game.events.STATUS_CLAIMED]: 'coin',
+    [game.events.DOWNLOAD_STARTED]: 'hdd',
+    [game.events.DOWNLOAD_DONE]: 'coin',
+    [game.events.SCAN_DONE]: 'chime',
+    [game.events.BURN_STARTED]: 'burn',
+    [game.events.BURN_DONE]: 'chime',
+    [game.events.DISC_PLAYED]: 'coin',
+    [game.events.PLAYLIST_LOADED]: 'click',
+  };
+  for (const [event, sound] of Object.entries(SOUNDS)) {
+    game.bus.on(event, () => audio.play(sound));
+  }
+  game.bus.on(game.events.VIRUS, ({ outcome }) =>
+    audio.play(outcome === 'infected' ? 'virus' : 'chime'),
+  );
+
+  game.bus.on(game.events.SETTINGS, ({ settings }) => {
+    audio.setEnabled({ sfx: settings.sfx !== false, bgm: settings.bgm !== false });
+    if (settings.sfx !== false) audio.play('click');
+  });
+
+  game.bus.on(game.events.BUZZ_GAINED, ({ source }) => {
+    if (source === 'nudge') audio.play('nudge');
   });
 
   const desktop = createDesktop({
@@ -214,6 +259,25 @@ function boot() {
     });
   });
 
+  // AeroBurn (AO-29).
+  game.bus.on(game.events.BURN_DONE, ({ cd }) => {
+    notify({
+      title: `${cd.name} burned`,
+      body: 'It survives the next Format C:. Play it whenever you like.',
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.DISC_PLAYED, ({ cd, buzz }) => {
+    notify({
+      title: `Playing ${cd.name}`,
+      body: buzz > 0
+        ? `+${formatNumber(buzz)} Buzz recovered.`
+        : `+${Math.round(cd.buff.magnitude * 100)}% for ${cd.buff.durationSeconds / 60} minutes.`,
+      tone: 'success',
+    });
+  });
+
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({
       title: `${at} buddies online`,
@@ -231,12 +295,17 @@ function boot() {
   if (previouslyOpen.length > 0) previouslyOpen.forEach(launch);
   else launch('aerochat');
 
+  // Offline earnings get a dialog rather than a balloon (AO-28): a report that
+  // fades in four seconds is a poor way to explain an HDD cap.
   const offline = game.offlineReport;
   if (offline?.buzz > 0) {
-    notify({
-      title: 'Welcome back',
-      body: `Your buddies kept chatting for ${formatDuration(offline.seconds)} — ${formatNumber(offline.buzz)} Buzz.${offline.capped ? ' Upgrade your HDD to bank more.' : ''}`,
-      tone: 'success',
+    showWelcomeBack({
+      root: document.body,
+      offline,
+      hoursCap: offline.cappedHours,
+      // Day 7 hangs the rewarded "2× offline Buzz" ad (GDD 8) off this seam.
+      onDouble: null,
+      onClose: () => audio.unlock(),
     });
     game.clearOfflineReport();
   } else if (!loaded.loaded && game.state.tutorial.done) {
@@ -251,8 +320,27 @@ function boot() {
       desktop.update();
       taskbar.update();
       coach.update();
+      audio.update();
+      maybeHitch();
     },
   });
+  /**
+   * The occasional stutter at critical heat (AO-27). Rare, short and purely
+   * cosmetic — the machine is struggling, not broken.
+   */
+  let hitchCooldown = 0;
+  function maybeHitch() {
+    const now = performance.now();
+    if (now < hitchCooldown) return;
+    hitchCooldown = now + 900;
+
+    const ratio = game.econ.heatRatio(game.state);
+    if (ratio < 0.85 || Math.random() > HEAT.hitchChancePerSecond) return;
+
+    document.body.classList.add('is-hitching');
+    setTimeout(() => document.body.classList.remove('is-hitching'), 110);
+  }
+
   loop.start();
 
   // Never lose progress to a tab close or a phone switching apps.
@@ -264,7 +352,7 @@ function boot() {
   document.getElementById('boot')?.classList.add('is-done');
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch };
+  globalThis.AeroOS = { game, wm, launch, audio };
 }
 
 if (document.readyState === 'loading') {

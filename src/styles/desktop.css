@@ -601,3 +601,91 @@
   filter: none;
   animation: task-flash 1s var(--ease-aero) infinite;
 }
+
+/* ------------------------------------------------------- heat gauge (AO-27) */
+
+.heat {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.heat__value {
+  font-weight: 700;
+  color: var(--aero-cyan);
+  transition: color 400ms linear;
+}
+
+.heat__track {
+  height: 5px;
+  overflow: hidden;
+  background: rgb(0 20 40 / 45%);
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 999px;
+}
+
+.heat__fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #7fe4ff, #d6ff8f);
+  transition: width 400ms linear, background 600ms linear;
+}
+
+.heat[data-level='warn'] .heat__value {
+  color: #ffd166;
+}
+.heat[data-level='warn'] .heat__fill {
+  background: linear-gradient(90deg, #d6ff8f, #ffb020);
+}
+
+.heat[data-level='critical'] .heat__value {
+  color: #ff8a7a;
+  animation: heat-throb 900ms ease-in-out infinite;
+}
+.heat[data-level='critical'] .heat__fill {
+  background: linear-gradient(90deg, #ffb020, #ff4b3a);
+}
+.heat[data-level='critical'] .heat__icon {
+  animation: heat-throb 900ms ease-in-out infinite;
+}
+
+@keyframes heat-throb {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* The taskbar clock loses its grip as the machine cooks. */
+body[data-heat='critical'] .tray__clock {
+  animation: clock-drift 2.4s steps(4) infinite;
+}
+
+@keyframes clock-drift {
+  40% {
+    transform: translateY(-1px);
+    opacity: 0.7;
+  }
+  60% {
+    transform: translateY(1px);
+  }
+}
+
+/* Sound toggle in the tray (AO-26). */
+.tray__audio {
+  padding: 0 2px;
+  min-width: 0;
+  min-height: 0;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.tray__audio[data-muted='true'] {
+  opacity: 0.55;
+}

@@ -185,3 +185,66 @@ body.is-formatting .gadget {
 .confirm__ok {
   font-weight: 700;
 }
+
+/* ------------------------------------------------- welcome back (AO-28) */
+
+.welcome {
+  width: min(360px, calc(100vw - 32px));
+}
+
+.welcome__lede {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+}
+
+.welcome__stats {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 10px;
+  font-size: 0.76rem;
+}
+
+.welcome__stats div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.welcome__stats dt,
+.welcome__stats dd {
+  margin: 0;
+}
+
+.welcome__stats dt {
+  color: var(--text-muted);
+}
+
+.welcome__buzz {
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
+.welcome__cap {
+  padding: 7px 9px;
+  margin: 0 0 10px;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: #7a5a12;
+  background: linear-gradient(180deg, #fffaf0, #ffeecd);
+  border: 1px solid #e0bd75;
+  border-radius: var(--radius-sm);
+}
+
+.welcome__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.welcome__actions button {
+  min-height: 30px;
+  cursor: pointer;
+}
+
+.welcome__double {
+  font-weight: 700;
+}

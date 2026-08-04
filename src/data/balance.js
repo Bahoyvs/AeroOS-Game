@@ -133,6 +133,24 @@ export const SECURITY = {
   freeRescuesPerRun: 1,
 };
 
+export const AEROBURN = {
+  maxDiscs: 5, // a shelf, not a warehouse — discs are a bridge, not a bank
+};
+
+/**
+ * Prestige tension (AO-27, GDD 7). Heat is the visible face of bloat: it rises
+ * with uptime and with what is running, and it is what makes the player *want*
+ * to Format C: before the maths tells them to.
+ */
+export const HEAT = {
+  idleC: 38, // a cold, freshly booted machine
+  maxC: 94, // fans screaming, thermal throttle
+  warnC: 70,
+  criticalC: 85,
+  perOpenApp: 2.5, // each running app adds a little baseline
+  hitchChancePerSecond: 0.06, // at full bloat, how often the UI stutters
+};
+
 export const TUTORIAL = {
   // "Hardware stats remain hidden until the first system bottleneck" (GDD 7).
   // 0.9 is above AeroChat + RetroAmp on a stock machine (96/128 = 0.75), so the

@@ -1,9 +1,11 @@
 import { CHAT_BOT, SAVE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
+import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
 import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
+import * as burner from './aeroburn.js';
 import { pruneBuffs } from './buffs.js';
 import * as dl from './downloads.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
@@ -86,6 +88,12 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
 
     for (const job of dl.updateDownloads(state, dt, rng)) completeDownload(job);
+
+    const disc = burner.updateBurn(state, dt);
+    if (disc) {
+      bus.emit(EVENTS.BURN_DONE, { cd: getCD(disc.typeId), disc });
+      save();
+    }
 
     const scan = dl.updateScan(state, dt);
     if (scan?.done) {
@@ -229,10 +237,16 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
      * burst costs a fifth of the cooldown.
      */
     if (playlist.cooldownSeconds > 0 && playlist.durationSeconds) {
-      const used = Math.min(
-        playlist.durationSeconds,
-        Math.max(0, (now - state.retroamp.startedAt) / 1000),
-      );
+      // Burning out means the whole burst was consumed by definition — do not
+      // re-derive that from the clock, or a playlist whose end time was reached
+      // in a single tick owes almost nothing.
+      const used =
+        reason === 'burnt-out'
+          ? playlist.durationSeconds
+          : Math.min(
+              playlist.durationSeconds,
+              Math.max(0, (now - state.retroamp.startedAt) / 1000),
+            );
       const owed = playlist.cooldownSeconds * (used / playlist.durationSeconds);
       if (owed > 0) state.retroamp.cooldownUntil[id] = now + owed * 1000;
     }
@@ -287,6 +301,29 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const { outcome } = dl.resolveInfection(state);
     bus.emit(EVENTS.VIRUS, { file, outcome });
     if (outcome === 'infected') save();
+  }
+
+  /* -------------------------------------------------------------- AeroBurn */
+
+  /** Burn Buzz onto a disc that will outlive the next Format C: (AO-29). */
+  function startBurn(typeId) {
+    const check = burner.canBurn(state, typeId);
+    if (!check.ok) return check;
+
+    const job = burner.startBurn(state, typeId);
+    bus.emit(EVENTS.BURN_STARTED, { cd: getCD(typeId), job });
+    return { ok: true, job };
+  }
+
+  /** Play a disc: Buzz back, or a buff. Either way it is consumed. */
+  function playDisc(index) {
+    const result = burner.playDisc(state, index, Date.now());
+    if (!result.ok) return result;
+
+    if (result.buzz > 0) grantBuzz(result.buzz, 'aeroburn');
+    bus.emit(EVENTS.DISC_PLAYED, { cd: result.cd, buzz: result.buzz });
+    save();
+    return result;
   }
 
   /** Start a Shield99 scan (AO-22). Curing is what ends an infection. */
@@ -382,6 +419,14 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, dollars };
   }
 
+  /** Player settings (sound, motion). Persisted immediately — it is a promise. */
+  function setSettings(patch) {
+    state.settings = { ...state.settings, ...patch };
+    bus.emit(EVENTS.SETTINGS, { settings: state.settings });
+    save();
+    return state.settings;
+  }
+
   function hardReset() {
     state = createInitialState(Date.now());
     save();
@@ -416,7 +461,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     cancelDownload,
     deleteFile,
     startScan,
+    startBurn,
+    playDisc,
     skipOnboarding,
+    setSettings,
     currentTutorialStep: () => currentStep(state),
     buyHardware,
     formatC,

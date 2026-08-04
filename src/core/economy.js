@@ -1,4 +1,4 @@
-import { BLOAT, CHAT_BOT, CLICK, OFFLINE, PRESTIGE } from '../data/balance.js';
+import { BLOAT, CHAT_BOT, CLICK, HEAT, OFFLINE, PRESTIGE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import {
   HARDWARE,
@@ -11,6 +11,7 @@ import {
 } from '../data/hardware.js';
 import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
+import { canBurn } from './aeroburn.js';
 import { canDownload, infectionPenalty, storageUsedGB } from './downloads.js';
 
 /**
@@ -49,6 +50,11 @@ export function storageCapacityGB(state) {
 
 export function storageFreeGB(state) {
   return Math.round((storageCapacityGB(state) - storageUsedGB(state)) * 1000) / 1000;
+}
+
+/** Can this disc be burned? Wrapper so the UI never imports the burner. */
+export function canBurnDisc(state, typeId) {
+  return canBurn(state, typeId);
 }
 
 /** Can this file be downloaded? Wraps the capacity lookup for the UI. */
@@ -152,6 +158,30 @@ export function bloatGain(state, seconds) {
 export function bloatPenalty(state) {
   const bloat = Math.min(Math.max(state.bloat, 0), 1);
   return 1 - bloat * (1 - BLOAT.productionPenaltyAtFull);
+}
+
+/**
+ * Heat (AO-27): bloat with a face on it. The player cannot read a 0..1 bloat
+ * float, but they understand a machine running at 91°C — and it escalates
+ * with what they have chosen to keep open.
+ */
+export function systemHeat(state) {
+  const open = Object.values(state.apps).filter((a) => a.open).length;
+  const span = HEAT.maxC - HEAT.idleC;
+  const raw = HEAT.idleC + span * Math.min(1, Math.max(0, state.bloat)) + open * HEAT.perOpenApp;
+  return Math.min(HEAT.maxC, Math.round(raw));
+}
+
+export function heatLevel(state) {
+  const heat = systemHeat(state);
+  if (heat >= HEAT.criticalC) return 'critical';
+  if (heat >= HEAT.warnC) return 'warn';
+  return 'ok';
+}
+
+/** 0..1 "how close to melting", for bars and audio distortion. */
+export function heatRatio(state) {
+  return Math.min(1, Math.max(0, (systemHeat(state) - HEAT.idleC) / (HEAT.maxC - HEAT.idleC)));
 }
 
 export function bloatLevel(state) {
@@ -287,13 +317,19 @@ export function offlineCapSeconds(state) {
  * OFFLINE.efficiency so being present always beats being away (GDD 5).
  */
 export function offlineEarnings(state, elapsedSeconds, now = Date.now()) {
-  if (elapsedSeconds < OFFLINE.minSeconds) return { buzz: 0, seconds: 0, capped: false };
+  if (elapsedSeconds < OFFLINE.minSeconds) {
+    return { buzz: 0, seconds: 0, elapsedSeconds, capped: false, cappedHours: 0 };
+  }
   const cap = offlineCapSeconds(state);
   const seconds = Math.min(elapsedSeconds, cap);
   return {
     buzz: buzzPerSecond(state, now) * seconds * OFFLINE.efficiency,
     seconds,
+    // How long they were actually away, so the report can show both numbers
+    // and explain the gap when the HDD cap ate the difference (AO-28).
+    elapsedSeconds,
     capped: elapsedSeconds > cap,
+    cappedHours: hardwareEffects(state).offlineHours,
   };
 }
 

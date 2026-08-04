@@ -14,6 +14,7 @@ index.html
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
     │   ├── downloads.js      LemonWire transfers + the virus safety net
+    │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           localStorage, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
@@ -24,6 +25,7 @@ index.html
     │   ├── buddies.js        derived buddy identities (never stored)
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
     │   ├── files.js          LemonWire's shared files (size, risk, seeders)
+    │   ├── cds.js            AeroBurn disc types
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
@@ -32,6 +34,8 @@ index.html
     │   ├── notify.js         balloon notifications
     │   ├── tutorial.js       the onboarding coach panel
     │   ├── bsod.js           Format C: stop screen, POST wipe, confirm dialog
+    │   ├── audio.js          synthesised SFX + BGM, distortion driven by heat
+    │   ├── welcomeBack.js    the offline-earnings report
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
     │   ├── registry.js       id → implementation, placeholder fallback
@@ -39,6 +43,7 @@ index.html
     │   ├── retroamp.js       playlist deck (global multipliers)
     │   ├── lemonwire.js      P2P downloads, disk usage, quarantine
     │   ├── shield99.js       antivirus window + the taskbar tray icon
+    │   ├── aeroburn.js       disc burner and shelf
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile
@@ -113,6 +118,18 @@ The Format C: animation (`ui/bsod.js`) is presentation, but it has to interleave
 state change. The game emits `FORMAT_REQUESTED`; the shell runs the sequence and calls
 `game.formatC()` *between* the stop screen and the reboot screen, so the POST report
 describes the machine the player is about to get. Every stage is click-to-skip.
+
+## Audio is generated, not shipped
+
+`ui/audio.js` synthesises every sound with WebAudio: no files, no fetches, nothing for a
+portal CSP to block, and a few KB of code instead of megabytes of MP3. It sits in `ui/`
+rather than `core/` because AudioContext is a browser API and the simulation must stay
+runnable in plain Node.
+
+Two consequences worth keeping: the context is created on the first user gesture (autoplay
+policy), so nothing warns on boot; and the "audio distorts as the system bloats" requirement
+is a single waveshaper whose curve follows `econ.heatRatio` — the same number that drives the
+heat gauge and the window sluggishness, so the escalation cannot drift out of sync.
 
 ## State & saves
 

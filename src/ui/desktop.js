@@ -66,6 +66,12 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
       <div class="meter__track"><div class="meter__fill meter__fill--bloat" data-role="bloat-bar"></div></div>
     </div>
 
+    <div class="heat" data-role="heat" hidden>
+      <span class="heat__icon" aria-hidden="true">🌡</span>
+      <span class="heat__value" data-role="heat-value">38°C</span>
+      <span class="heat__track"><span class="heat__fill" data-role="heat-bar"></span></span>
+    </div>
+
     <button type="button" class="nudge-button" data-role="nudge">
       <span class="nudge-button__label">NUDGE</span>
       <span class="nudge-button__hint" data-role="nudge-power">+1</span>
@@ -88,6 +94,9 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     prestigeBadge: ref('prestige-badge'),
     meterRam: ref('meter-ram'),
     meterBloat: ref('meter-bloat'),
+    heat: ref('heat'),
+    heatValue: ref('heat-value'),
+    heatBar: ref('heat-bar'),
   };
 
   /**
@@ -150,6 +159,14 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     nodes.meterRam.hidden = !revealed;
     nodes.meterBloat.hidden = !revealed;
     nodes.dollars.hidden = !revealed;
+
+    // Heat is the escalation the player actually feels (AO-27).
+    const heatLevel = econ.heatLevel(s);
+    nodes.heat.hidden = !revealed;
+    nodes.heatValue.textContent = `${econ.systemHeat(s)}°C`;
+    nodes.heat.dataset.level = heatLevel;
+    nodes.heatBar.style.width = `${econ.heatRatio(s) * 100}%`;
+    document.body.dataset.heat = heatLevel;
 
     const ready = econ.canPrestige(s);
     nodes.prestigeBadge.hidden = !ready;
