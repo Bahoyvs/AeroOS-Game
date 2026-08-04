@@ -13,6 +13,9 @@ index.html
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
+    │   ├── downloads.js      LemonWire transfers, the Recycle Bin, virus safety net
+    │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
+    │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           storage backends, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
@@ -20,17 +23,27 @@ index.html
     │   ├── balance.js        rates, costs, caps, thresholds
     │   ├── apps.js           software roster (RAM cost, price, roadmap day)
     │   ├── buddies.js        derived buddy identities (never stored)
+    │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
+    │   ├── files.js          LemonWire's shared files (size, risk, seeders)
+    │   ├── cds.js            AeroBurn disc types
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
     │   ├── desktop.js        icons + Aero gadget (Buzz, meters, Nudge)
     │   ├── taskbar.js        Start menu, task buttons with RAM bars, tray
     │   ├── notify.js         balloon notifications
-    │   ├── audio.js          AudioContext + master gain, portal mute authority
+    │   ├── tutorial.js       the onboarding coach panel
+    │   ├── bsod.js           Format C: stop screen, POST wipe, confirm dialog
+    │   ├── audio.js          synthesised SFX + BGM, heat distortion, portal mute
+    │   ├── welcomeBack.js    the offline-earnings report
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
     │   ├── registry.js       id → implementation, placeholder fallback
     │   ├── aerochat.js       core idle engine
+    │   ├── retroamp.js       playlist deck (global multipliers)
+    │   ├── lemonwire.js      P2P downloads, disk usage, quarantine
+    │   ├── shield99.js       antivirus window + the taskbar tray icon
+    │   ├── aeroburn.js       disc burner and shelf
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile
@@ -64,13 +77,66 @@ Timed systems pick their clock according to what should happen while the player 
 
 - **Simulation time** (accumulated `dt`, only advances while the loop runs) — status-message
   events in `core/statusEvents.js`. A claim window must not burn down in a background tab,
-  and a throttled tab must not silently miss bonuses.
+  and a throttled tab must not silently miss bonuses. LemonWire's Recycle Bin is here too,
+  for the same reason its transfers are: the cost of deleting a file is time spent *at the
+  machine*, and a bin that emptied itself overnight would cost nothing.
 - **Wall clock** (`Date.now()` timestamps) — buffs in `core/buffs.js`, autosave, offline
   earnings. A 60-second buff should be over when you come back an hour later.
 
 Both are testable: simulation-time systems take `dt`, wall-clock systems take an optional
 `now`, and randomness is injected (`createGame({ rng })`). No test needs fake timers except
 the ones deliberately exercising wall-clock expiry.
+
+## Multipliers: buffs vs. derived state
+
+Two ways to multiply production, and the choice is about persistence:
+
+- **Buffs** (`core/buffs.js`) are timed and stored as a list with wall-clock expiry — status
+  bonuses, later the rewarded-ad overclock. They are meant to run out.
+- **Derived multipliers** are computed from durable state: buddy milestones from
+  `chat.bots`, the playlist from `retroamp.playlist`. They survive a reload because there is
+  nothing to expire — a permanent playlist stored as an `Infinity` buff would not, since
+  `JSON.stringify(Infinity)` is `null`.
+
+If a bonus should still be there after a refresh, derive it. If it should tick away whether
+or not the player is watching, make it a buff.
+
+## Hardware: flat percentages, derived capacities
+
+A hardware tier contributes a **flat percentage** to its track rather than
+replacing a stat (`src/data/hardware.js`). Owning tiers 0..n gives `1 + Σ bonuses`,
+and capacities (memory, storage, offline hours) are that same sum applied to a base
+machine in `HARDWARE_BASE`. Two things fall out of this:
+
+- The shop can state what a purchase is worth ("+25% production") and it is literally
+  the number applied — `tests/hardware.test.js` asserts the advertised gain equals the
+  measured one.
+- Saves are unaffected by rebalancing: `state.hardware.<track>` is still a tier index,
+  so the tables can be retuned without a migration.
+
+## Long UI sequences
+
+The Format C: animation (`ui/bsod.js`) is presentation, but it has to interleave with a
+state change. The game emits `FORMAT_REQUESTED`; the shell runs the sequence and calls
+`game.formatC()` *between* the stop screen and the reboot screen, so the POST report
+describes the machine the player is about to get. Every stage is click-to-skip.
+
+## Audio is generated, not shipped
+
+`ui/audio.js` synthesises every sound with WebAudio: no files, no fetches, nothing for a
+portal CSP to block, and a few KB of code instead of megabytes of MP3. It sits in `ui/`
+rather than `core/` because AudioContext is a browser API and the simulation must stay
+runnable in plain Node.
+
+Two consequences worth keeping: the context is created on the first user gesture (autoplay
+policy), so nothing warns on boot; and the "audio distorts as the system bloats" requirement
+is a single waveshaper whose curve follows `econ.heatRatio` — the same number that drives the
+heat gauge and the window sluggishness, so the escalation cannot drift out of sync.
+
+Mute has two sources and **the portal wins**. `state.settings.sfx/.bgm` are the player's
+toggles; CrazyGames can mute the whole game from the site chrome or before an ad. The portal
+setting is folded into `sfxOn()`/`bgmOn()` so every existing gate honours it, *and* written
+to the master gain, so sound already scheduled stops instead of playing out under an ad.
 
 ## State & saves
 
@@ -87,8 +153,8 @@ Rules for changing the save:
 Storage is injected everywhere, which is also the seam a cloud save would use.
 `defaultStorage()` picks the first backend whose probe write round-trips:
 
-1. `CrazyGames.SDK.data` — the portal's per-player storage, available only after
-   `SDK.init()` resolves, which is why `boot()` awaits it before `createGame()`.
+1. `CrazyGames.SDK.data` — the portal's per-player storage, which only exists after
+   `SDK.init()` resolves. That is why `boot()` is async and awaits it before `createGame()`.
 2. `localStorage` — local dev and any non-portal host.
 3. `createMemoryStorage()` — private mode, blocked iframes, and tests.
 

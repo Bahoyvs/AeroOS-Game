@@ -114,6 +114,90 @@ export const OFFLINE = {
   minSeconds: 60, // ignore alt-tabs shorter than this
 };
 
+export const LEMONWIRE = {
+  maxConcurrent: 3,
+  gbPerSecond: 0.06, // base rate before per-file modifiers
+  payoutSecondsPerGB: 45, // completion pays this many seconds of production per GB
+  minPayoutBuzz: 25, // an early download still feels like something
+
+  /**
+   * Risk vs reward. A file's seeders and risk scale its download *speed*, and
+   * the payout scales inversely — wait ten times as long, earn ten times as
+   * much. Two knobs keep that from collapsing into a pointless choice:
+   *
+   * `riskPayoutBonus` is the premium *on top of* the inverse. Without it the
+   * Buzz-per-second-of-waiting is identical for every file (the inverse cancels
+   * exactly), so risk would add infection chance for no upside at all.
+   *
+   * `fakeSwarmAtRisk` is why a virus advertising 302 seeders does not download
+   * instantly: above this risk the swarm is bots, so the seeder count buys no
+   * speed. Without it a popular malware file is the *fastest* in the list.
+   */
+  riskPayoutBonus: 1.5,
+  fakeSwarmAtRisk: 0.25,
+
+  seedersPerSpeedUnit: 20, // 20 seeders = normal speed
+  minSeederModifier: 0.1, // a dead torrent still crawls
+  maxSeederModifier: 2, // ...and a huge swarm cannot exceed double speed
+
+  /**
+   * Speed multiplier by risk band: high risk trickles, extreme risk barely
+   * moves. Because payout is the inverse of speed, the extreme modifier is a
+   * single dial trading *how long* against *how much* at constant Buzz per
+   * second of waiting — 0.002 makes the 3 MB "speed boost" a ~25 second wait
+   * for roughly two minutes of production, which is the jackpot the file is
+   * pretending to be. Halve it for a longer, richer gamble.
+   */
+  riskSpeedTiers: [
+    { atRisk: 0.5, modifier: 0.002 },
+    { atRisk: 0.25, modifier: 0.2 },
+  ],
+
+  // Deleting only moves a file to the trash; the space stays used until this
+  // much simulation time has passed (AO: Trash Bin).
+  trashSeconds: 300,
+};
+
+/**
+ * The safety net (GDD 6): a virus must never ruin a run. Production is
+ * multiplied by `productionFloor` and nothing stacks below it, LemonWire is
+ * locked until cured, and nothing the player already earned is taken away.
+ */
+export const SECURITY = {
+  productionFloor: 0.5,
+  scanSeconds: 6,
+  freeRescuesPerRun: 1,
+};
+
+export const AEROBURN = {
+  maxDiscs: 5, // a shelf, not a warehouse — discs are a bridge, not a bank
+};
+
+/**
+ * Prestige tension (AO-27, GDD 7). Heat is the visible face of bloat: it rises
+ * with uptime and with what is running, and it is what makes the player *want*
+ * to Format C: before the maths tells them to.
+ */
+export const HEAT = {
+  idleC: 38, // a cold, freshly booted machine
+  maxC: 94, // fans screaming, thermal throttle
+  warnC: 70,
+  criticalC: 85,
+  perOpenApp: 2.5, // each running app adds a little baseline
+  hitchChancePerSecond: 0.06, // at full bloat, how often the UI stutters
+};
+
+export const TUTORIAL = {
+  // "Hardware stats remain hidden until the first system bottleneck" (GDD 7).
+  // 0.9 is above AeroChat + RetroAmp on a stock machine (96/128 = 0.75), so the
+  // reveal lands on the heavy playlist rather than on simply opening two apps.
+  bottleneckRamRatio: 0.9,
+
+  // A save at or past these numbers is not a first-time player.
+  experiencedBuzz: 5000,
+  experiencedBuddies: 10,
+};
+
 export const SAVE = {
   key: 'aeroos.save.v1',
   autosaveMs: 15000,

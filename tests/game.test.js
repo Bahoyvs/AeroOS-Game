@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createGame } from '../src/core/game.js';
 import { createMemoryStorage } from '../src/core/save.js';
 import { CHAT_BOT, PRESTIGE, STATUS_BONUSES } from '../src/data/balance.js';
+import { getApp } from '../src/data/apps.js';
 
 const newGame = () => createGame({ storage: createMemoryStorage(), now: 0 });
 
@@ -59,7 +60,7 @@ describe('buying', () => {
     game.state.buzz = 10_000;
     expect(game.installApp('retroamp').ok).toBe(true);
     expect(game.state.apps.retroamp.installed).toBe(true);
-    expect(game.state.buzz).toBe(10_000 - 250);
+    expect(game.state.buzz).toBe(10_000 - getApp('retroamp').install.cost);
   });
 
   it('refuses locked apps', () => {

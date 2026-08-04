@@ -195,6 +195,9 @@ export function mount(body, { game }) {
       ...(bd.buffs !== 1
         ? [el('span', { class: 'is-boost', text: `×${bd.buffs.toFixed(2)} bonus` })]
         : []),
+      ...(bd.playlist !== 1
+        ? [el('span', { class: 'is-boost', text: `×${bd.playlist.toFixed(2)} playlist` })]
+        : []),
       ...(bd.cpu !== 1 ? [el('span', { class: 'is-boost', text: `×${bd.cpu.toFixed(2)} CPU` })] : []),
       ...(bd.bloat !== 1
         ? [el('span', { class: 'is-drag', text: `×${bd.bloat.toFixed(2)} bloat` })]

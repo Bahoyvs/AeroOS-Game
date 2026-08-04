@@ -5,8 +5,10 @@
  */
 @media (max-width: 820px) {
   :root {
-    /* Fixed so the window stack can start exactly below the gadget. */
-    --gadget-height: 108px;
+    /* Fallback only. src/ui/desktop.js measures the gadget and overwrites this
+       on :root, so the window stack always starts exactly below it however the
+       content wraps — a fixed guess overflowed onto the window underneath. */
+    --gadget-height: 112px;
   }
 
   .aero-window {
@@ -38,9 +40,15 @@
     display: none;
   }
 
+  /* The title bar is the sheet's drag handle (AO-23). */
   .aero-window .title-bar {
-    cursor: default;
+    cursor: grab;
+    touch-action: none;
     padding-top: max(0px, env(safe-area-inset-top));
+  }
+
+  .aero-window.is-sheet-dragging {
+    transition: none;
   }
 
   /* The gadget carries the Nudge button, so in PDA mode it is pinned above the
@@ -51,13 +59,13 @@
     right: 0;
     left: 0;
     z-index: 700;
-    height: var(--gadget-height);
   }
 
   .gadget {
     width: auto;
-    height: 100%;
     gap: 4px 10px;
+    /* Nothing may escape the bar even mid-measure. */
+    overflow: hidden;
     border-top: 0;
     border-radius: 0;
     grid-template-areas:
@@ -121,6 +129,16 @@
     right: 8px;
     bottom: 8px;
     left: 8px;
+    width: auto;
+  }
+
+  /* The coach sits above full-screen app modals in PDA mode, or the player
+     cannot read the objective they are being asked to complete. */
+  .coach {
+    right: 8px;
+    bottom: 8px;
+    left: 8px;
+    z-index: 750;
     width: auto;
   }
 

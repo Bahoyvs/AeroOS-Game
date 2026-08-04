@@ -1,5 +1,6 @@
 import { ALL_APPS, getApp } from '../data/apps.js';
 import { formatClock, formatNumber } from '../core/format.js';
+import { createTrayShield } from '../apps/shield99.js';
 import { clear, el, setBar, throttle } from './dom.js';
 
 /**
@@ -8,6 +9,9 @@ import { clear, el, setBar, throttle } from './dom.js';
  * On mobile this is the primary navigation hub, so each task button carries a
  * RAM bar underneath it — the PDA-mode requirement from GDD section 3.
  */
+/** Even a tiny app keeps a visible sliver of bar. */
+const MIN_RAM_BAR = 0.06;
+
 export function createTaskbar({ root, game, wm, launch }) {
   root.classList.add('taskbar', 'glass');
   root.innerHTML = `
@@ -46,6 +50,8 @@ export function createTaskbar({ root, game, wm, launch }) {
       const entry = game.state.apps[app.id];
       const unlocked = game.econ.isAppUnlocked(game.state, app.id);
       if (!entry.installed && !unlocked) continue;
+      // Matches the desktop: no hardware in the menu until it is revealed.
+      if (app.system && !game.state.tutorial.hardwareRevealed) continue;
 
       const cost = app.install?.cost ?? 0;
       const affordable = game.state.buzz >= cost;
@@ -71,7 +77,7 @@ export function createTaskbar({ root, game, wm, launch }) {
             },
           },
           [
-            el('span', { class: 'start-menu__icon', 'aria-hidden': 'true', text: app.icon }),
+            el('img', { class: 'start-menu__icon', 'aria-hidden': 'true', src: app.icon, alt: '' }),
             el('span', { class: 'start-menu__label' }, [
               el('strong', { text: app.name }),
               el('small', {
@@ -122,7 +128,7 @@ export function createTaskbar({ root, game, wm, launch }) {
         onclick: () => wm.toggleMinimize(id),
       },
       [
-        el('span', { class: 'task__icon', 'aria-hidden': 'true', text: app.icon }),
+        el('img', { class: 'task__icon', 'aria-hidden': 'true', src: app.icon, alt: '' }),
         el('span', { class: 'task__label', text: app.name }),
         el('span', { class: 'task__ram' }, el('span', { class: 'task__ram-fill' })),
       ],
@@ -138,14 +144,26 @@ export function createTaskbar({ root, game, wm, launch }) {
     updateTaskBars();
   }
 
-  /** RAM bars are relative to total capacity, so they read as "share of memory". */
+  /**
+   * Per-app RAM bars (AO-24, GDD 3). They read as "share of memory", but a
+   * 32 MB app against 8 GB of RAM is 0.4% and would be an invisible sliver, so
+   * every bar keeps a minimum width — the point is monitoring what is running,
+   * not measuring it to the pixel. The real numbers are in the label.
+   */
   function updateTaskBars() {
     const capacity = game.econ.ramCapacity(game.state) || 1;
     for (const [id, node] of taskNodes) {
-      setBar(node.querySelector('.task__ram-fill'), getApp(id).ram / capacity, {
+      const mb = game.econ.appRam(game.state, id);
+      const share = mb / capacity;
+      setBar(node.querySelector('.task__ram-fill'), Math.max(share, MIN_RAM_BAR), {
         warn: 0.5,
         critical: 0.8,
       });
+      node.setAttribute(
+        'aria-label',
+        `${getApp(id).name} — ${mb} MB of ${capacity} MB (${Math.round(share * 100)}%)`,
+      );
+      node.title = `${getApp(id).name} · ${mb} MB`;
     }
   }
 
@@ -161,8 +179,48 @@ export function createTaskbar({ root, game, wm, launch }) {
   game.bus.on(game.events.APP_OPENED, ({ id }) => addTask(id));
   game.bus.on(game.events.APP_CLOSED, ({ id }) => removeTask(id));
   game.bus.on(game.events.HARDWARE_BOUGHT, updateTaskBars);
+  // A loaded playlist changes RetroAmp's footprint, so the bars must follow.
+  game.bus.on(game.events.PLAYLIST_LOADED, updateTaskBars);
+  game.bus.on(game.events.PLAYLIST_ENDED, updateTaskBars);
+
+  /**
+   * Sound toggle (AO-26). Generated audio still needs an off switch, and the
+   * tray is where a mid-2000s OS put it.
+   */
+  const trayRoot = root.querySelector('.tray');
+  const audioButton = el('button', {
+    type: 'button',
+    class: 'tray__audio',
+    onclick: () => {
+      const muted = game.state.settings.sfx === false && game.state.settings.bgm === false;
+      game.setSettings({ sfx: muted, bgm: muted });
+      updateAudioButton();
+    },
+  });
+  trayRoot.prepend(audioButton);
+
+  function updateAudioButton() {
+    const { sfx, bgm } = game.state.settings;
+    const muted = sfx === false && bgm === false;
+    audioButton.textContent = muted ? '🔇' : '🔊';
+    audioButton.title = muted ? 'Sound off — click to unmute' : 'Sound on — click to mute';
+    audioButton.setAttribute('aria-label', audioButton.title);
+    audioButton.dataset.muted = String(muted);
+  }
+  updateAudioButton();
+  game.bus.on(game.events.SETTINGS, updateAudioButton);
+
+  // Shield99's tray icon (AO-22) lives left of the clock, like the real thing.
+  const tray = createTrayShield({ root: root.querySelector('.tray'), game, launch });
+  game.bus.on(game.events.APP_INSTALLED, tray.update);
+  game.bus.on(game.events.APP_OPENED, tray.update);
+  game.bus.on(game.events.APP_CLOSED, tray.update);
+  game.bus.on(game.events.VIRUS, tray.update);
+  game.bus.on(game.events.SCAN_DONE, tray.update);
+  game.bus.on(game.events.PRESTIGE, tray.update);
 
   const update = throttle(() => {
+    tray.update();
     clockNode.textContent = formatClock();
     trayBuzz.textContent = `${formatNumber(game.state.buzz)} Buzz`;
   }, 500);
