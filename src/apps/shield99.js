@@ -28,6 +28,12 @@ export function mount(body, { game }) {
       <button type="button" class="sh__button" data-role="scan">Deep scan</button>
     </div>
 
+    ${globalThis.CrazyGames?.SDK ? `
+    <div class="sh__ad" style="margin-top: 10px; display: flex; gap: 8px;">
+      <button type="button" class="sh__button" data-role="ad-scan">▶ Watch Ad for 2x Production (4h)</button>
+    </div>
+    ` : ''}
+
     <dl class="sh__stats">
       <div><dt>Threats blocked</dt><dd data-role="blocked">0</dd></div>
       <div><dt>Free trial rescue</dt><dd data-role="trial">available</dd></div>
@@ -49,6 +55,25 @@ export function mount(body, { game }) {
     }
     update();
   });
+
+  const sdk = globalThis.CrazyGames?.SDK;
+  if (sdk) {
+    ref('ad-scan').addEventListener('click', () => {
+      sdk.game.gameplayStop();
+      sdk.ad.requestAd('rewarded', {
+        adFinished: () => {
+          game.activateTrojanScanBoost();
+          game.notify('Trojan Scan complete', 'Production doubled for 4 hours.', 'success');
+          sdk.game.gameplayStart();
+          update();
+        },
+        adError: () => {
+          sdk.game.gameplayStart();
+        },
+        adStarted: () => {}
+      });
+    });
+  }
 
   const update = throttle(() => {
     const s = game.state;
@@ -78,6 +103,16 @@ export function mount(body, { game }) {
     ref('blocked').textContent = String(s.stats.threatsBlocked ?? 0);
     const rescuesLeft = SECURITY.freeRescuesPerRun - s.security.rescuesUsed;
     ref('trial').textContent = rescuesLeft > 0 ? 'available' : 'used this run';
+    
+    if (sdk) {
+      const trojanBuff = s.buffs.find(b => b.id === 'trojan-scan-boost' && b.expiresAt > Date.now());
+      ref('ad-scan').disabled = !!trojanBuff;
+      if (trojanBuff) {
+        ref('ad-scan').textContent = 'Boost Active';
+      } else {
+        ref('ad-scan').textContent = '▶ Watch Ad for 2x Production (4h)';
+      }
+    }
   }, 200);
 
   update();

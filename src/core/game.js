@@ -6,7 +6,7 @@ import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
 import * as burner from './aeroburn.js';
-import { pruneBuffs } from './buffs.js';
+import { addBuff, pruneBuffs } from './buffs.js';
 import * as dl from './downloads.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
@@ -477,6 +477,23 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     formatC,
     requestFormat,
     hardReset,
+    doubleOfflineBuzz() {
+      if (offlineReport?.buzz > 0) {
+        grantBuzz(offlineReport.buzz, 'rewarded-ad');
+        save();
+      }
+    },
+    activateTrojanScanBoost() {
+      addBuff(state, {
+        id: 'trojan-scan-boost',
+        kind: 'global',
+        magnitude: 1.0, // +100% = 2x
+        durationSeconds: 4 * 3600, // 4 hours
+        label: 'Trojan Scan Boost',
+        source: 'shield99'
+      }, Date.now());
+      save();
+    },
     notify(title, body, tone = 'info') {
       bus.emit(EVENTS.NOTIFY, { title, body, tone });
     },

@@ -44,7 +44,19 @@ async function initPortalSdk() {
 
 /** Boot the OS: wire the simulation to the shell and start the clock. */
 async function boot() {
+  const hostname = window.location.hostname;
+  if (
+    hostname !== 'localhost' &&
+    hostname !== '127.0.0.1' &&
+    !hostname.includes('crazygames.') &&
+    !hostname.includes('poki.')
+  ) {
+    document.body.innerHTML = 'This game is only licensed to play on CrazyGames.com';
+    return;
+  }
+
   const sdk = await initPortalSdk();
+  if (sdk) sdk.game.loadingStart();
 
   const game = createGame();
   const loaded = game.load();
@@ -56,8 +68,9 @@ async function boot() {
     heat: () => game.econ.heatRatio(game.state),
     sdk,
   });
-  document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
-  document.addEventListener('keydown', () => audio.unlock(), { once: true });
+  document.addEventListener('pointerdown', () => audio.unlock());
+  document.addEventListener('touchend', () => audio.unlock());
+  document.addEventListener('keydown', () => audio.unlock());
 
   const wm = createWindowManager({ root: document.getElementById('windows') });
   const notify = createNotifier(document.getElementById('toasts'));
@@ -116,7 +129,17 @@ async function boot() {
       root: document.body,
       dollars,
       onConfirm: async () => {
-        const summary = await formatSequence.run(() => {
+        if (sdk) sdk.game.gameplayStop();
+        const summary = await formatSequence.run(async () => {
+          if (sdk) {
+            await new Promise((resolve) => {
+              sdk.ad.requestAd('midgame', {
+                adFinished: resolve,
+                adError: resolve,
+                adStarted: () => {},
+              });
+            });
+          }
           const result = game.formatC();
           return {
             dollars: result.dollars ?? 0,
@@ -124,6 +147,7 @@ async function boot() {
             ramMB: game.econ.ramCapacity(game.state),
           };
         });
+        if (sdk) sdk.game.gameplayStart();
         notify({
           title: 'Format complete',
           body: `Banked $${summary.dollars.toFixed(2)}. Spend it on hardware in My Computer.`,
@@ -137,6 +161,7 @@ async function boot() {
     for (const id of wm.openIds) wm.close(id);
     launch('aerochat');
     audio.play('chime');
+    if (sdk) sdk.game.happytime();
   });
 
   // One place for every sound the simulation triggers (AO-26).
@@ -338,6 +363,8 @@ async function boot() {
   for (const entry of Object.values(game.state.apps)) entry.open = false;
   if (previouslyOpen.length > 0) previouslyOpen.forEach(launch);
   else launch('aerochat');
+  
+  if (sdk) sdk.game.gameplayStart();
 
   // Offline earnings get a dialog rather than a balloon (AO-28): a report that
   // fades in four seconds is a poor way to explain an HDD cap.
@@ -348,7 +375,26 @@ async function boot() {
       offline,
       hoursCap: offline.cappedHours,
       // Day 7 hangs the rewarded "2× offline Buzz" ad (GDD 8) off this seam.
-      onDouble: null,
+      onDouble: sdk
+        ? () => {
+            sdk.game.gameplayStop();
+            sdk.ad.requestAd('rewarded', {
+              adFinished: () => {
+                game.doubleOfflineBuzz();
+                notify({
+                  title: 'Welcome Back Bonus',
+                  body: 'Offline earnings doubled.',
+                  tone: 'success'
+                });
+                sdk.game.gameplayStart();
+              },
+              adError: () => {
+                sdk.game.gameplayStart();
+              },
+              adStarted: () => {}
+            });
+          }
+        : null,
       onClose: () => audio.unlock(),
     });
     game.clearOfflineReport();
@@ -385,6 +431,24 @@ async function boot() {
     setTimeout(() => document.body.classList.remove('is-hitching'), 110);
   }
 
+  if (sdk) {
+    setInterval(() => {
+      const hwTotal = game.state.hardware.cpu + game.state.hardware.ram + game.state.hardware.hdd;
+      let percentage = (hwTotal / 30) * 100;
+      if (hwTotal === 0) percentage = Math.min(10, (game.state.chat.bots / 100) * 10);
+      percentage = Math.floor(Math.min(100, Math.max(0, percentage)));
+      
+      sdk.game.reportGameCompletedPercentage(percentage);
+      sdk.game.setGameContext({
+        bots: game.state.chat.bots,
+        prestige: game.state.prestigeCount,
+        cpu: game.state.hardware.cpu,
+        ram: game.state.hardware.ram,
+        hdd: game.state.hardware.hdd
+      });
+    }, 30000);
+  }
+
   loop.start();
 
   // Never lose progress to a tab close or a phone switching apps.
@@ -394,6 +458,7 @@ async function boot() {
   window.addEventListener('pagehide', () => game.save());
 
   document.getElementById('boot')?.classList.add('is-done');
+  if (sdk) sdk.game.loadingStop();
 
   // Handy during development; harmless in production.
   globalThis.AeroOS = { game, wm, launch, audio, sdk };

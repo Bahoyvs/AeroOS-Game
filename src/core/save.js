@@ -130,6 +130,19 @@ export function deserialize(raw, now = Date.now()) {
 
 export function saveGame(state, storage = defaultStorage()) {
   try {
+    const remoteRaw = storage.getItem(SAVE.key);
+    if (remoteRaw) {
+      try {
+        const remoteParsed = JSON.parse(remoteRaw);
+        if (remoteParsed && remoteParsed.lastSeen && state.lastSeen && remoteParsed.lastSeen > state.lastSeen) {
+          console.warn('[save] remote save is newer than local state; skipping write to avoid clobbering');
+          return false;
+        }
+      } catch (e) {
+        // ignore parse errors of remote data here, let overwrite proceed
+      }
+    }
+
     const raw = serialize(state);
     const bytes = byteLength(raw);
     if (bytes > MAX_SAVE_BYTES) {

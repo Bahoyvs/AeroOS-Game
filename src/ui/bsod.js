@@ -129,7 +129,7 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
     renderBsod();
     await wait(STAGES.bsod);
 
-    const summary = applyReset();
+    const summary = await applyReset();
 
     renderWipe(summary);
     await wait(STAGES.wipe);
