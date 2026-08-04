@@ -322,6 +322,12 @@
   color: var(--text-muted);
 }
 
+.sys__specs {
+  font-size: 0.64rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 .sys__heading {
   margin: 4px 0 0;
   font-size: 0.8rem;
@@ -335,12 +341,14 @@
   gap: 6px;
 }
 
+/* -------------------------------------------------------- hardware shop */
+
 .hw-row {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
   align-items: center;
-  padding: 6px 8px;
+  padding: 7px 9px;
   background: rgb(255 255 255 / 55%);
   border: 1px solid rgb(255 255 255 / 70%);
   border-radius: var(--radius-sm);
@@ -348,44 +356,124 @@
 
 .hw-row__info {
   display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.hw-row__top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .hw-row__label {
   font-size: 0.78rem;
 }
 
+/* Position on the upgrade track, at a glance. */
+.hw-row__pips {
+  display: flex;
+  gap: 3px;
+}
+
+.pip {
+  width: 6px;
+  height: 6px;
+  background: rgb(13 36 55 / 18%);
+  border-radius: 50%;
+}
+
+.pip.is-owned {
+  background: linear-gradient(180deg, #a9f7ff, var(--aero-blue));
+  box-shadow: 0 0 4px rgb(27 127 212 / 60%);
+}
+
 .hw-row__current {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--aero-blue-deep);
 }
 
+/* What the next purchase actually gives you (AO-19). */
+.hw-row__gain {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #2f7a2f;
+}
+
+.hw-row__gain.is-maxed {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
 .hw-row__blurb {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   color: var(--text-muted);
 }
 
 .hw-row__buy {
-  min-width: 120px;
-  padding: 6px;
-  font-size: 0.7rem;
+  min-width: 84px;
+  min-height: 34px;
+  max-height: 44px;
+  padding: 6px 10px;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+}
+
+.hw-row__buy.is-affordable {
+  font-weight: 700;
 }
 
 .hw-row__buy:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.45;
 }
 
-.sys__prestige-copy {
-  margin: 0;
+/* ------------------------------------------------------------- Format C: */
+
+.sys__prestige {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  color: var(--text);
+}
+
+.sys__prestige-top {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
   font-size: 0.72rem;
   color: var(--text-muted);
 }
 
-.sys__format,
-.sys__wipe {
+.sys__prestige-top [data-role='pending'].is-ready {
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
+.sys__prestige .meter__track {
+  height: 6px;
+  background: rgb(13 36 55 / 18%);
+  border-color: rgb(255 255 255 / 60%);
+}
+
+.sys__prestige-copy {
+  margin: 0;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.sys__format {
+  min-height: 34px;
   padding: 8px;
   cursor: pointer;
+}
+
+.sys__format.is-ready {
+  font-weight: 700;
+  background: linear-gradient(180deg, #fff4d6 45%, #ffe6a3 0, #ffd166);
+  border-color: #d8a53c;
 }
 
 .sys__format:disabled {
@@ -394,8 +482,10 @@
 }
 
 .sys__wipe {
-  font-size: 0.7rem;
-  opacity: 0.8;
+  min-height: 26px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  opacity: 0.75;
 }
 
 /* -------------------------------------------------------------- RetroAmp */

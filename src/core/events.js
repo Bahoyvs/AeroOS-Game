@@ -53,6 +53,7 @@ export const EVENTS = {
   TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }
   HARDWARE_REVEALED: 'tutorial:hardware', // {}
   HARDWARE_BOUGHT: 'hardware:bought', // { track, tier }
+  FORMAT_REQUESTED: 'prestige:requested', // { dollars } — UI runs the sequence
   PRESTIGE: 'prestige', // { dollars }
   SAVED: 'save:written', // { at }
   LOADED: 'save:loaded', // { offline }

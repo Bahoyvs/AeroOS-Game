@@ -29,6 +29,7 @@ index.html
     │   ├── taskbar.js        Start menu, task buttons with RAM bars, tray
     │   ├── notify.js         balloon notifications
     │   ├── tutorial.js       the onboarding coach panel
+    │   ├── bsod.js           Format C: stop screen, POST wipe, confirm dialog
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
     │   ├── registry.js       id → implementation, placeholder fallback
@@ -88,6 +89,26 @@ Two ways to multiply production, and the choice is about persistence:
 
 If a bonus should still be there after a refresh, derive it. If it should tick away whether
 or not the player is watching, make it a buff.
+
+## Hardware: flat percentages, derived capacities
+
+A hardware tier contributes a **flat percentage** to its track rather than
+replacing a stat (`src/data/hardware.js`). Owning tiers 0..n gives `1 + Σ bonuses`,
+and capacities (memory, storage, offline hours) are that same sum applied to a base
+machine in `HARDWARE_BASE`. Two things fall out of this:
+
+- The shop can state what a purchase is worth ("+25% production") and it is literally
+  the number applied — `tests/hardware.test.js` asserts the advertised gain equals the
+  measured one.
+- Saves are unaffected by rebalancing: `state.hardware.<track>` is still a tier index,
+  so the tables can be retuned without a migration.
+
+## Long UI sequences
+
+The Format C: animation (`ui/bsod.js`) is presentation, but it has to interleave with a
+state change. The game emits `FORMAT_REQUESTED`; the shell runs the sequence and calls
+`game.formatC()` *between* the stop screen and the reboot screen, so the POST report
+describes the machine the player is about to get. Every stage is click-to-skip.
 
 ## State & saves
 

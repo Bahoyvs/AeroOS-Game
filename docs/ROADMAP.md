@@ -5,8 +5,9 @@ Each day is a Jira epic (AO-2 style) with its sub-tasks, the files it touches, a
 definition of done. Ship the day's DoD before starting the next day — the schedule assumes
 every day ends on a build that runs.
 
-Ticket IDs for Days 1–3 match the Jira board. Later days are this plan's own numbering and
-should be re-mapped as those epics are created — the work is the contract, not the ID.
+Ticket IDs are the Jira board's, and only exist for days the board has scoped
+(Days 1–4). Later days list the work without IDs — they get numbered when their
+epic is created.
 
 **Ground rules for every day**
 
@@ -79,23 +80,34 @@ playlist → memory wall in about a minute, and a returning save never re-enters
 
 ---
 
-## Day 4 — Prestige pressure and the failure state
+## Day 4 — Format C: prestige system (AO-15) ✅ shipped
 
-**Goal:** make bloat *felt* so Format C: reads as relief rather than punishment (GDD 7).
-Deferred from the original Day 3 when the board scoped tutorial gating instead.
+| Ticket | Task | Status |
+| --- | --- | --- |
+| AO-16 | Dollars currency + lifetime Buzz calculation | ✅ payout curve made legible: progress bar and "next $ at N Buzz" |
+| AO-17 | BSOD / wipe animation for Format C: | ✅ confirm → stop screen → POST wipe → clean desktop, skippable |
+| AO-18 | Hardware upgrade shop (CPU/RAM/GPU/HDD) | ✅ tier pips, current effect, and what the next purchase adds |
+| AO-19 | Hardware stats as simplified flat-percentage effects | ✅ tiers contribute additive percentages instead of replacing a stat |
 
-- [ ] RAM crash: exceeding capacity triggers a BSOD sequence rather than a refusal — forced
-      reboot, brief production pause, no lost progress.
-- [ ] Bloat presentation: window trails, animation slowdown, heat widget going red, taskbar
-      clock drift. Hooks exist (`body.is-bloated` / `.is-critical`), and the AeroChat rate
-      breakdown already names bloat as the culprit — this makes it visible before the maths.
-- [ ] Format C: sequence: confirmation → nostalgic loading screen → clean desktop (this
-      screen is where the Day 7 interstitial ad slots in).
-- [ ] Offline-earnings modal ("Welcome back") replacing the current balloon, with the HDD cap
-      explained and a 2× slot reserved for the rewarded ad.
+AO-19 was the structural one. A tier used to *replace* an absolute stat
+(`tickRate: 2.1`, `capacity: 1024`), so a shop row could not say what a purchase
+was worth without diffing two opaque multipliers. Tiers now contribute flat
+percentages that accumulate, and every capacity is derived the same way from a
+base machine — so "+25% production" in the shop is literally the number applied.
+Tier indices are unchanged, so old saves keep their hardware.
 
-**Files:** `src/ui/bsod.js`, `src/ui/bootScreen.js`, `src/styles/window.css`, `src/core/game.js`
-**DoD:** a player can be pushed into a crash and a prestige, and both feel authored.
+Click power was deliberately re-tuned in the process: it ran 1× → 120× across the
+CPU track, which cannot be expressed as a sane percentage. It is now roughly
+double the production bonus per tier (1× → 9.4×).
+
+The BSOD is a real beat, not a fade — the wipe happens *between* the stop screen
+and the POST screen, so the reboot reports the machine the player is about to
+get. It is skippable at every stage: an unskippable cutscene on a repeatable
+action is a churn machine on a 30-minute-session platform.
+
+**DoD:** a player can see what a Format C: is worth before committing, watch the
+machine die and come back, and spend the proceeds on upgrades that state their
+own effect. ✅
 
 ---
 
@@ -103,13 +115,18 @@ Deferred from the original Day 3 when the board scoped tutorial gating instead.
 
 **Goal:** the first mechanic that can go wrong, with the GDD's safety net intact.
 
-- [ ] AO-16 — LemonWire (`src/apps/lemonwire.js`): queued downloads, HDD-capped size,
+Still outstanding from the original prestige-pressure plan, to fold in where it
+fits: bloat presentation (window trails, heat widget going red, taskbar clock
+drift — the `body.is-bloated` / `.is-critical` hooks exist and are unused), a RAM
+crash that BSODs instead of refusing, and the "welcome back" offline modal.
+
+- [ ] LemonWire (`src/apps/lemonwire.js`): queued downloads, HDD-capped size,
       completion pays a large Buzz lump.
-- [ ] AO-17 — Virus events: production floor capped at 50% *or* LemonWire locked — never a
+- [ ] Virus events: production floor capped at 50% *or* LemonWire locked — never a
       ruined run (GDD 6).
-- [ ] AO-18 — Shield99 (`src/apps/shield99.js`): removes viruses, free trial rescue on the
+- [ ] Shield99 (`src/apps/shield99.js`): removes viruses, free trial rescue on the
       first virus of a run.
-- [ ] AO-19 — Tests for the virus floor, the rescue-once rule and HDD capacity limits.
+- [ ] Tests for the virus floor, the rescue-once rule and HDD capacity limits.
 
 **Files:** `src/apps/lemonwire.js`, `src/apps/shield99.js`, `src/data/balance.js`, `tests/`
 **DoD:** a virus can be caught, survived and cured; the worst case is provably a 50% floor.
@@ -120,12 +137,12 @@ Deferred from the original Day 3 when the board scoped tutorial gating instead.
 
 **Goal:** give the GPU and the prestige loop something to matter for.
 
-- [ ] AO-20 — Aero Studio (`src/apps/aerostudio.js`): long render with a GPU-scaled cooldown
+- [ ] Aero Studio (`src/apps/aerostudio.js`): long render with a GPU-scaled cooldown
       (`cooldownMultiplier`), highest single payout in the game.
-- [ ] AO-21 — Shared cooldown/progress-job helper so future timed apps reuse one implementation.
-- [ ] AO-22 — AeroBurn (`src/apps/aeroburn.js`): burn Buzz to a CD that survives Format C:
+- [ ] Shared cooldown/progress-job helper so future timed apps reuse one implementation.
+- [ ] AeroBurn (`src/apps/aeroburn.js`): burn Buzz to a CD that survives Format C:
       and grants next-run starting boosts (persist through `resetForPrestige`).
-- [ ] AO-23 — Tests: CD carry-over survives prestige; GPU tiers measurably cut cooldowns.
+- [ ] Tests: CD carry-over survives prestige; GPU tiers measurably cut cooldowns.
 
 **Files:** `src/apps/aerostudio.js`, `src/apps/aeroburn.js`, `src/core/jobs.js`, `src/core/state.js`
 **DoD:** every hardware track (CPU/RAM/GPU/HDD) now changes something the player can feel.
@@ -136,12 +153,12 @@ Deferred from the original Day 3 when the board scoped tutorial gating instead.
 
 **Goal:** something to do while idling, and an end-game ceiling.
 
-- [ ] AO-24 — Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
+- [ ] Galactic Pinball 3D (`src/apps/pinball.js`): canvas mini-game paying Buzz and
       combo multipliers.
-- [ ] AO-25 — IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
+- [ ] IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
       large passive Buzz (GDD 5).
-- [ ] AO-26 — Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
-- [ ] AO-27 — Performance pass: keep the render step under budget with the pinball canvas,
+- [ ] Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
+- [ ] Performance pass: keep the render step under budget with the pinball canvas,
       many windows and 500 bots on a mid-range phone.
 
 **Files:** `src/apps/pinball.js`, `src/core/botnet.js`, `src/ui/miniMod.js`
@@ -153,12 +170,12 @@ Deferred from the original Day 3 when the board scoped tutorial gating instead.
 
 **Goal:** the portal build (GDD 8). The first 60 seconds shipped on Day 3.
 
-- [ ] AO-29 — Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
+- [ ] Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
       SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
-- [ ] AO-30 — Interstitial on Format C:, hidden behind the loading screen.
-- [ ] AO-31 — Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
+- [ ] Interstitial on Format C:, hidden behind the loading screen.
+- [ ] Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
       distortion layer, synthwave BGM, with a mute toggle honouring `state.settings`.
-- [ ] AO-32 — Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
+- [ ] Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
       CrazyGames/Poki SDK smoke test.
 
 **Files:** `src/monetization/ads.js`, `src/core/audio.js`

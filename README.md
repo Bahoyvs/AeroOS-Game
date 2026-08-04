@@ -26,7 +26,7 @@ npm run dev      # http://localhost:5173
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
-## What works today (Days 1–3)
+## What works today (Days 1–4)
 
 - **Desktop shell** — draggable, resizable, overlapping windows with focus, minimize and a
   Start menu; on phones the same windows become full-screen PDA modals with RAM bars under
@@ -48,9 +48,11 @@ No framework and no global tooling: Node 20+ and npm are enough.
   out-of-memory balloon instead of silently failing.
 - **Bloat** — uptime and open apps degrade production and desaturate the desktop, building
   pressure toward a prestige.
-- **Format C:** — wipes software, banks Dollars from lifetime Buzz, keeps hardware.
-- **Hardware** — CPU/RAM/GPU/HDD tier tables wired to tick rate, memory, cooldowns and the
-  offline-earnings cap.
+- **Format C:** — a confirmation, an authentic blue stop screen, a BIOS-style wipe that
+  reports the machine you are about to get, and a clean desktop. Skippable at any point.
+  Wipes software, banks Dollars from lifetime Buzz, keeps hardware.
+- **Hardware shop** — CPU/RAM/GPU/HDD tracks where every tier states what it adds as a flat
+  percentage, with tier pips and live affordability.
 - **Saves** — versioned localStorage with migrations, autosave, and offline Buzz capped by
   your HDD.
 

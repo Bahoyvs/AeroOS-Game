@@ -1,0 +1,181 @@
+/**
+ * Format C: sequence (AO-17): the stop screen and the reboot/POST screen.
+ * Both are full-bleed and sit above everything, including the taskbar.
+ */
+
+.bsod {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-content: center;
+  padding: 6vmin;
+  cursor: pointer;
+  font-family: 'Lucida Console', Consolas, monospace;
+  animation: bsod-in 120ms steps(2);
+}
+
+.bsod[hidden] {
+  display: none;
+}
+
+.bsod.is-leaving {
+  opacity: 0;
+  transition: opacity 380ms var(--ease-aero);
+}
+
+@keyframes bsod-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.bsod__inner {
+  width: min(760px, 100%);
+}
+
+/* ------------------------------------------------------------ stop screen */
+
+.bsod--stop {
+  /* The authentic one, not a stylised blue. */
+  background: #0000aa;
+  color: #d6d6ff;
+}
+
+.bsod__text {
+  /* 7.css gives bare <pre> a white page-like block; a stop screen is not that. */
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: clamp(0.62rem, 1.5vw, 0.85rem);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.bsod__hint {
+  margin: 24px 0 0;
+  font-size: 0.7rem;
+  text-align: center;
+  opacity: 0.6;
+  animation: bsod-blink 1.2s steps(2) infinite;
+}
+
+@keyframes bsod-blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+
+/* ----------------------------------------------------------- POST screen */
+
+.bsod--post {
+  background: #000;
+  color: #c8c8c8;
+}
+
+.bsod__post-head {
+  padding-bottom: 6px;
+  margin-bottom: 14px;
+  font-size: 0.8rem;
+  color: #fff;
+  border-bottom: 1px solid #333;
+}
+
+.bsod__steps {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  margin: 0 0 18px;
+  font-size: clamp(0.66rem, 1.5vw, 0.8rem);
+  list-style: none;
+}
+
+.bsod__steps li {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  opacity: 0.25;
+  transition: opacity 160ms linear;
+}
+
+.bsod__steps li.is-done {
+  opacity: 1;
+}
+
+.bsod__steps b {
+  color: #6dff6d;
+  font-weight: 400;
+}
+
+.bsod__summary {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  margin: 0;
+  font-size: clamp(0.66rem, 1.5vw, 0.8rem);
+  background: #0d0d0d;
+  border: 1px solid #262626;
+}
+
+.bsod__summary div {
+  display: flex;
+  justify-content: space-between;
+}
+
+.bsod__summary dt,
+.bsod__summary dd {
+  margin: 0;
+}
+
+.bsod__summary dd {
+  color: #ffe08a;
+}
+
+/* Freeze the desktop's own motion while the machine is "down". */
+body.is-formatting .aero-window,
+body.is-formatting .gadget {
+  animation: none !important;
+}
+
+/* --------------------------------------------------------- confirm dialog */
+
+.confirm-shade {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: grid;
+  place-content: center;
+  padding: 16px;
+  background: rgb(4 20 40 / 45%);
+  backdrop-filter: blur(2px);
+  animation: bsod-in 140ms var(--ease-aero);
+}
+
+.confirm {
+  width: min(360px, calc(100vw - 32px));
+}
+
+.confirm__body p {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.confirm__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.confirm__actions button {
+  min-height: 30px;
+  cursor: pointer;
+}
+
+.confirm__ok {
+  font-weight: 700;
+}

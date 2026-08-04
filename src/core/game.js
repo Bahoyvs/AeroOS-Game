@@ -279,6 +279,18 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, tier: next };
   }
 
+  /**
+   * Ask the shell to run the Format C: sequence (AO-17). The game does not own
+   * the animation, so it announces the intent and lets main.js drive the BSOD,
+   * calling formatC() at the right beat.
+   */
+  function requestFormat() {
+    const dollars = econ.pendingPrestigeDollars(state);
+    if (dollars <= 0) return { ok: false, reason: 'not-worth-it' };
+    bus.emit(EVENTS.FORMAT_REQUESTED, { dollars });
+    return { ok: true, dollars };
+  }
+
   /** "Format C:" — wipe software, keep hardware, bank Dollars (GDD 5). */
   function formatC() {
     const dollars = econ.pendingPrestigeDollars(state);
@@ -324,6 +336,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     currentTutorialStep: () => currentStep(state),
     buyHardware,
     formatC,
+    requestFormat,
     hardReset,
     notify(title, body, tone = 'info') {
       bus.emit(EVENTS.NOTIFY, { title, body, tone });

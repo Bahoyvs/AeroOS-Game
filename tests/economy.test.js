@@ -3,7 +3,7 @@ import * as econ from '../src/core/economy.js';
 import { addBuff } from '../src/core/buffs.js';
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
 import { BLOAT, CHAT_BOT, OFFLINE, PRESTIGE } from '../src/data/balance.js';
-import { RAM_TIERS, HDD_TIERS } from '../src/data/hardware.js';
+import { CPU_TIERS, GPU_TIERS, HARDWARE_BASE, HDD_TIERS, RAM_TIERS } from '../src/data/hardware.js';
 
 const stateWith = (patch = {}) => ({ ...createInitialState(0), ...patch });
 
@@ -15,8 +15,8 @@ describe('memory budget', () => {
     expect(econ.ramUsed(s)).toBe(32);
   });
 
-  it('reports the starting RAM tier as capacity', () => {
-    expect(econ.ramCapacity(createInitialState(0))).toBe(RAM_TIERS[0].capacity);
+  it('reports the stock machine capacity', () => {
+    expect(econ.ramCapacity(createInitialState(0))).toBe(HARDWARE_BASE.ramMB);
   });
 
   it('refuses to open an app that does not fit', () => {
@@ -133,7 +133,7 @@ describe('offline earnings', () => {
 
   it('caps at the HDD tier and flags the cap', () => {
     const s = producing();
-    const capSeconds = HDD_TIERS[0].offlineHours * 3600;
+    const capSeconds = HARDWARE_BASE.offlineHours * 3600;
     const result = econ.offlineEarnings(s, capSeconds * 10);
     expect(result.seconds).toBe(capSeconds);
     expect(result.capped).toBe(true);
@@ -141,8 +141,10 @@ describe('offline earnings', () => {
 
   it('extends the cap when the HDD is upgraded', () => {
     const s = producing();
-    s.hardware.hdd = 3; // 250 GB SATA -> 24h
-    expect(econ.offlineCapSeconds(s)).toBe(HDD_TIERS[3].offlineHours * 3600);
+    const before = econ.offlineCapSeconds(s);
+    s.hardware.hdd = 3; // 250 GB SATA
+    expect(econ.offlineCapSeconds(s)).toBe(econ.hardwareEffects(s).offlineHours * 3600);
+    expect(econ.offlineCapSeconds(s)).toBeGreaterThan(before);
   });
 });
 

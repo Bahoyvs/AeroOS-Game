@@ -1,6 +1,14 @@
 import { BLOAT, CHAT_BOT, CLICK, OFFLINE, PRESTIGE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
-import { HARDWARE_TRACKS, nextTierOf, tierOf } from '../data/hardware.js';
+import {
+  HARDWARE,
+  HARDWARE_BASE,
+  HARDWARE_TRACKS,
+  MIN_COOLDOWN,
+  nextTierOf,
+  sumBonus,
+  tierOf,
+} from '../data/hardware.js';
 import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
 
@@ -12,8 +20,35 @@ import { buffMultiplier } from './buffs.js';
 
 /* ------------------------------------------------------------------ memory */
 
+/**
+ * Everything the player's hardware currently does for them (AO-19). Each stat
+ * is the base value scaled by the flat percentages of every tier they own, so
+ * "what does this upgrade give me" is always a single number.
+ */
+export function hardwareEffects(state) {
+  const h = state.hardware;
+  return {
+    production: HARDWARE_BASE.production * (1 + sumBonus('cpu', h.cpu, 'production')),
+    click: HARDWARE_BASE.click * (1 + sumBonus('cpu', h.cpu, 'click')),
+    cooldown: Math.max(MIN_COOLDOWN, HARDWARE_BASE.cooldown - sumBonus('gpu', h.gpu, 'cooldown')),
+    ramMB: Math.round(HARDWARE_BASE.ramMB * (1 + sumBonus('ram', h.ram, 'capacity'))),
+    storageGB: Math.round(HARDWARE_BASE.storageGB * (1 + sumBonus('hdd', h.hdd, 'storage'))),
+    offlineHours: HARDWARE_BASE.offlineHours * (1 + sumBonus('hdd', h.hdd, 'offline')),
+  };
+}
+
 export function ramCapacity(state) {
-  return tierOf('ram', state.hardware.ram).capacity;
+  return hardwareEffects(state).ramMB;
+}
+
+/** Storage ceiling for LemonWire downloads (Day 5). */
+export function storageCapacityGB(state) {
+  return hardwareEffects(state).storageGB;
+}
+
+/** Cooldown scale for heavy apps like Aero Studio (Day 6). */
+export function cooldownMultiplier(state) {
+  return hardwareEffects(state).cooldown;
 }
 
 /** Extra memory the loaded playlist charges on top of RetroAmp itself. */
@@ -186,7 +221,7 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
 /** Global multiplier from hardware, system health and global-kind buffs. */
 export function globalMultiplier(state, now = Date.now()) {
   return (
-    tierOf('cpu', state.hardware.cpu).tickRate *
+    hardwareEffects(state).production *
     bloatPenalty(state) *
     retroampMultiplier(state, now) *
     buffMultiplier(state, 'global', now)
@@ -212,7 +247,7 @@ export function rateBreakdown(state, now = Date.now()) {
     milestone: chatMilestoneMultiplier(state),
     buffs: buffMultiplier(state, 'chat', now) * buffMultiplier(state, 'global', now),
     playlist: retroampMultiplier(state, now),
-    cpu: tierOf('cpu', state.hardware.cpu).tickRate,
+    cpu: hardwareEffects(state).production,
     bloat: bloatPenalty(state),
     open: state.apps.aerochat?.open === true,
     total: buzzPerSecond(state, now),
@@ -223,7 +258,7 @@ export function rateBreakdown(state, now = Date.now()) {
 export function clickPower(state, now = Date.now()) {
   return (
     CLICK.baseBuzz *
-    tierOf('cpu', state.hardware.cpu).clickPower *
+    hardwareEffects(state).click *
     bloatPenalty(state) *
     buffMultiplier(state, 'click', now)
   );
@@ -232,7 +267,7 @@ export function clickPower(state, now = Date.now()) {
 /* ----------------------------------------------------------------- offline */
 
 export function offlineCapSeconds(state) {
-  return tierOf('hdd', state.hardware.hdd).offlineHours * 3600;
+  return hardwareEffects(state).offlineHours * 3600;
 }
 
 /**
@@ -272,6 +307,60 @@ export function canPrestige(state) {
   return pendingPrestigeDollars(state) > 0;
 }
 
+/**
+ * What the very first Format C: pays. The payout floor is a Buzz threshold, not
+ * a Dollar amount, so the first payout is whatever that threshold is worth.
+ */
+export const FIRST_PAYOUT =
+  Math.floor(PRESTIGE.scale * Math.sqrt(PRESTIGE.minLifetimeBuzz / PRESTIGE.divisor) * 100) / 100;
+
+/** Inverse of the payout curve: lifetime Buzz needed to be worth `dollars`. */
+export function buzzForDollars(dollars) {
+  if (dollars <= 0) return 0;
+  return Math.max(
+    PRESTIGE.minLifetimeBuzz,
+    (dollars / PRESTIGE.scale) ** 2 * PRESTIGE.divisor,
+  );
+}
+
+/**
+ * Progress toward the next whole Dollar (AO-16). The sqrt curve is invisible to
+ * the player otherwise: they cannot tell whether a payout is seconds or hours
+ * away, which makes Format C: feel arbitrary.
+ */
+export function dollarProgress(state) {
+  const earned = lifetimeDollarValue(state);
+  const pending = pendingPrestigeDollars(state);
+
+  // The payout floor is already worth more than $1, so before the first one the
+  // goal is that floor — promising "$1" would be a number they never receive.
+  if (earned === 0) {
+    const at = PRESTIGE.minLifetimeBuzz;
+    return {
+      earned: 0,
+      pending,
+      first: true,
+      nextDollar: FIRST_PAYOUT,
+      buzzNeeded: Math.max(0, at - state.lifetimeBuzz),
+      ratio: Math.min(1, Math.max(0, state.lifetimeBuzz / at)),
+    };
+  }
+
+  const nextDollar = Math.floor(earned) + 1;
+  const at = buzzForDollars(nextDollar);
+  const from = buzzForDollars(Math.floor(earned));
+  const span = at - from;
+
+  return {
+    earned,
+    pending,
+    first: false,
+    nextDollar,
+    buzzNeeded: Math.max(0, at - state.lifetimeBuzz),
+    ratio: span <= 0 ? 0 : Math.min(1, Math.max(0, (state.lifetimeBuzz - from) / span)),
+  };
+}
+
 /* ---------------------------------------------------------------- hardware */
 
 export function hardwareUpgradeCost(state, track) {
@@ -284,14 +373,58 @@ export function canBuyHardware(state, track) {
   return cost !== null && state.dollars >= cost;
 }
 
+/**
+ * Everything the shop needs for one row (AO-18): where the player is on the
+ * track, what they have now, and what the next purchase adds — as the flat
+ * percentages the tier tables are written in (AO-19).
+ */
 export function hardwareSummary(state) {
-  return HARDWARE_TRACKS.map((track) => ({
-    track,
-    current: tierOf(track, state.hardware[track]),
-    next: nextTierOf(track, state.hardware[track]),
-    cost: hardwareUpgradeCost(state, track),
-    affordable: canBuyHardware(state, track),
-  }));
+  const effects = hardwareEffects(state);
+
+  return HARDWARE_TRACKS.map((track) => {
+    const index = state.hardware[track];
+    const next = nextTierOf(track, index);
+
+    // What the machine would look like one tier up, so the row can show a delta
+    // rather than asking the player to compare two multipliers.
+    const upgraded = next
+      ? hardwareEffects({ ...state, hardware: { ...state.hardware, [track]: index + 1 } })
+      : null;
+
+    return {
+      track,
+      label: HARDWARE[track].label,
+      affects: HARDWARE[track].affects,
+      blurb: HARDWARE[track].blurb,
+      index,
+      tierCount: HARDWARE[track].tiers.length,
+      current: tierOf(track, index),
+      next,
+      cost: hardwareUpgradeCost(state, track),
+      affordable: canBuyHardware(state, track),
+      maxed: next === null,
+      effects,
+      upgraded,
+      gains: next ? trackGains(track, next) : [],
+    };
+  });
+}
+
+/** The next tier's flat bonuses, as display-ready `+N%` / capacity strings. */
+function trackGains(track, next) {
+  const pct = (value) => `+${Math.round(value * 100)}%`;
+  switch (track) {
+    case 'cpu':
+      return [`${pct(next.production)} production`, `${pct(next.click)} click power`];
+    case 'ram':
+      return [`${pct(next.capacity)} memory`];
+    case 'gpu':
+      return [`−${Math.round(next.cooldown * 100)}% cooldowns`];
+    case 'hdd':
+      return [`${pct(next.offline)} offline cap`, `${pct(next.storage)} storage`];
+    default:
+      return [];
+  }
 }
 
 /* ------------------------------------------------------------------ unlock */

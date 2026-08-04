@@ -8,6 +8,7 @@ import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
+import { confirmFormat, createFormatSequence } from './ui/bsod.js';
 import { createDesktop } from './ui/desktop.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
@@ -57,6 +58,39 @@ function boot() {
       title: 'Out of memory',
       body: `${getApp(id).name} needs ${needed} MB but only ${free} MB is free. Close something or upgrade your RAM.`,
       tone: 'error',
+    });
+  });
+
+  // Format C: (AO-17). The game announces the intent; the shell owns the
+  // confirmation, the BSOD and the reboot screen, and calls formatC() at the
+  // beat where the machine actually wipes.
+  const formatSequence = createFormatSequence({
+    root: document.body,
+    reducedMotion: () =>
+      game.state.settings.reducedMotion ||
+      matchMedia('(prefers-reduced-motion: reduce)').matches,
+  });
+
+  game.bus.on(game.events.FORMAT_REQUESTED, ({ dollars }) => {
+    if (formatSequence.busy) return;
+    confirmFormat({
+      root: document.body,
+      dollars,
+      onConfirm: async () => {
+        const summary = await formatSequence.run(() => {
+          const result = game.formatC();
+          return {
+            dollars: result.dollars ?? 0,
+            prestigeCount: game.state.prestigeCount,
+            ramMB: game.econ.ramCapacity(game.state),
+          };
+        });
+        notify({
+          title: 'Format complete',
+          body: `Banked $${summary.dollars.toFixed(2)}. Spend it on hardware in My Computer.`,
+          tone: 'success',
+        });
+      },
     });
   });
 
