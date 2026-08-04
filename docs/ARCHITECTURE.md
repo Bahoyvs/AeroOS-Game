@@ -16,7 +16,7 @@ index.html
     │   ├── downloads.js      LemonWire transfers, the Recycle Bin, virus safety net
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
-    │   ├── save.js           localStorage, migrations, offline elapsed time
+    │   ├── save.js           storage backends, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
     ├── data/                 tuning — designers edit these, not the code
@@ -34,7 +34,7 @@ index.html
     │   ├── notify.js         balloon notifications
     │   ├── tutorial.js       the onboarding coach panel
     │   ├── bsod.js           Format C: stop screen, POST wipe, confirm dialog
-    │   ├── audio.js          synthesised SFX + BGM, distortion driven by heat
+    │   ├── audio.js          synthesised SFX + BGM, heat distortion, portal mute
     │   ├── welcomeBack.js    the offline-earnings report
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
@@ -133,6 +133,11 @@ policy), so nothing warns on boot; and the "audio distorts as the system bloats"
 is a single waveshaper whose curve follows `econ.heatRatio` — the same number that drives the
 heat gauge and the window sluggishness, so the escalation cannot drift out of sync.
 
+Mute has two sources and **the portal wins**. `state.settings.sfx/.bgm` are the player's
+toggles; CrazyGames can mute the whole game from the site chrome or before an ad. The portal
+setting is folded into `sfxOn()`/`bgmOn()` so every existing gate honours it, *and* written
+to the master gain, so sound already scheduled stops instead of playing out under an ad.
+
 ## State & saves
 
 `createInitialState()` is the single definition of the save shape. On load, a stored save is
@@ -145,8 +150,17 @@ Rules for changing the save:
 2. Only bump `SAVE_VERSION` + add a migration if an *existing* field changes meaning.
 3. Add a save test covering an old payload.
 
-Storage is injected everywhere (`createMemoryStorage()` in tests, `localStorage` in the
-browser, a shim when storage is blocked), which is also the seam a cloud save would use.
+Storage is injected everywhere, which is also the seam a cloud save would use.
+`defaultStorage()` picks the first backend whose probe write round-trips:
+
+1. `CrazyGames.SDK.data` — the portal's per-player storage, which only exists after
+   `SDK.init()` resolves. That is why `boot()` is async and awaits it before `createGame()`.
+2. `localStorage` — local dev and any non-portal host.
+3. `createMemoryStorage()` — private mode, blocked iframes, and tests.
+
+All three are localStorage-shaped and synchronous, so nothing above this layer knows which
+one it got. Writes over `MAX_SAVE_BYTES` (1 MB, the portal's per-value cap) are refused
+rather than attempted: a rejected write would lose the previous save too.
 
 ## Windows
 

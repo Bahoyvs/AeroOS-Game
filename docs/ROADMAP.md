@@ -240,12 +240,15 @@ end-game ceiling.
 - [ ] Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
       SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
 - [ ] Interstitial on Format C:, hidden behind the loading screen.
-- [ ] Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
-      distortion layer, synthwave BGM, with a mute toggle honouring `state.settings`.
+- [x] Audio pass — shipped Day 6 as `src/ui/audio.js` (not `core/`: AudioContext is a
+      browser API). Clicks, HDD noise, chime, heat-driven distortion, synthwave BGM.
+- [x] CrazyGames v3 SDK: `SDK.data` as the save backend behind `defaultStorage()`, and
+      the portal's mute overriding `state.settings` on the master gain.
 - [ ] Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
-      CrazyGames/Poki SDK smoke test.
+      CrazyGames/Poki SDK smoke test **on the portal** — the SDK integration is so far
+      verified only against a mock, since sdk.crazygames.com is unreachable from CI.
 
-**Files:** `src/monetization/ads.js`, `src/core/audio.js`
+**Files:** `src/monetization/ads.js`, `src/ui/audio.js`, `src/core/save.js`
 **DoD:** ads are wired behind the adapter and `dist/` runs from a static host.
 
 ---

@@ -1,7 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  MAX_SAVE_BYTES,
   clearSave,
   createMemoryStorage,
+  defaultStorage,
   deserialize,
   hasSave,
   loadGame,
@@ -127,5 +129,72 @@ describe('storage helpers', () => {
     expect(hasSave(storage)).toBe(true);
     clearSave(storage);
     expect(hasSave(storage)).toBe(false);
+  });
+});
+
+describe('portal storage limits', () => {
+  it('refuses a payload over the 1 MB portal limit, keeping the last good save', () => {
+    const storage = createMemoryStorage();
+    const good = createInitialState(0);
+    saveGame(good, storage);
+    const before = storage.getItem(SAVE.key);
+
+    const oversized = createInitialState(0);
+    oversized.chat.note = 'x'.repeat(MAX_SAVE_BYTES);
+
+    expect(saveGame(oversized, storage)).toBe(false);
+    expect(storage.getItem(SAVE.key)).toBe(before);
+  });
+
+  it('accepts a payload just under the limit', () => {
+    const storage = createMemoryStorage();
+    const state = createInitialState(0);
+    state.chat.note = 'x'.repeat(MAX_SAVE_BYTES - 2000);
+    expect(saveGame(state, storage)).toBe(true);
+  });
+});
+
+describe('storage backend selection', () => {
+  afterEach(() => {
+    delete globalThis.CrazyGames;
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('prefers the CrazyGames data module when the SDK has initialised', () => {
+    const portal = createMemoryStorage();
+    globalThis.CrazyGames = { SDK: { data: portal } };
+
+    saveGame(createInitialState(0), defaultStorage());
+    expect(hasSave(portal)).toBe(true);
+  });
+
+  it('falls back to localStorage when the portal storage throws', () => {
+    // An SDK that is on the page but not initialised: `data` exists and throws.
+    globalThis.CrazyGames = {
+      SDK: {
+        data: {
+          getItem: () => null,
+          setItem: () => {
+            throw new Error('SDK is not initialized');
+          },
+          removeItem: () => {},
+        },
+      },
+    };
+    const local = createMemoryStorage();
+    vi.stubGlobal('localStorage', local);
+
+    saveGame(createInitialState(0), defaultStorage());
+    expect(hasSave(local)).toBe(true);
+  });
+
+  it('falls back to memory when nothing persists', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.stubGlobal('localStorage', undefined);
+
+    const storage = defaultStorage();
+    expect(saveGame(createInitialState(0), storage)).toBe(true);
+    expect(hasSave(storage)).toBe(true);
   });
 });

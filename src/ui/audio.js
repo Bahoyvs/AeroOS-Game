@@ -12,6 +12,10 @@
  *
  * Autoplay policy: the context is created on the first real user gesture and
  * stays suspended until then, so nothing here can block or warn on boot.
+ *
+ * Portal mute: CrazyGames can mute the whole game from the site chrome, or
+ * because an ad is about to play. That outranks `state.settings` — see
+ * `applyPortalSettings`.
  */
 
 const SEMITONE = 2 ** (1 / 12);
@@ -20,7 +24,10 @@ const note = (semitonesFromA4) => 440 * SEMITONE ** semitonesFromA4;
 /** A minor-ish set that always sounds passable in any order. */
 const SCALE = [-9, -7, -5, -2, 0, 3, 5, 7]; // A minor pentatonic-ish, two octaves
 
-export function createAudio({ settings, heat = () => 0 }) {
+/** Master bus level when we are not muted. Named because the mute restores it. */
+const MASTER_GAIN = 0.5;
+
+export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGames?.SDK }) {
   let ctx = null;
   let master = null;
   let shaper = null;
@@ -29,9 +36,12 @@ export function createAudio({ settings, heat = () => 0 }) {
   let musicTimer = null;
   let step = 0;
   let lastHeat = -1;
+  let portalMuted = false;
 
-  const sfxOn = () => settings().sfx !== false;
-  const bgmOn = () => settings().bgm !== false;
+  // The portal's mute is folded in here rather than checked at each call site,
+  // so every existing gate (play, startMusic, unlock, setEnabled) honours it.
+  const sfxOn = () => !portalMuted && settings().sfx !== false;
+  const bgmOn = () => !portalMuted && settings().bgm !== false;
 
   /* --------------------------------------------------------------- engine */
 
@@ -57,7 +67,8 @@ export function createAudio({ settings, heat = () => 0 }) {
 
     ctx = new AudioCtx();
     master = ctx.createGain();
-    master.gain.value = 0.5;
+    // The portal can already have muted us before the first gesture built this.
+    master.gain.value = portalMuted ? 0 : MASTER_GAIN;
 
     shaper = ctx.createWaveShaper();
     shaper.curve = makeCurve(0);
@@ -268,5 +279,53 @@ export function createAudio({ settings, heat = () => 0 }) {
     if (sfx === false && ctx) lastHeat = -1;
   }
 
-  return { unlock, play, update, startMusic, stopMusic, setEnabled, get context() { return ctx; } };
+  /* ---------------------------------------------------------------- portal */
+
+  /**
+   * CrazyGames' own audio setting. It wins over the in-game toggles, and it is
+   * applied to the master gain rather than to `sfxOn()` alone — a scheduled
+   * envelope keeps running otherwise, so an ad would start over a tail of
+   * whatever was playing. Music is stopped outright rather than left silent,
+   * since a muted scheduler is just a timer burning CPU.
+   */
+  function applyPortalSettings(portalSettings) {
+    portalMuted = Boolean(portalSettings?.muteAudio);
+    if (master) master.gain.value = portalMuted ? 0 : MASTER_GAIN;
+    if (portalMuted) stopMusic();
+    else if (bgmOn() && ctx?.state === 'running') startMusic();
+  }
+
+  // Optional chaining throughout: off-portal there is no SDK at all, and the
+  // shape of one that failed to init is not worth asserting on.
+  try {
+    sdk?.game?.addSettingsChangeListener?.(applyPortalSettings);
+    // The portal may already be muted before the first change event fires.
+    applyPortalSettings(sdk?.game?.settings);
+  } catch (err) {
+    console.warn('[audio] portal audio settings unavailable', err);
+  }
+
+  return {
+    unlock,
+    play,
+    update,
+    startMusic,
+    stopMusic,
+    setEnabled,
+    get context() {
+      return ctx;
+    },
+    /** True while the portal has muted us, whatever `state.settings` says. */
+    get portalMuted() {
+      return portalMuted;
+    },
+    dispose() {
+      stopMusic();
+      try {
+        sdk?.game?.removeSettingsChangeListener?.(applyPortalSettings);
+      } catch {
+        /* the listener was never registered */
+      }
+    },
+  };
 }

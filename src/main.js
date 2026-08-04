@@ -18,8 +18,34 @@ import { createTutorialCoach } from './ui/tutorial.js';
 import { showWelcomeBack } from './ui/welcomeBack.js';
 import { createWindowManager } from './ui/windowManager.js';
 
+/**
+ * Resolve the CrazyGames SDK before anything reads a setting from it. Save
+ * storage and the portal's audio mute both come from it, and `SDK.data` does
+ * not exist until init() resolves — so this has to finish before
+ * `createGame()` picks a storage backend.
+ *
+ * Best-effort by design: off-portal the script is absent or init rejects, and
+ * the game carries on with localStorage and its own audio settings.
+ */
+async function initPortalSdk() {
+  const sdk = globalThis.CrazyGames?.SDK;
+  if (!sdk) {
+    console.info('[aeroos] CrazyGames SDK not present; running standalone');
+    return null;
+  }
+  try {
+    await sdk.init();
+    return sdk;
+  } catch (err) {
+    console.warn('[aeroos] CrazyGames SDK init failed; running standalone', err);
+    return null;
+  }
+}
+
 /** Boot the OS: wire the simulation to the shell and start the clock. */
-function boot() {
+async function boot() {
+  const sdk = await initPortalSdk();
+
   const game = createGame();
   const loaded = game.load();
 
@@ -28,6 +54,7 @@ function boot() {
   const audio = createAudio({
     settings: () => game.state.settings,
     heat: () => game.econ.heatRatio(game.state),
+    sdk,
   });
   document.addEventListener('pointerdown', () => audio.unlock(), { once: true });
   document.addEventListener('keydown', () => audio.unlock(), { once: true });
@@ -369,11 +396,14 @@ function boot() {
   document.getElementById('boot')?.classList.add('is-done');
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch, audio };
+  globalThis.AeroOS = { game, wm, launch, audio, sdk };
 }
 
+/** Boot failures are silent otherwise — an async boot() rejects into nothing. */
+const start = () => void boot().catch((err) => console.error('[aeroos] boot failed', err));
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot, { once: true });
+  document.addEventListener('DOMContentLoaded', start, { once: true });
 } else {
-  boot();
+  start();
 }
