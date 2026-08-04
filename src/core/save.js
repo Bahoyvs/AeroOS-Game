@@ -17,17 +17,50 @@ export function createMemoryStorage(seed = {}) {
   };
 }
 
-/** localStorage, or a memory shim when it is unavailable (private mode, iframes). */
-export function defaultStorage() {
+/**
+ * CrazyGames refuses a stored value over 1 MB. A refused write is a silently
+ * lost save, so we check the payload ourselves and keep the last good one.
+ */
+export const MAX_SAVE_BYTES = 1_000_000;
+
+const byteLength = (raw) =>
+  typeof TextEncoder === 'function' ? new TextEncoder().encode(raw).length : raw.length;
+
+/**
+ * A storage backend is only trustworthy if a write round-trips. Private mode,
+ * a blocked third-party iframe and an uninitialised portal SDK all throw here,
+ * which is where we want to find out — not at the first autosave.
+ */
+function probeStorage(storage) {
+  if (!storage) return null;
   try {
     const probe = '__aeroos_probe__';
-    globalThis.localStorage.setItem(probe, '1');
-    globalThis.localStorage.removeItem(probe);
-    return globalThis.localStorage;
+    storage.setItem(probe, '1');
+    storage.removeItem(probe);
+    return storage;
   } catch {
-    console.warn('[save] localStorage unavailable; progress will not persist');
-    return createMemoryStorage();
+    return null;
   }
+}
+
+/**
+ * Portal storage, then localStorage, then memory.
+ *
+ * `CrazyGames.SDK.data` is a localStorage-shaped API backed by the player's
+ * portal account, so it drops straight into this seam — but it only exists once
+ * `SDK.init()` has resolved, which `main.js` awaits before creating the game.
+ * Anywhere else (local dev, itch, a plain static host) the chain falls through
+ * to localStorage, so development is never blocked on the portal.
+ */
+export function defaultStorage() {
+  const portal = probeStorage(globalThis.CrazyGames?.SDK?.data);
+  if (portal) return portal;
+
+  const local = probeStorage(globalThis.localStorage);
+  if (local) return local;
+
+  console.warn('[save] no persistent storage available; progress will not persist');
+  return createMemoryStorage();
 }
 
 /**
@@ -97,7 +130,18 @@ export function deserialize(raw, now = Date.now()) {
 
 export function saveGame(state, storage = defaultStorage()) {
   try {
-    storage.setItem(SAVE.key, serialize(state));
+    const raw = serialize(state);
+    const bytes = byteLength(raw);
+    if (bytes > MAX_SAVE_BYTES) {
+      // Refusing the write leaves the previous save intact, which is strictly
+      // better than a half-written or rejected one. A save this large is a bug
+      // (something unbounded is being persisted), not a player problem.
+      console.warn(
+        `[save] payload is ${bytes} bytes, over the ${MAX_SAVE_BYTES}-byte limit; write skipped`,
+      );
+      return false;
+    }
+    storage.setItem(SAVE.key, raw);
     return true;
   } catch (err) {
     console.error('[save] write failed', err);

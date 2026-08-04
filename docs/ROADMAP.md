@@ -138,12 +138,14 @@ prestige that both feel authored.
 - [ ] AO-29 — Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
       SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
 - [ ] AO-30 — Interstitial on Format C:, hidden behind the loading screen.
-- [ ] AO-31 — Audio pass (`src/core/audio.js`): clicks, HDD noise, startup chime, bloat
+- [ ] AO-31 — Audio pass (`src/ui/audio.js`): clicks, HDD noise, startup chime, bloat
       distortion layer, synthwave BGM, with a mute toggle honouring `state.settings`.
+      The routing (AudioContext, master gain, `sfxOn()`/`bgmOn()`) already exists and
+      already honours the CrazyGames mute — what is missing is the sound design.
 - [ ] AO-32 — Ship build: `npm run build`, size budget check, `dist/` verified on a phone,
       CrazyGames/Poki SDK smoke test.
 
-**Files:** `src/core/tutorial.js`, `src/monetization/ads.js`, `src/core/audio.js`
+**Files:** `src/core/tutorial.js`, `src/monetization/ads.js`, `src/ui/audio.js`
 **DoD:** a first-time player is producing Buzz within 60 seconds, ads are wired behind the
 adapter, and `dist/` runs from a static host.
 

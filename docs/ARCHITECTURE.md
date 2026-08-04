@@ -13,7 +13,7 @@ index.html
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
-    │   ├── save.js           localStorage, migrations, offline elapsed time
+    │   ├── save.js           storage backends, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
     ├── data/                 tuning — designers edit these, not the code
@@ -26,6 +26,7 @@ index.html
     │   ├── desktop.js        icons + Aero gadget (Buzz, meters, Nudge)
     │   ├── taskbar.js        Start menu, task buttons with RAM bars, tray
     │   ├── notify.js         balloon notifications
+    │   ├── audio.js          AudioContext + master gain, portal mute authority
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
     │   ├── registry.js       id → implementation, placeholder fallback
@@ -83,8 +84,17 @@ Rules for changing the save:
 2. Only bump `SAVE_VERSION` + add a migration if an *existing* field changes meaning.
 3. Add a save test covering an old payload.
 
-Storage is injected everywhere (`createMemoryStorage()` in tests, `localStorage` in the
-browser, a shim when storage is blocked), which is also the seam a cloud save would use.
+Storage is injected everywhere, which is also the seam a cloud save would use.
+`defaultStorage()` picks the first backend whose probe write round-trips:
+
+1. `CrazyGames.SDK.data` — the portal's per-player storage, available only after
+   `SDK.init()` resolves, which is why `boot()` awaits it before `createGame()`.
+2. `localStorage` — local dev and any non-portal host.
+3. `createMemoryStorage()` — private mode, blocked iframes, and tests.
+
+All three are localStorage-shaped and synchronous, so nothing above this layer knows which
+one it got. Writes over `MAX_SAVE_BYTES` (1 MB, the portal's per-value cap) are refused
+rather than attempted: a rejected write would lose the previous save too.
 
 ## Windows
 

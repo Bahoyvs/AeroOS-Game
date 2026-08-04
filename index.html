@@ -13,6 +13,14 @@
       content="AeroOS - The Messenger Era. Build the biggest buddy list on a mid-2000s desktop, then Format C: for better hardware."
     />
     <title>AeroOS — The Messenger Era</title>
+
+    <!--
+      CrazyGames portal SDK. Loaded ahead of the module so `CrazyGames.SDK` is on
+      the page by the time main.js awaits init(); off-portal the script simply
+      404s or reports environment "local", and the game falls back to
+      localStorage and its own audio settings.
+    -->
+    <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
   </head>
   <body>
     <div id="boot" class="boot">

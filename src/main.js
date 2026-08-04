@@ -8,15 +8,43 @@ import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
+import { createAudio } from './ui/audio.js';
 import { createDesktop } from './ui/desktop.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
 import { createWindowManager } from './ui/windowManager.js';
 
+/**
+ * Resolve the CrazyGames SDK before anything reads a setting from it. Save
+ * storage and audio mute both come from the portal, and `SDK.data` does not
+ * exist until init() resolves — so this has to finish before `createGame()`
+ * picks a storage backend.
+ *
+ * Best-effort by design: off-portal the script is absent or init rejects, and
+ * the game carries on with localStorage and its own audio settings.
+ */
+async function initPortalSdk() {
+  const sdk = globalThis.CrazyGames?.SDK;
+  if (!sdk) {
+    console.info('[aeroos] CrazyGames SDK not present; running standalone');
+    return null;
+  }
+  try {
+    await sdk.init();
+    return sdk;
+  } catch (err) {
+    console.warn('[aeroos] CrazyGames SDK init failed; running standalone', err);
+    return null;
+  }
+}
+
 /** Boot the OS: wire the simulation to the shell and start the clock. */
-function boot() {
+async function boot() {
+  const sdk = await initPortalSdk();
+
   const game = createGame();
   const loaded = game.load();
+  const audio = createAudio({ game, sdk });
 
   const wm = createWindowManager({ root: document.getElementById('windows') });
   const notify = createNotifier(document.getElementById('toasts'));
@@ -148,11 +176,14 @@ function boot() {
   document.getElementById('boot')?.classList.add('is-done');
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch };
+  globalThis.AeroOS = { game, wm, launch, audio, sdk };
 }
 
+/** Boot failures are silent otherwise — an async boot() rejects into nothing. */
+const start = () => void boot().catch((err) => console.error('[aeroos] boot failed', err));
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', boot, { once: true });
+  document.addEventListener('DOMContentLoaded', start, { once: true });
 } else {
-  boot();
+  start();
 }
