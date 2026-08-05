@@ -22,6 +22,7 @@ export function createInitialState(now = Date.now()) {
 
   return {
     version: SAVE_VERSION,
+    username: null, // set on boot from CrazyGames or randomly if guest
 
     // Currencies (GDD 4)
     buzz: 0,
@@ -121,6 +122,7 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
     ...fresh,
     dollars: state.dollars + dollarsEarned,
     dollarsEarnedTotal: state.dollarsEarnedTotal + dollarsEarned,
+    username: state.username,
     lifetimeBuzz: state.lifetimeBuzz,
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },

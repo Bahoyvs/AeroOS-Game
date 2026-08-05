@@ -130,6 +130,11 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return amount;
   }
 
+  function setUsername(username) {
+    state.username = username;
+    save();
+  }
+
   function openApp(id) {
     const check = econ.canOpenApp(state, id);
     if (!check.ok) {
@@ -457,6 +462,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     save,
     tick,
     nudge,
+    setUsername,
     openApp,
     closeApp,
     installApp,

@@ -61,6 +61,24 @@ async function boot() {
   const game = createGame();
   const loaded = game.load();
 
+  if (!game.state.username) {
+    let username = null;
+    if (sdk) {
+      try {
+        const user = await sdk.user.getUser();
+        if (user && user.username) {
+          username = user.username;
+        }
+      } catch (err) {
+        console.warn('[aeroos] CrazyGames user fetch failed', err);
+      }
+    }
+    if (!username) {
+      username = buddyAt(Math.floor(Math.random() * 500)).name;
+    }
+    game.setUsername(username);
+  }
+
   // Audio (AO-26). Synthesised, so there is nothing to preload; the context
   // only starts on the first real gesture, per the autoplay policy.
   const audio = createAudio({
@@ -452,8 +470,14 @@ async function boot() {
   loop.start();
 
   // Never lose progress to a tab close or a phone switching apps.
+  // Also strictly required by CrazyGames to pause gameplay state when backgrounded.
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) game.save();
+    if (document.hidden) {
+      game.save();
+      if (sdk) sdk.game.gameplayStop();
+    } else {
+      if (sdk) sdk.game.gameplayStart();
+    }
   });
   window.addEventListener('pagehide', () => game.save());
 

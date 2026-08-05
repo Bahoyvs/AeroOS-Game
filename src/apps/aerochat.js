@@ -21,7 +21,7 @@ export function mount(body, { game }) {
     <div class="chat__me glass">
       <span class="chat__avatar" aria-hidden="true">🙂</span>
       <div class="chat__me-text">
-        <strong>Baho_007</strong>
+        <strong>${game.state.username || 'Guest'}</strong>
         <small data-role="me-status">is building a social network</small>
       </div>
       <span class="chat__rate" data-role="rate">0 / sec</span>

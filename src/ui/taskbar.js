@@ -40,7 +40,7 @@ export function createTaskbar({ root, game, wm, launch }) {
     clear(menu);
     menu.append(
       el('div', { class: 'start-menu__header' }, [
-        el('span', { class: 'start-menu__user', text: 'Baho_007' }),
+        el('span', { class: 'start-menu__user', text: game.state.username || 'Guest' }),
         el('span', { class: 'start-menu__status', text: 'Online' }),
       ]),
     );
