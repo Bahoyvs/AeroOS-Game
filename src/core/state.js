@@ -5,7 +5,7 @@ import { carryDiscsThroughPrestige } from './aeroburn.js';
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
  * cannot satisfy, and add a migration in src/core/save.js.
  */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /** Apps the player boots with on a fresh install. */
 const PREINSTALLED = new Set(['system', 'aerochat']);
@@ -92,7 +92,12 @@ export function createInitialState(now = Date.now()) {
     lastSeen: now,
     startedAt: now,
 
-    settings: { sfx: true, bgm: true, reducedMotion: false },
+    // `motion` is three-state on purpose. 'auto' follows the OS, which is the
+    // correct default — but an OS-level "turn off animations" is a machine-wide
+    // setting a lot of people set once and forget, and it silently reduces this
+    // game to a spreadsheet. 'full' lets them opt back in without touching
+    // Windows; 'reduced' lets them opt out without touching Windows either.
+    settings: { sfx: true, bgm: true, motion: 'auto' },
 
     // Scripted onboarding (GDD 7). `hardwareRevealed` gates My Computer and the
     // CPU/RAM readouts until the player hits their first memory bottleneck.

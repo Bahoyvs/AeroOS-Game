@@ -1,5 +1,6 @@
 import { PLAYLISTS, trackAt } from '../data/playlists.js';
 import { formatDuration } from '../core/format.js';
+import { motionIsReduced } from './../ui/motion.js';
 import { clear, el, throttle } from './../ui/dom.js';
 
 /**
@@ -141,23 +142,39 @@ export function mount(body, { game }) {
     }
   }, 150);
 
-  // The visualiser is cosmetic, so it animates on its own cheap interval
-  // rather than doing DOM work inside the simulation tick.
-  let vizIdle = false;
+  /**
+   * The visualiser is cosmetic, so it animates on its own cheap interval rather
+   * than doing DOM work inside the simulation tick.
+   *
+   * VIZ_MS matches `.amp__bar`'s transition exactly: each bar finishes travelling
+   * as the next value arrives, so the bars are always in motion. Any shorter and
+   * they move-then-hold, which is what reads as stuttering.
+   *
+   * Under reduced motion there is no transition to interpolate with, so this
+   * would be fourteen bars teleporting eight times a second — worse than the
+   * stillness the setting asked for. Settle them and stop.
+   */
+  const VIZ_MS = 120;
+  let vizSettled = false;
+
+  function settleViz() {
+    for (const bar of viz.children) bar.style.transform = 'scaleY(0.12)';
+  }
+
   const vizTimer = setInterval(() => {
-    const playing = body.classList.contains('is-playing');
+    const playing = body.classList.contains('is-playing') && !motionIsReduced();
     if (!playing) {
       // Settle the bars once rather than leaving them frozen mid-bounce.
-      if (vizIdle) return;
-      vizIdle = true;
-      for (const bar of viz.children) bar.style.transform = 'scaleY(0.12)';
+      if (vizSettled) return;
+      vizSettled = true;
+      settleViz();
       return;
     }
-    vizIdle = false;
+    vizSettled = false;
     for (const bar of viz.children) {
       bar.style.transform = `scaleY(${0.12 + Math.random() * 0.88})`;
     }
-  }, 120);
+  }, VIZ_MS);
 
   update();
   const unsubscribe = game.bus.on(game.events.TICK, update);

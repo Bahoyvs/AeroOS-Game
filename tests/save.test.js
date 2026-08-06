@@ -80,6 +80,25 @@ describe('resilience', () => {
     expect(loaded.hardware).toEqual({ cpu: 0, ram: 0, gpu: 0, hdd: 0 });
   });
 
+  it('carries a v1 reducedMotion flag over to the three-state motion setting', () => {
+    const optedOut = deserialize(
+      JSON.stringify({ version: 1, buzz: 5, settings: { sfx: false, reducedMotion: true } }),
+      0,
+    );
+    expect(optedOut.settings.motion).toBe('reduced');
+    expect(optedOut.settings.reducedMotion).toBeUndefined();
+    // Unrelated settings survive the rewrite.
+    expect(optedOut.settings.sfx).toBe(false);
+    expect(optedOut.buzz).toBe(5);
+
+    const neverTouchedIt = deserialize(
+      JSON.stringify({ version: 1, settings: { reducedMotion: false } }),
+      0,
+    );
+    // 'auto', not 'full': a save that never opted out should still follow the OS.
+    expect(neverTouchedIt.settings.motion).toBe('auto');
+  });
+
   it('stamps unknown future-less versions rather than dropping progress', () => {
     const loaded = deserialize(JSON.stringify({ version: 0, buzz: 500 }), 0);
     expect(loaded.version).toBe(SAVE_VERSION);

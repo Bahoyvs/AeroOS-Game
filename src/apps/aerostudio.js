@@ -1,4 +1,5 @@
 import { AEROSTUDIO } from '../data/balance.js';
+import { getSpeedMultiplier, getUpgradeCost } from '../core/aerostudio.js';
 import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 
@@ -102,10 +103,9 @@ export function mount(body, { game }) {
     const { isRendering, progress, upgrades } = s.aerostudio;
 
     for (const [id, button] of trackRows) {
-      const def = AEROSTUDIO.upgrades[id];
       const level = upgrades[id];
-      const cost = Math.ceil(def.baseCost * Math.pow(def.costGrowth, level));
-      
+      const cost = getUpgradeCost(id, level);
+
       const levelStr = `Lvl ${level}`;
       if (ref(`level-${id}`).textContent !== levelStr) ref(`level-${id}`).textContent = levelStr;
       
@@ -143,49 +143,22 @@ export function mount(body, { game }) {
       ref('timecode').textContent = '00:00:00:00';
     }
 
-    // Calculate ETA (rough estimate based on current speed)
+    // ETA mirrors updateRender(): progress advances by dt × the upgrade
+    // multiplier, over baseRenderRequired. Read the multiplier from core rather
+    // than re-deriving it here, so the two cannot drift apart.
     let etaText = '';
     if (isRendering) {
-      const remainingPct = 1 - progress;
-      const baseRequired = AEROSTUDIO.baseRenderRequired;
-      const rate = Math.max(1, game.econ.buzzPerSecond(s, Date.now()));
-      
-      let mult = 1;
-      mult += AEROSTUDIO.upgrades.sidechainCompression.speedBonus * upgrades.sidechainCompression;
-      mult += AEROSTUDIO.upgrades.arpeggiator.speedBonus * upgrades.arpeggiator;
-      mult += AEROSTUDIO.upgrades.environmentalFx.speedBonus * upgrades.environmentalFx;
-      
-      const speed = rate * mult;
-      // Total seconds the render takes = baseRequired / speed
-      // Wait, in updateRender: progressGained = dt * multi
-      // state.progress += progressGained / baseRequired
-      // So dt needed to get remaining pct = (remainingPct * baseRequired) / multi
-      // Oh, wait, the rate is not included in the multi. 
-      // Let's look at updateRender in aerostudio.js. 
-      // updateRender does: 
-      // progressGained = dt * multi (where multi is just the upgrade multi).
-      // rate is calculated but not used in `updateRender`. Ah, wait, did I forget to use rate in `updateRender`?
-      // Let me double check... Yes, in updateRender I wrote `dt * multi`, and didn't multiply by rate!
-      // I will need to fix `aerostudio.js` core!
-      
-      const secondsLeft = (remainingPct * AEROSTUDIO.baseRenderRequired) / mult;
-      const etaStr = `ETA: ${formatDuration(secondsLeft)}`;
-      if (etaText !== etaStr) etaText = etaStr;
-      
-      const detailStr = `Working on ${s.aerostudio.currentProject}. Prod debuffed 20%.`;
-      if (ref('detail').textContent !== detailStr) ref('detail').textContent = detailStr;
+      const secondsLeft = ((1 - progress) * AEROSTUDIO.baseRenderRequired) / getSpeedMultiplier(s);
+      etaText = `ETA: ${formatDuration(secondsLeft)}`;
+      ref('detail').textContent = `Working on ${s.aerostudio.currentProject}. Prod debuffed 20%.`;
     } else {
-      const detailStr = `Select upgrades or start rendering.`;
-      if (ref('detail').textContent !== detailStr) ref('detail').textContent = detailStr;
+      ref('detail').textContent = 'Select upgrades or start rendering.';
     }
-    
-    if (ref('eta').textContent !== etaText) ref('eta').textContent = etaText;
-    
-    // Progress Bar
-    setBar(ref('render-bar'), progress, { warn: 2, critical: 2 });
-    // Keep it always green/aqua instead of the default warn/critical colors if possible, 
-    // or we'll just style it in CSS.
 
+    if (ref('eta').textContent !== etaText) ref('eta').textContent = etaText;
+
+    // Tone stays aqua from the stylesheet, so warn/critical never trip.
+    setBar(ref('render-bar'), progress, { warn: 2, critical: 2 });
   }, 200);
 
   update();

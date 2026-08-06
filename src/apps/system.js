@@ -1,5 +1,6 @@
 import { formatBytesMB, formatDuration, formatNumber } from '../core/format.js';
 import { HARDWARE } from '../data/hardware.js';
+import { MOTION_LABELS, MOTION_MODES, systemPrefersReducedMotion } from './../ui/motion.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 /**
@@ -24,6 +25,15 @@ export function mount(body, { game }) {
 
     <h4 class="sys__heading">Hardware shop</h4>
     <div class="sys__hardware" data-role="hardware"></div>
+
+    <h4 class="sys__heading">Display</h4>
+    <div class="sys__display glass">
+      <div class="sys__display-top">
+        <span>Desktop animations</span>
+        <small data-role="motion-note"></small>
+      </div>
+      <div class="sys__motion" role="group" aria-label="Desktop animations" data-role="motion"></div>
+    </div>
 
     <h4 class="sys__heading">Format C:</h4>
     <div class="sys__prestige glass">
@@ -103,6 +113,49 @@ export function mount(body, { game }) {
         return '';
     }
   }
+
+  /* ------------------------------------------------------------ animations */
+
+  /**
+   * The escape hatch for a machine whose OS has animations switched off
+   * system-wide. Without this the game just looks broken — windows appear
+   * instantly, meters jump, the render playhead never moves — and there is
+   * nothing on screen to explain that Windows, not AeroOS, is the reason.
+   */
+  const motionRoot = ref('motion');
+  const motionButtons = new Map();
+
+  for (const mode of MOTION_MODES) {
+    const button = el('button', {
+      type: 'button',
+      class: 'sys__motion-option',
+      text: MOTION_LABELS[mode],
+      onclick: () => {
+        game.setSettings({ motion: mode });
+        renderMotion();
+      },
+    });
+    motionRoot.appendChild(button);
+    motionButtons.set(mode, button);
+  }
+
+  function renderMotion() {
+    const mode = game.state.settings.motion ?? 'auto';
+    for (const [id, button] of motionButtons) {
+      button.classList.toggle('is-selected', id === mode);
+      button.setAttribute('aria-pressed', String(id === mode));
+    }
+    ref('motion-note').textContent =
+      mode === 'auto'
+        ? systemPrefersReducedMotion()
+          ? 'Your system asks for reduced motion, so AeroOS is holding still.'
+          : 'Following your system setting.'
+        : mode === 'full'
+          ? 'On, whatever your system prefers.'
+          : 'Off — nothing on the desktop moves.';
+  }
+
+  renderMotion();
 
   /* ---------------------------------------------------------------- update */
 

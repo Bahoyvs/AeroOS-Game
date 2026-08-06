@@ -210,6 +210,42 @@ export function createTaskbar({ root, game, wm, launch }) {
   updateAudioButton();
   game.bus.on(game.events.SETTINGS, updateAudioButton);
 
+  /**
+   * Animation toggle, next to the sound toggle and for the same reason: a
+   * player whose OS asks for reduced motion gets a desktop where nothing moves,
+   * and the fix has to be one visible click away — not buried in My Computer
+   * behind a hardware unlock. Writes an explicit mode; 'auto' stays reachable
+   * from the Display panel.
+   */
+  const motionButton = el('button', {
+    type: 'button',
+    class: 'tray__motion',
+    onclick: () => {
+      const reduced = document.documentElement.dataset.motion === 'reduced';
+      game.setSettings({ motion: reduced ? 'full' : 'reduced' });
+      updateMotionButton();
+    },
+  });
+  trayRoot.prepend(motionButton);
+
+  function updateMotionButton() {
+    const reduced = document.documentElement.dataset.motion === 'reduced';
+    motionButton.textContent = reduced ? '⏸' : '▶';
+    motionButton.title = reduced
+      ? 'Animations off — click to turn them on'
+      : 'Animations on — click to turn them off';
+    motionButton.setAttribute('aria-label', motionButton.title);
+    motionButton.dataset.reduced = String(reduced);
+  }
+  updateMotionButton();
+  // After createMotionPreference, which also listens for SETTINGS and is
+  // registered first, so data-motion is already current when this reads it.
+  game.bus.on(game.events.SETTINGS, updateMotionButton);
+  globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.(
+    'change',
+    updateMotionButton,
+  );
+
   // Shield99's tray icon (AO-22) lives left of the clock, like the real thing.
   const tray = createTrayShield({ root: root.querySelector('.tray'), game, launch });
   game.bus.on(game.events.APP_INSTALLED, tray.update);

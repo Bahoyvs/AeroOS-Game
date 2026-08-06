@@ -20,6 +20,11 @@ most "missing" apps are scheduled, not forgotten.
   player is watching (status events) take `dt`. Pick one on purpose — see ARCHITECTURE.md.
 - Randomness is injected (`createGame({ rng })`), never called directly in a mechanic.
 - Windows use `role="region"`. 7.css hides `.window[role=dialog]` — do not "fix" that back.
+- Bars go through `setBar()`, which writes `--fill`; CSS scales or clips it. A fill's
+  transition must never be longer than the interval its caller updates on, or it restarts
+  forever and never arrives — see ARCHITECTURE.md.
+- Reduced motion is resolved in `ui/motion.js` onto `<html data-motion>`. Do not add a raw
+  `@media (prefers-reduced-motion)` rule; it would ignore the player's own setting.
 - The PDA breakpoint is duplicated in `src/ui/windowManager.js` (`mobileQuery`) and
   `src/styles/mobile.css`. Change both together.
 
