@@ -14,10 +14,27 @@ export function createNotifier(root, { timeout = 4500, max = 3 } = {}) {
     if (i !== -1) live.splice(i, 1);
   }
 
-  return function notify({ title, body, tone = 'info' }) {
+  /**
+   * `action` turns a balloon into something the player can act on rather than
+   * read and lose — "animations are off, turn them on" is useless as a
+   * statement and useful as a button. Such a balloon also wants longer than the
+   * default 4.5s, hence `duration`.
+   */
+  return function notify({ title, body, tone = 'info', action = null, duration = timeout }) {
     const node = el('div', { class: `balloon balloon--${tone}`, role: 'status' }, [
       el('div', { class: 'balloon__title', text: title }),
       body ? el('div', { class: 'balloon__body', text: body }) : null,
+      action
+        ? el('button', {
+            type: 'button',
+            class: 'balloon__action',
+            text: action.label,
+            onclick: () => {
+              action.onClick();
+              dismiss(node);
+            },
+          })
+        : null,
       el('button', {
         class: 'balloon__close',
         'aria-label': 'Dismiss',
@@ -31,7 +48,7 @@ export function createNotifier(root, { timeout = 4500, max = 3 } = {}) {
     requestAnimationFrame(() => node.classList.add('is-visible'));
 
     while (live.length > max) dismiss(live[0]);
-    setTimeout(() => dismiss(node), timeout);
+    if (duration > 0) setTimeout(() => dismiss(node), duration);
     return node;
   };
 }

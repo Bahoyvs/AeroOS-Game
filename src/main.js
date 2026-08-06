@@ -250,6 +250,26 @@ async function boot() {
     });
   });
 
+  /**
+   * A desktop where nothing moves looks broken, not accessible. If motion is
+   * off only because the OS asked for it, say so and offer the one click that
+   * changes it — silently rendering a still image of an animated game is the
+   * worse failure. An explicit 'reduced' choice gets no nagging.
+   */
+  if (game.state.settings.motion === 'auto' && motion.isReduced()) {
+    console.info('[aeroos] system asks for reduced motion; desktop animations are off');
+    notify({
+      title: 'Animations are off',
+      body: 'Your system asks for reduced motion, so the desktop is holding still.',
+      tone: 'info',
+      duration: 0,
+      action: {
+        label: 'Turn animations on',
+        onClick: () => game.setSettings({ motion: 'full' }),
+      },
+    });
+  }
+
   const coach = createTutorialCoach({ root: document.getElementById('desktop'), game });
 
   // Onboarding (AO-12): each objective is announced, and the first bottleneck

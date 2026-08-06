@@ -586,6 +586,21 @@
   color: var(--text-muted);
 }
 
+.balloon__action {
+  justify-self: start;
+  margin-top: 6px;
+  min-height: 24px;
+  padding: 3px 10px;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #04304f;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffffff 45%, #d9f0ff 0, #b6e2ff);
+  border: 1px solid #6ba9d8;
+  border-radius: var(--radius-sm);
+}
+
 .balloon__close {
   position: absolute;
   top: 4px;
@@ -711,5 +726,22 @@ body[data-heat='critical'] .tray__clock {
 }
 
 .tray__audio[data-muted='true'] {
+  opacity: 0.55;
+}
+
+/* Animation toggle, alongside the sound toggle. */
+.tray__motion {
+  padding: 0 2px;
+  min-width: 0;
+  min-height: 0;
+  font-size: 11px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.tray__motion[data-reduced='true'] {
   opacity: 0.55;
 }

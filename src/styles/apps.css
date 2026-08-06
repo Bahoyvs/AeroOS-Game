@@ -603,9 +603,9 @@
   transform-origin: bottom;
   background: linear-gradient(180deg, #d6ff8f, #2f9e4f);
   border-radius: 1px;
-  /* Shorter than the 120ms interval that rewrites it, so each step lands
-     instead of being cancelled halfway and restarted. */
-  transition: transform 100ms linear;
+  /* Exactly VIZ_MS in src/apps/retroamp.js: each bar arrives as the next value
+     is written, so the row is always travelling rather than stepping. */
+  transition: transform 120ms linear;
   will-change: transform;
 }
 

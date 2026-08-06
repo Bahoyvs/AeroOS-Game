@@ -23,6 +23,15 @@ export const MOTION_LABELS = {
   reduced: 'Reduced',
 };
 
+/**
+ * What the desktop is currently doing, for JS-driven motion that has to check
+ * per frame rather than be styled once. Reads the attribute this module wrote,
+ * so there is still exactly one decision-maker.
+ */
+export function motionIsReduced(root = globalThis.document?.documentElement) {
+  return root?.dataset?.motion === 'reduced';
+}
+
 /** The OS preference, on its own. Safe to call in a non-browser test run. */
 export function systemPrefersReducedMotion() {
   return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
