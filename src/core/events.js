@@ -73,7 +73,8 @@ export const EVENTS = {
   HARDWARE_REVEALED: 'tutorial:hardware', // {}
   HARDWARE_BOUGHT: 'hardware:bought', // { track, tier }
   FORMAT_REQUESTED: 'prestige:requested', // { dollars } — UI runs the sequence
-  PRESTIGE: 'prestige', // { dollars }
+  PRESTIGE: 'prestige', // { dollars, bonus }
+  AD_REWARD: 'ads:rewarded', // { id, reward } — a rewarded ad has been paid out
   SETTINGS: 'settings:changed', // { settings }
   SAVED: 'save:written', // { at }
   LOADED: 'save:loaded', // { offline }

@@ -9,11 +9,19 @@ import { el } from './dom.js';
  * that fades after four seconds is a poor way to tell somebody what happened
  * while they were gone, and it gave the HDD cap nowhere to explain itself.
  *
- * The "watch a sponsor video to 2× your offline Buzz" slot from GDD 8 goes in
- * this dialog on the monetization day — `onDouble` is the seam, and the button
- * simply does not render until an adapter is passed.
+ * The "watch a sponsor video to 2× your offline Buzz" slot from GDD 8 lives in
+ * this dialog — `onDouble` is the seam, and the button simply does not render
+ * when nothing can fulfil it (off-portal, behind an ad blocker, or out of
+ * watches for the day).
  */
-export function showWelcomeBack({ root, offline, hoursCap, onDouble = null, onClose }) {
+export function showWelcomeBack({
+  root,
+  offline,
+  hoursCap,
+  onDouble = null,
+  multiplier = 2,
+  onClose,
+}) {
   const shade = el('div', { class: 'confirm-shade welcome-shade' });
 
   shade.innerHTML = `
@@ -50,18 +58,34 @@ export function showWelcomeBack({ root, offline, hoursCap, onDouble = null, onCl
     cap.textContent = `Your HDD only banks ${hoursCap} hours of Buzz — the rest of the time was not counted. A bigger drive stores more.`;
   }
 
-  // The rewarded-ad slot (GDD 8). Renders only when something can fulfil it.
+  /**
+   * The rewarded-ad slot (GDD 8). Renders only when something can fulfil it.
+   *
+   * The label states the reward and carries a video glyph, which is the whole
+   * of the portal's UI guidance for a rewarded button: "Watch Ad" tells the
+   * player what it costs and nothing about what they get.
+   */
   if (onDouble) {
     ref('actions').prepend(
-      el('button', {
-        type: 'button',
-        class: 'welcome__double',
-        text: '2× offline Buzz',
-        onclick: () => {
-          onDouble();
-          close();
+      el(
+        'button',
+        {
+          type: 'button',
+          class: 'ad-button welcome__double',
+          title: 'Watch a short video from a sponsor.',
+          onclick: () => {
+            onDouble();
+            close();
+          },
         },
-      }),
+        [
+          el('span', { class: 'ad-button__icon', 'aria-hidden': 'true', text: '▶' }),
+          el('span', {
+            class: 'ad-button__label',
+            text: `${multiplier}× offline Buzz — +${formatNumber(offline.buzz * (multiplier - 1))}`,
+          }),
+        ],
+      ),
     );
   }
 

@@ -103,7 +103,8 @@
       'header rate'
       'buzz buzz'
       'ram bloat'
-      'heat heat';
+      'heat heat'
+      'offers offers';
     grid-template-columns: 1fr auto;
     align-items: center;
   }
@@ -134,6 +135,23 @@
   /* Dollars stay in My Computer on small screens. */
   .gadget__dollars {
     display: none;
+  }
+
+  /**
+   * The offers sit in the status bar on a phone too — a mobile session is
+   * shorter and more fragmented, so an offer the player has to go looking for
+   * is one they will never see. Side by side rather than stacked: two rows of
+   * buttons would push the window stack down by another 60px.
+   */
+  .gadget__offers {
+    grid-area: offers;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+
+  .gadget__offer {
+    min-height: 26px;
+    font-size: 0.7rem;
   }
 
   /**
@@ -220,6 +238,12 @@
   }
 
   .desktop__icons {
+    display: none;
+  }
+
+  /* The offers move to the apps that own them; there is no room for a row of
+     buttons above a 54px Nudge dock on a 400px-tall screen. */
+  .gadget__offers {
     display: none;
   }
 }

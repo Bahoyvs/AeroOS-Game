@@ -342,6 +342,127 @@ export const SAVE = {
   autosaveMs: 15000,
 };
 
+/**
+ * Ads (GDD 8, Day 8) — the numbers behind every placement in the game.
+ *
+ * Three rules shape this table, all of them from the portal's own monetization
+ * guides, and all of them things the SDK cannot do for us:
+ *
+ * 1. **Rewards scale with the run.** Everything here is priced in *seconds of
+ *    current production* or as an ordinary buff, never a flat lump of Buzz — a
+ *    fixed "+500" is a jackpot at ten buddies and an insult at five hundred, and
+ *    a button nobody presses earns nothing.
+ * 2. **The economy is protected by caps, not by hiding the button.** Each
+ *    placement has a daily allowance and a cooldown, and the daily gift pays
+ *    less each time it is taken. A player who wants to watch six ads may; they
+ *    just cannot watch sixty and skip the game.
+ * 3. **Interstitials are paced by the SDK, not by us.** CrazyGames already
+ *    enforces one midgame ad per three minutes with its own safeguards around
+ *    game start and rewarded ads, and the guide is explicit that games should
+ *    *not* add a second cooldown on top. What is left for us is the one thing
+ *    the portal cannot know: whether this player has learned the game yet.
+ */
+export const ADS = {
+  midgame: {
+    /**
+     * Day 1 retention protection. The first minutes decide whether anybody
+     * comes back, so no interstitial fires until the player has finished
+     * onboarding *and* spent real time in the game — in this session and
+     * across the save.
+     */
+    minSessionSeconds: 300,
+    minPlaytimeSeconds: 900,
+    requireTutorialDone: true,
+
+    /**
+     * The warning. An idle game has no level boundary to hide an ad behind, so
+     * the break announces itself and swallows clicks while it counts down —
+     * otherwise it lands mid-Nudge and reads as an accidental-click trap.
+     */
+    countdownSeconds: 3,
+
+    /** Never stack a break onto a break the player already chose to watch. */
+    afterRewardedSeconds: 90,
+  },
+
+  /**
+   * Rewarded placements. `perDay` is the daily allowance (UTC days, so it
+   * rolls over while the tab is closed like every other wall-clock timer) and
+   * `cooldownSeconds` is the pause between two watches of the *same* offer.
+   */
+  rewarded: {
+    /** The clicker-guide staple: a tap multiplier the player switches on. */
+    overclock: {
+      perDay: 8,
+      cooldownSeconds: 900,
+      magnitude: 1, // +100% to everything
+      durationSeconds: 600,
+      buffId: 'ad-overclock',
+    },
+
+    /**
+     * The daily gift, with the guide's diminishing returns: half, then a
+     * quarter. Three watches are worth ~52 minutes of production in total, and
+     * the fourth is worth coming back tomorrow for.
+     */
+    gift: {
+      perDay: 3,
+      cooldownSeconds: 1800,
+      seconds: [1800, 900, 450],
+      /**
+       * A floor, for the same reason `SWEEPER.minTokenCost` has one: production
+       * is *zero* on a freshly formatted machine, and a button offering "+0
+       * Buzz" is worse than no button at all — it teaches the player that the
+       * offers in this game are worthless.
+       */
+      minBuzz: 500,
+    },
+
+    /** Out of resources — the board is a queue, and this is the queue-jump. */
+    sweeperToken: {
+      perDay: 4,
+      cooldownSeconds: 300,
+    },
+
+    /** Convenience: a shove for the longest timer in the game. */
+    renderBoost: {
+      perDay: 4,
+      cooldownSeconds: 600,
+      fraction: 0.2,
+    },
+
+    /**
+     * Loss aversion, at the one moment the player is about to hand over a run:
+     * +50% on the Dollars a Format C: is about to bank. Paid as a *bonus*
+     * rather than an advance — see resetForPrestige — so it cannot quietly
+     * borrow from the next prestige.
+     */
+    formatBoost: {
+      perDay: 6,
+      cooldownSeconds: 0,
+      multiplier: 1.5,
+    },
+
+    /** The welcome-back multiplier (GDD 8's "Internet Cafe Bonus"). */
+    offlineDouble: {
+      perDay: 6,
+      cooldownSeconds: 0,
+      multiplier: 2,
+    },
+  },
+
+  /**
+   * Banners. Placed on shop/menu surfaces only, never over the desktop, and
+   * re-requested no more often than the portal's refresh cooldown allows — a
+   * slot that is opened and closed five times in a minute asks for one ad.
+   */
+  banner: {
+    refreshSeconds: 61,
+    minWidth: 300,
+    minHeight: 100,
+  },
+};
+
 export const AEROSTUDIO = {
   // Payout multiplier: A finished render pays this many seconds of current production
   payoutSeconds: 14400, // 4 hours

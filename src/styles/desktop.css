@@ -669,6 +669,24 @@
   border: none;
 }
 
+/**
+ * Tray icons are glyphs, not buttons — and `border: none` alone never made them
+ * one. 7.css gives every `button` a white 1px inner ring
+ * (`box-shadow: inset 0 0 0 1px #fffc`) and two absolutely-positioned gloss
+ * overlays it fades in on hover and press. Against the taskbar's dark glass the
+ * ring reads as a stray box around each icon, and the overlays paint a pale
+ * rounded rectangle under the cursor. All three are switched off here, in one
+ * place, so a new tray control cannot reintroduce them.
+ */
+.tray button {
+  box-shadow: none;
+}
+
+.tray button::before,
+.tray button::after {
+  content: none;
+}
+
 /* Shield99 tray icon (AO-22) — status without opening the window. */
 .tray__shield {
   padding: 0 2px;

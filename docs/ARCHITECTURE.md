@@ -16,6 +16,7 @@ index.html
     │   ├── lemonwire.js      seed slots, the connection, the Recycle Bin
     │   ├── sweeper.js        the minefield, plus tokens and the combo
     │   ├── shield99.js       threat spawns, quarantine loot, virus safety net, scans
+    │   ├── ads.js            rewarded-ad pacing: daily allowances, cooldowns, reward sizing
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           storage backends, migrations, offline elapsed time
@@ -37,6 +38,7 @@ index.html
     │   ├── tutorial.js       the onboarding coach panel
     │   ├── bsod.js           Format C: stop screen, POST wipe, confirm dialog
     │   ├── audio.js          synthesised SFX + BGM, heat distortion, portal mute
+    │   ├── ads.js            the only module that calls the portal ad SDK
     │   ├── welcomeBack.js    the offline-earnings report
     │   └── dom.js            element/throttle/bar helpers
     ├── apps/                 one module per window body
@@ -85,8 +87,10 @@ Timed systems pick their clock according to what should happen while the player 
   LemonWire's Recycle Bin — the cost of freeing a slot is time spent *at the machine*, and
   a bin that emptied itself overnight would cost nothing.
 - **Wall clock** (`Date.now()` timestamps) — buffs in `core/buffs.js`, autosave, offline
-  earnings, and Shield99's rewarded-ad cooldown. A 60-second buff should be over when you
-  come back an hour later, and so should a 90-second ad cooldown.
+  earnings, and every ad timer (Shield99's cooldown, and the allowances and cooldowns in
+  `core/ads.js`). A 60-second buff should be over when you come back an hour later, and so
+  should a 90-second ad cooldown; a *daily* allowance the player can only reach by leaving
+  the tab open until midnight is not a daily allowance.
 
 Both are testable: simulation-time systems take `dt`, wall-clock systems take an optional
 `now`, and randomness is injected (`createGame({ rng })`). No test needs fake timers except
@@ -131,6 +135,50 @@ Three consequences the code depends on:
   descriptor (`buzz` / `buff` / `render`); `game.extractQuarantine()` is what actually pays
   it. That is what lets the same table serve the full rewarded-ad payout and the
   fractional non-ad fallback without a second balance sheet.
+
+## Ads are a system, not a call site
+
+Monetization is split three ways, along exactly the same seam as Shield99's quarantine:
+
+```
+ui/ads.js       the SDK: is an ad possible, show one, resolve watched / not watched
+core/ads.js     pacing + pricing: daily allowance, cooldown, what an offer is worth
+core/game.js    applying it: a buff, a Buzz grant, a token, render progress
+```
+
+`src/core/**` never sees the SDK, so every reward stays testable in plain Node
+(`tests/ads.test.js`), and `src/ui/ads.js` is the only file in the project that names
+`SDK.ad` or `SDK.banner`. A placement is added by putting numbers in `ADS`
+(`src/data/balance.js`), a `case` in `rewardFor`, a branch in `game.claimAdReward`, and a
+button that calls `ads.claim(id)`.
+
+Rules the whole thing depends on:
+
+- **A reward is granted on `adFinished` and nowhere else.** `ads.rewarded()` resolves
+  `false` on `adError`, and `claim()` re-checks `game.adOffer()` *after* the video —
+  a minute passed, and the render the player was boosting may have finished.
+- **Nothing is gated behind an ad.** Every placement is a bonus on a mechanic that already
+  works. The single exception is the quarantine lootbox, which keeps its
+  `SHIELD99.manualRewardFraction` path — an ad blocker must never remove a mechanic.
+- **If an ad cannot run, no button is rendered.** `ads.available` folds in "no SDK"
+  (off-portal) and `hasAdblock()`, and every offer asks it first. A button that cannot do
+  anything is worse than no button.
+- **Allowances are wall-clock, and survive a Format C:.** They are a real-world budget, not
+  run progress — a cap the player can clear by prestiging is not a cap (`resetForPrestige`
+  carries `state.ads` across the wipe).
+- **The portal paces interstitials; we only protect the first session.** CrazyGames enforces
+  one midgame ad per three minutes with its own safeguards, and its guide asks games not to
+  stack a second cooldown on top. `midgameAllowed()` therefore checks only what the portal
+  cannot know: tutorial done, enough playtime, enough session, and no rewarded ad in the
+  last `afterRewardedSeconds`.
+- **An interstitial announces itself.** An idle game has no level boundary to hide a break
+  behind, so `midgame()` puts a three-second countdown over the desktop that also swallows
+  clicks. Without it the ad lands mid-Nudge and reads as a click trap. The Format C:
+  sequence passes `{ silent: true }` — the stop screen already is the pause.
+- **The payout boost is a bonus, not an advance.** `pendingPrestigeDollars` is the gap
+  between what lifetime Buzz has ever been worth and what has been paid out, so folding a
+  +50% into `dollarsEarnedTotal` would borrow it straight back from the next wipe.
+  `resetForPrestige(..., { bonusDollars })` pays it into the wallet only.
 
 ## Hardware: flat percentages, derived capacities
 

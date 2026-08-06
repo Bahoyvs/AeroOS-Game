@@ -19,8 +19,11 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 const TIER_ICON = { Common: '📄', Rare: '💾', Epic: '💿' };
 
-export function mount(body, { game }) {
-  const sdk = globalThis.CrazyGames?.SDK;
+export function mount(body, { game, ads = null }) {
+  // One question, asked once: can an ad actually play here? Off-portal and
+  // behind an ad blocker the answer is no, and the window renders the manual
+  // path as its only button rather than offering a video that cannot run.
+  const canAd = Boolean(ads?.available);
 
   body.classList.add('app-shield');
   body.innerHTML = `
@@ -136,9 +139,7 @@ export function mount(body, { game }) {
   }
 
   /** Open a quarantined file. `viaAd` is the full payout; manual is a share. */
-  function extract(item, row, viaAd) {
-    const threat = getThreat(item.threatId);
-
+  async function extract(item, row, viaAd) {
     const finish = () => {
       const result = game.extractQuarantine(item.id, { viaAd });
       if (!result.ok) {
@@ -153,27 +154,17 @@ export function mount(body, { game }) {
       return;
     }
 
-    // Rewarded ad. Gameplay is stopped for the duration — the portal mutes the
-    // game around the break, and ui/audio.js already follows that setting.
-    sdk.game.gameplayStop();
-    sdk.ad.requestAd('rewarded', {
-      adStarted: () => {},
-      adFinished: () => {
-        sdk.game.gameplayStart();
-        finish();
-      },
-      adError: () => {
-        // Ad blocked or unfilled. The file stays sealed and the manual button
-        // is still right there — never a dead end.
-        sdk.game.gameplayStart();
-        game.notify(
-          'Connection failed',
-          `${threat.name} is still contained, but nothing could be extracted. Clean it manually instead.`,
-          'warn',
-        );
-        update();
-      },
-    });
+    // Rewarded ad, through the shared adapter: it stops gameplay for the
+    // duration (which is what mutes the game around the break), reports a
+    // failure once, and resolves false rather than paying out. The file stays
+    // sealed either way and the manual button is still right there — never a
+    // dead end.
+    const watched = await ads.rewarded('quarantine');
+    if (!watched) {
+      update();
+      return;
+    }
+    finish();
   }
 
   /* ---------------------------------------------------------- quarantine */
@@ -221,11 +212,11 @@ export function mount(body, { game }) {
         );
 
         const actions = el('div', { class: 'sh__threat-actions' });
-        if (sdk) {
+        if (canAd) {
           actions.append(
             el('button', {
               type: 'button',
-              class: 'sh__button sh__extract',
+              class: 'ad-button sh__button sh__extract',
               dataset: { role: `ad-${item.id}` },
               text: '▶ Disinfect & Extract',
               title: 'Watch a short ad for the full payload.',
@@ -240,8 +231,9 @@ export function mount(body, { game }) {
             }),
           );
         } else {
-          // Off-portal: there is no ad to watch, so there is no ad button —
-          // a button that cannot do anything is worse than no button.
+          // Off-portal or behind an ad blocker: there is no ad to watch, so
+          // there is no ad button — one that cannot do anything is worse than
+          // no button, and the full payload is not gated behind it anyway.
           actions.append(
             el('button', {
               type: 'button',

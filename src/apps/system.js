@@ -11,7 +11,7 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
  * panel shows progress toward the next Dollar so the sqrt payout curve stops
  * being invisible.
  */
-export function mount(body, { game }) {
+export function mount(body, { game, ads = null }) {
   body.classList.add('app-system');
   body.innerHTML = `
     <div class="sys__summary glass">
@@ -25,6 +25,17 @@ export function mount(body, { game }) {
 
     <h4 class="sys__heading">Hardware shop</h4>
     <div class="sys__hardware" data-role="hardware"></div>
+
+    <!--
+      The banner slot (GDD 8). A shop screen is where the banner guide says to
+      put one — a surface the player reads and plans on rather than clicks
+      through — and it is deliberately below the shop rows and above nothing,
+      so there is no button within a thumb's width of it.
+    -->
+    <div class="ad-banner" data-role="banner" hidden>
+      <small class="ad-banner__label">Advertisement</small>
+      <div class="ad-banner__slot" data-role="banner-slot"></div>
+    </div>
 
     <h4 class="sys__heading">Display</h4>
     <div class="sys__display glass">
@@ -215,10 +226,22 @@ export function mount(body, { game }) {
     location.reload();
   });
 
+  /**
+   * The banner lives for exactly as long as the window does. Clearing it on
+   * close is not politeness: a banner left behind in a torn-down window is an
+   * impression nobody can see, and the portal will not refill a slot it still
+   * believes is on screen.
+   */
+  const bannerFrame = ref('banner');
+  const slot = ads?.banner(ref('banner-slot'));
+  bannerFrame.hidden = !slot?.ok;
+
   update();
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
+    slot?.clear();
+    bannerFrame.hidden = true;
     clear(hardwareRoot);
     body.classList.remove('app-system');
   };

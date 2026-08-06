@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { ADS, CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
@@ -6,6 +6,7 @@ import { getFile } from '../data/files.js';
 import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
+import * as ads from './ads.js';
 import * as burner from './aeroburn.js';
 import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
@@ -506,6 +507,109 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return result;
   }
 
+  /* ----------------------------------------------------------- rewarded ads */
+
+  /**
+   * Is a rewarded offer worth showing, and what does it pay?
+   *
+   * Two gates, deliberately kept apart: `core/ads.js` owns *pacing* (daily
+   * allowance, cooldown) and knows nothing about the game; this function owns
+   * *context* — there is no point offering a render skip with no render
+   * running, or a payout boost on a Format C: that is not ready. The UI calls
+   * it to label a button, and `claimAdReward` calls it again to make sure the
+   * offer was still valid by the time the video finished.
+   */
+  function adOffer(id, now = Date.now()) {
+    const paced = ads.canWatch(state, id, now);
+    if (!paced.ok) return paced;
+
+    if (id === 'sweeperToken' && state.sweeper.tokens >= SWEEPER.maxTokens) {
+      return { ok: false, reason: 'tokens-full' };
+    }
+    if (id === 'renderBoost' && !state.aerostudio.isRendering) {
+      return { ok: false, reason: 'not-rendering' };
+    }
+    if (id === 'formatBoost') {
+      if (state.ads.formatBoost) return { ok: false, reason: 'already-boosted' };
+      if (!econ.canPrestige(state)) return { ok: false, reason: 'not-worth-it' };
+    }
+
+    return {
+      ...paced,
+      reward: ads.rewardFor(state, id, { buzzPerSecond: econ.buzzPerSecond(state, now), now }),
+    };
+  }
+
+  /**
+   * Pay out a rewarded ad.
+   *
+   * Called by the shell *after* `adFinished`, never before — the SDK is a
+   * browser API and core does not touch it, which is the same seam
+   * `extractQuarantine` uses. Everything it can hand out is an existing system:
+   * a buff, a Buzz grant, a sweeper token, render progress. Nothing here is a
+   * bespoke ad-only mechanic, so nothing here can drift out of balance on its
+   * own.
+   */
+  function claimAdReward(id, now = Date.now()) {
+    const offer = adOffer(id, now);
+    if (!offer.ok) return offer;
+
+    const { reward } = offer;
+    ads.markWatched(state, id, now);
+
+    if (reward.kind === 'buzz') {
+      grantBuzz(reward.buzz, 'rewarded-ad');
+    } else if (reward.kind === 'buff') {
+      addBuff(
+        state,
+        {
+          id: ADS.rewarded.overclock.buffId,
+          kind: 'global',
+          magnitude: reward.magnitude,
+          durationSeconds: reward.durationSeconds,
+          label: 'Overclocked',
+          source: 'ads',
+        },
+        now,
+      );
+    } else if (reward.kind === 'token') {
+      sweeper.addToken(state, reward.tokens);
+      bus.emit(EVENTS.SWEEPER_TOKEN, {
+        granted: reward.tokens,
+        tokens: state.sweeper.tokens,
+        bought: true,
+      });
+    } else if (reward.kind === 'render') {
+      aerostudio.boostRender(state, reward.renderFraction);
+    } else if (reward.kind === 'dollars') {
+      // Nothing is paid now: the flag is spent by the Format C: it was bought
+      // for, so a player who changes their mind keeps it for the next one.
+      state.ads.formatBoost = true;
+    }
+
+    bus.emit(EVENTS.AD_REWARD, { id, reward });
+    save();
+    return { ok: true, reward };
+  }
+
+  /**
+   * The welcome-back multiplier (GDD 8's "Internet Cafe Bonus"). It is not part
+   * of `claimAdReward` because the thing it multiplies — the offline report —
+   * is closure state that exists for exactly one dialog.
+   */
+  function doubleOfflineBuzz(now = Date.now()) {
+    if (!(offlineReport?.buzz > 0)) return { ok: false, reason: 'nothing-to-double' };
+    const paced = ads.canWatch(state, 'offlineDouble', now);
+    if (!paced.ok) return paced;
+
+    const extra = offlineReport.buzz * (ADS.rewarded.offlineDouble.multiplier - 1);
+    ads.markWatched(state, 'offlineDouble', now);
+    grantBuzz(extra, 'rewarded-ad');
+    bus.emit(EVENTS.AD_REWARD, { id: 'offlineDouble', reward: { kind: 'buzz', buzz: extra } });
+    save();
+    return { ok: true, buzz: extra };
+  }
+
   /* -------------------------------------------------------------- tutorial */
 
   function checkTutorial() {
@@ -623,15 +727,24 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, dollars };
   }
 
-  /** "Format C:" — wipe software, keep hardware, bank Dollars (GDD 5). */
+  /**
+   * "Format C:" — wipe software, keep hardware, bank Dollars (GDD 5).
+   *
+   * A rewarded payout boost bought before the wipe is spent here, and paid as a
+   * *bonus* rather than as extra earnings: see the note in resetForPrestige.
+   */
   function formatC() {
     const dollars = econ.pendingPrestigeDollars(state);
     if (dollars <= 0) return { ok: false, reason: 'not-worth-it' };
 
-    state = resetForPrestige(state, dollars, Date.now());
-    bus.emit(EVENTS.PRESTIGE, { dollars });
+    const bonus = state.ads.formatBoost
+      ? Math.floor(dollars * (ADS.rewarded.formatBoost.multiplier - 1) * 100) / 100
+      : 0;
+
+    state = resetForPrestige(state, dollars, Date.now(), { bonusDollars: bonus });
+    bus.emit(EVENTS.PRESTIGE, { dollars, bonus });
     save();
-    return { ok: true, dollars };
+    return { ok: true, dollars, bonus };
   }
 
   /** Player settings (sound, motion). Persisted immediately — it is a promise. */
@@ -666,6 +779,8 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       state.shield99.adCooldownUntil = 0;
       state.sweeper.nextTokenAt = 0;
       state.sweeper.tokens = SWEEPER.maxTokens;
+      state.ads.watched = {};
+      state.ads.lastAt = {};
       bus.emit(EVENTS.NOTIFY, { title: 'Dev', body: 'Cooldowns cleared', tone: 'success' });
     }
   } : null;
@@ -718,11 +833,16 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     formatC,
     requestFormat,
     hardReset,
-    doubleOfflineBuzz() {
-      if (offlineReport?.buzz > 0) {
-        grantBuzz(offlineReport.buzz, 'rewarded-ad');
-        save();
-      }
+    adOffer,
+    claimAdReward,
+    doubleOfflineBuzz,
+    /** What a Format C: would bank right now, boost included. */
+    formatPayout() {
+      const dollars = econ.pendingPrestigeDollars(state);
+      const bonus = state.ads.formatBoost
+        ? Math.floor(dollars * (ADS.rewarded.formatBoost.multiplier - 1) * 100) / 100
+        : 0;
+      return { dollars, bonus, total: dollars + bonus };
     },
     notify(title, body, tone = 'info') {
       bus.emit(EVENTS.NOTIFY, { title, body, tone });

@@ -1,4 +1,4 @@
-import { AEROSTUDIO } from '../data/balance.js';
+import { ADS, AEROSTUDIO } from '../data/balance.js';
 import { getSpeedMultiplier, getUpgradeCost } from '../core/aerostudio.js';
 import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
@@ -11,12 +11,13 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
  *  2. Rendering     — "RENDERING..." / progress bar / Cancel active
  *  3. Reward Ready  — "RENDER COMPLETE" / Collect button / glow
  */
-export function mount(body, { game }) {
+export function mount(body, { game, ads = null }) {
   body.classList.add('app-aerostudio');
   body.innerHTML = `
     <div class="aero-toolbar">
       <button type="button" class="aero-btn" data-role="start-btn">Start Render</button>
       <button type="button" class="aero-btn is-danger" data-role="cancel-btn">Cancel Render</button>
+      <button type="button" class="ad-button aero-btn" data-role="skip-btn" hidden></button>
       <div class="aero-status">
         <strong data-role="status">Ready</strong>
         <span data-role="detail">Select upgrades or start rendering.</span>
@@ -119,6 +120,19 @@ export function mount(body, { game }) {
     update();
   };
 
+  /**
+   * The time-skip placement. A render is the longest wait in the game — hours,
+   * with nothing to do but come back — which is exactly the "convenience" trade
+   * the rewarded-ads guide says converts best. It shortens a wait the player
+   * would otherwise sit through; it never pays out a render they did not run,
+   * so the payout curve is untouched.
+   */
+  ref('skip-btn').onclick = async () => {
+    ref('skip-btn').disabled = true;
+    await ads?.claim('renderBoost');
+    update();
+  };
+
   ref('collect-btn').onclick = () => {
     const result = game.claimRenderReward();
     if (result.ok) {
@@ -156,6 +170,17 @@ export function mount(body, { game }) {
 
     ref('start-btn').disabled = isRendering || hasReward;
     ref('cancel-btn').disabled = !isRendering;
+
+    // Only while there is something to skip: game.adOffer() refuses this
+    // placement outright when no render is running.
+    const skip = ads?.available ? game.adOffer('renderBoost') : { ok: false };
+    const skipCooling = skip.reason === 'cooling-down';
+    ref('skip-btn').hidden = !(skip.ok || (skipCooling && isRendering));
+    ref('skip-btn').disabled = !skip.ok;
+    ref('skip-btn').textContent = skipCooling
+      ? `⏳ Skip in ${formatDuration(Math.ceil(skip.seconds))}`
+      : `▶ Skip ahead ${Math.round(ADS.rewarded.renderBoost.fraction * 100)}%`;
+    ref('skip-btn').title = 'Watch a short video from a sponsor to advance the render.';
 
     // Status text
     let statusStr, detailStr;
