@@ -284,9 +284,42 @@ end-game ceiling.
 
 **Goal:** the portal build (GDD 8). The first 60 seconds shipped on Day 3.
 
-- [ ] Rewarded ad hooks behind one `src/monetization/ads.js` adapter (stub locally,
-      SDK per portal): Trojan Scan (2× for 4 h) and Internet Cafe (2× offline Buzz).
-- [ ] Interstitial on Format C:, hidden behind the loading screen.
+- [x] Rewarded ad hooks behind one adapter — `src/ui/ads.js` (not `monetization/`: the
+      SDK is a browser API, and the same rule that keeps AudioContext out of `core/`
+      applies here). The pacing and pricing half lives in `src/core/ads.js`, which knows
+      nothing about the SDK and is unit-tested in plain Node.
+
+      **Seven placements, not two.** The GDD scoped the Trojan Scan and the Internet Cafe;
+      the platform's own clicker guide asks for rather more, and an idle game has the
+      surfaces for it:
+
+      | Placement | Where | What it pays |
+      | --- | --- | --- |
+      | Quarantine lootbox | Shield99 | the full payload (25% without an ad) |
+      | Internet Cafe | welcome-back dialog | 2× offline Buzz |
+      | Overclock | the gadget, always on screen | +100% to everything for 10 min |
+      | Sponsor gift | the gadget | 30/15/7.5 min of production, diminishing daily |
+      | Free token | AeroSweeper, when out of tokens | one board |
+      | Skip ahead | Aero Studio, mid-render | +20% render progress |
+      | Payout boost | the Format C: confirm dialog | +50% Dollars on that wipe |
+
+      Every reward is priced in *seconds of current production* or as an existing buff, so
+      an ad is worth the same share of a run at ten buddies and at five hundred. Daily
+      allowances and cooldowns protect the economy instead of hiding the button, and they
+      survive a Format C: — a cap you can clear by prestiging is not a cap.
+
+- [x] Interstitial on Format C:, hidden behind the stop screen — plus the two other natural
+      breaks a clicker actually has: a banked AeroSweeper round and a collected render. The
+      SDK paces them (one per three minutes); we only gate the first session, since a
+      player who meets an ad before they understand the loop does not come back. Outside
+      the Format C: sequence a three-second countdown covers the desktop first and eats
+      clicks, so a break never lands mid-Nudge.
+- [x] Banner in the My Computer shop — a screen players read and plan on, per the banner
+      guide, with the slot labelled, recessed and kept clear of every button. Re-requested
+      no more often than the portal's refresh cooldown allows.
+- [x] Ad blockers are a supported configuration: `hasAdblock()` is resolved at boot and
+      every offer asks `ads.available` before rendering, so a blocked player sees a game
+      with no dead buttons rather than videos that never play.
 - [x] Audio pass — shipped Day 6 as `src/ui/audio.js` (not `core/`: AudioContext is a
       browser API). Clicks, HDD noise, chime, heat-driven distortion, synthwave BGM.
 - [x] CrazyGames v3 SDK: `SDK.data` as the save backend behind `defaultStorage()`, and

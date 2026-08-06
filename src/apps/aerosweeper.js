@@ -28,7 +28,7 @@ import { el, throttle } from './../ui/dom.js';
 /** Long-press to flag on touch. Below this it is a reveal. */
 const LONG_PRESS_MS = 400;
 
-export function mount(body, { game, audio }) {
+export function mount(body, { game, audio, ads = null }) {
   body.classList.add('app-sweeper');
   body.innerHTML = `
     <div class="sw__hud">
@@ -36,6 +36,7 @@ export function mount(body, { game, audio }) {
         <span class="sw__token-pips" data-role="pips" aria-hidden="true"></span>
         <span class="sw__token-text" data-role="token-text"></span>
       </div>
+      <button type="button" class="ad-button sw__ad-token" data-role="ad-token" hidden></button>
       <button type="button" class="sw__buy" data-role="buy"></button>
     </div>
 
@@ -60,6 +61,20 @@ export function mount(body, { game, audio }) {
   const boardRoot = ref('board');
   const actionButton = ref('action');
   const flagButton = ref('flag-mode');
+  const adTokenButton = ref('ad-token');
+
+  /**
+   * The out-of-resources placement, straight out of the rewarded-ads guide: the
+   * player wants one more board and the queue says no. Buzz already answers
+   * that question, so this is a second door rather than the only one — and it
+   * is priced by a daily cap instead of by production, which makes it the
+   * cheaper door exactly when a fresh run cannot afford the Buzz one.
+   */
+  adTokenButton.addEventListener('click', async () => {
+    adTokenButton.disabled = true;
+    await ads?.claim('sweeperToken');
+    update();
+  });
 
   /** The live round, or null between rounds. Never persisted — see core. */
   let round = null;
@@ -279,6 +294,18 @@ export function mount(body, { game, audio }) {
       seconds === null
         ? `${s.sweeper.tokens} tokens · full`
         : `${s.sweeper.tokens} left · +1 in ${formatDuration(Math.ceil(seconds))}`;
+
+    // The ad token only offers itself when a board is what the player is short
+    // of: with tokens in hand it is noise, and worse, it trains them to watch a
+    // video for something they already have.
+    const adOffer = ads?.available ? game.adOffer('sweeperToken', now) : { ok: false };
+    const coolingToken = adOffer.reason === 'cooling-down';
+    adTokenButton.hidden = !(adOffer.ok || coolingToken) || s.sweeper.tokens > 0;
+    adTokenButton.disabled = !adOffer.ok;
+    adTokenButton.textContent = coolingToken
+      ? `⏳ Free token in ${formatDuration(Math.ceil(adOffer.seconds))}`
+      : '▶ Free token';
+    adTokenButton.title = 'Watch a short video from a sponsor for one more board.';
 
     const buy = ref('buy');
     buy.disabled = !game.econ.canBuySweeperToken(s, now).ok;

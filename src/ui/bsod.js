@@ -104,6 +104,11 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
         </ul>
         <dl class="bsod__summary">
           <div><dt>Banked</dt><dd>$${summary.dollars.toFixed(2)}</dd></div>
+          ${
+            summary.bonus > 0
+              ? `<div><dt>Sponsor bonus</dt><dd>$${summary.bonus.toFixed(2)}</dd></div>`
+              : ''
+          }
           <div><dt>Format C: count</dt><dd>${summary.prestigeCount}</dd></div>
           <div><dt>Memory</dt><dd>${summary.ramMB} MB OK</dd></div>
         </dl>
@@ -151,8 +156,12 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
 /**
  * In-OS confirmation, in place of window.confirm — a native modal in the middle
  * of a themed desktop breaks the fiction, and blocks the render loop.
+ *
+ * `boost` is the rewarded-ad offer (GDD 8): `{ multiplier, run() }`, where
+ * `run()` shows the video and resolves the new payout, or null if it was not
+ * watched. Pass nothing and the dialog is exactly what it was before.
  */
-export function confirmFormat({ root, dollars, onConfirm }) {
+export function confirmFormat({ root, dollars, onConfirm, boost = null }) {
   const dialog = el('div', { class: 'confirm-shade' });
   dialog.innerHTML = `
     <div class="window glass confirm" role="region" aria-label="Confirm Format C:">
@@ -162,7 +171,7 @@ export function confirmFormat({ root, dollars, onConfirm }) {
       <div class="window-body has-space confirm__body">
         <p><strong>This wipes all software and buddies.</strong></p>
         <p>Your hardware and Dollars stay. You will bank
-          <strong>$${dollars.toFixed(2)}</strong>.</p>
+          <strong data-role="payout">$${dollars.toFixed(2)}</strong>.</p>
         <div class="confirm__actions">
           <button type="button" data-role="cancel">Cancel</button>
           <button type="button" data-role="ok" class="confirm__ok">Format C:</button>
@@ -172,6 +181,54 @@ export function confirmFormat({ root, dollars, onConfirm }) {
   `;
 
   const close = () => dialog.remove();
+  const payoutNode = dialog.querySelector('[data-role="payout"]');
+
+  /**
+   * The payout boost. This is the strongest rewarded placement an idle game
+   * has: the player is one click from cashing in an entire run, so the offer
+   * lands where its value is most obvious and its refusal costs nothing.
+   *
+   * It is *above* the confirm button rather than beside it, because a video
+   * button next to "Format C:" is a mis-click on the one action in the game
+   * that cannot be undone.
+   */
+  if (boost) {
+    const button = el(
+      'button',
+      {
+        type: 'button',
+        class: 'ad-button confirm__boost',
+        title: 'Watch a short video from a sponsor.',
+        onclick: async () => {
+          button.disabled = true;
+          const payout = await boost.run();
+          if (!payout) {
+            button.disabled = false;
+            return;
+          }
+          payoutNode.textContent = `$${payout.total.toFixed(2)}`;
+          payoutNode.classList.add('is-boosted');
+          button.replaceWith(
+            el('p', {
+              class: 'confirm__boosted',
+              text: `Sponsor bonus applied — +$${payout.bonus.toFixed(2)} on this format.`,
+            }),
+          );
+        },
+      },
+      [
+        el('span', { class: 'ad-button__icon', 'aria-hidden': 'true', text: '▶' }),
+        el('span', {
+          class: 'ad-button__label',
+          text: `Bank +${Math.round((boost.multiplier - 1) * 100)}% — $${(
+            dollars * boost.multiplier
+          ).toFixed(2)}`,
+        }),
+      ],
+    );
+    dialog.querySelector('.confirm__actions').before(button);
+  }
+
   dialog.querySelector('[data-role="cancel"]').addEventListener('click', close);
   dialog.querySelector('[data-role="ok"]').addEventListener('click', () => {
     close();

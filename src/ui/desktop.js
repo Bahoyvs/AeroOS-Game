@@ -1,12 +1,13 @@
 import { ALL_APPS, getApp } from '../data/apps.js';
-import { formatNumber } from '../core/format.js';
+import { ADS } from '../data/balance.js';
+import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './dom.js';
 
 /**
  * The desktop: icon grid plus the always-on-top Aero gadget that carries the
  * Buzz readout, the memory/bloat meters and the Nudge button (AO-5).
  */
-export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
+export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }) {
   /* ---------------------------------------------------------------- icons */
 
   function renderIcons() {
@@ -72,6 +73,8 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
       <span class="heat__track"><span class="heat__fill" data-role="heat-bar"></span></span>
     </div>
 
+    <div class="gadget__offers" data-role="offers" hidden></div>
+
     <button type="button" class="nudge-button" data-role="nudge">
       <span class="nudge-button__label">NUDGE</span>
       <span class="nudge-button__hint" data-role="nudge-power">+1</span>
@@ -131,6 +134,105 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     }
   });
 
+  /* ---------------------------------------------------------- ad offers */
+
+  /**
+   * The two rewarded offers that belong on the desktop rather than inside an
+   * app: an overclock for the button the whole game is built around, and the
+   * daily sponsor gift. Both are here because the rewarded-ads guide is blunt
+   * about it — offers have to be *easy to find*, and the gadget is the one
+   * surface that is on screen in every session, on every device.
+   *
+   * The row renders nothing at all when ads cannot run (off-portal, or behind
+   * an ad blocker): an offer that cannot be fulfilled is worse than no offer.
+   * A cooling-down offer, by contrast, keeps its button and counts down — a
+   * control that quietly disappears reads as a bug, and the player has no way
+   * to learn it is coming back.
+   */
+  const offersRoot = ref('offers');
+  const OFFERS = [
+    {
+      id: 'overclock',
+      icon: '⚡',
+      title: () =>
+        `Overclock ×${(1 + ADS.rewarded.overclock.magnitude).toFixed(0)} · ${
+          ADS.rewarded.overclock.durationSeconds / 60
+        } min`,
+    },
+    {
+      // "Free 38.8K Buzz" rather than "Sponsor gift": the guide asks for the
+      // reward in the label, and the shorter string is also the one that fits
+      // in a phone's status bar without being cut in half.
+      id: 'gift',
+      icon: '🎁',
+      title: (offer) => `Free ${formatNumber(offer.reward.buzz)} Buzz`,
+    },
+  ];
+
+  const offerButtons = new Map();
+
+  if (ads?.available) {
+    offersRoot.hidden = false;
+    for (const offer of OFFERS) {
+      const button = el('button', {
+        type: 'button',
+        class: 'ad-button gadget__offer',
+        dataset: { offer: offer.id },
+        onclick: async () => {
+          button.disabled = true;
+          await ads.claim(offer.id);
+          updateOffers();
+        },
+      });
+      offersRoot.appendChild(button);
+      offerButtons.set(offer.id, button);
+    }
+  }
+
+  function updateOffers() {
+    if (offerButtons.size === 0) return;
+
+    // Nothing is offered during onboarding. The first minutes decide whether
+    // anybody comes back, and a scripted tour is no place for a sponsor button
+    // competing with the objective the coach is pointing at.
+    if (!game.state.tutorial.done) {
+      offersRoot.hidden = true;
+      return;
+    }
+
+    const now = Date.now();
+
+    for (const meta of OFFERS) {
+      const button = offerButtons.get(meta.id);
+      const offer = game.adOffer(meta.id, now);
+
+      // A cooling-down offer keeps its place and counts down. Anything else
+      // that cannot be shown — the daily allowance is spent, nothing to boost —
+      // is not coming back within the minute, so the row closes up instead of
+      // holding a dead button open.
+      const cooling = offer.reason === 'cooling-down';
+      button.hidden = !offer.ok && !cooling;
+      if (button.hidden) continue;
+
+      button.disabled = !offer.ok;
+      button.title = cooling
+        ? 'Watched recently — this offer comes back on a timer.'
+        : 'Watch a short video from a sponsor.';
+      button.textContent = '';
+      button.append(
+        el('span', { class: 'ad-button__icon', 'aria-hidden': 'true', text: cooling ? '⏳' : meta.icon }),
+        el('span', {
+          class: 'ad-button__label',
+          text: cooling
+            ? `Ready in ${formatDuration(Math.ceil(offer.seconds))}`
+            : meta.title(offer),
+        }),
+      );
+    }
+
+    offersRoot.hidden = [...offerButtons.values()].every((button) => button.hidden);
+  }
+
   function spawnFloater(event, text) {
     const floater = el('span', { class: 'floater', text });
     floater.style.left = `${event.clientX}px`;
@@ -141,9 +243,15 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
 
   /* --------------------------------------------------------------- update */
 
+  // Once a second is plenty for a countdown measured in minutes, and the offer
+  // row rebuilds its labels — that is not work for a 100 ms budget.
+  const refreshOffers = throttle(updateOffers, 1000);
+
   const update = throttle(() => {
     const s = game.state;
     const { econ } = game;
+
+    refreshOffers();
 
     nodes.buzz.textContent = formatNumber(s.buzz);
     nodes.rate.textContent = `${formatNumber(econ.buzzPerSecond(s))} / sec`;
@@ -195,6 +303,7 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
   game.bus.on(game.events.HARDWARE_REVEALED, renderIcons);
 
   renderIcons();
+  updateOffers();
   update();
 
   return { update, renderIcons, appName: (id) => getApp(id).name };

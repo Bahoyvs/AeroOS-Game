@@ -8,7 +8,8 @@ import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
-import { HEAT } from './data/balance.js';
+import { ADS, HEAT } from './data/balance.js';
+import { createAds } from './ui/ads.js';
 import { createAudio } from './ui/audio.js';
 import { confirmFormat, createFormatSequence } from './ui/bsod.js';
 import { createDesktop } from './ui/desktop.js';
@@ -100,6 +101,15 @@ async function boot() {
   const notify = createNotifier(document.getElementById('toasts'));
   game.bus.on(game.events.NOTIFY, notify);
 
+  /**
+   * Every ad in the game goes through this adapter (GDD 8). It resolves whether
+   * ads can run at all — off-portal, or behind an ad blocker, they cannot — and
+   * every placement asks it rather than reaching for the SDK itself, so a
+   * blocked player is shown a game with no dead buttons in it.
+   */
+  const ads = createAds({ sdk, game, notify });
+  await ads.init();
+
   /** Opening an app = a state change plus a window. Both, or neither. */
   function launch(id) {
     const app = getApp(id);
@@ -125,7 +135,7 @@ async function boot() {
     }
     // Apps get the audio bus too: AeroSweeper turns over thirty squares in one
     // click, which is far too fast and too transient for the event bus.
-    wm.open(app, (body) => mountApp(id, body, { game, wm, audio }));
+    wm.open(app, (body) => mountApp(id, body, { game, wm, audio, ads }));
   }
 
   // Closing a window must release its memory, however it was closed.
@@ -152,21 +162,34 @@ async function boot() {
     confirmFormat({
       root: document.body,
       dollars,
+      /**
+       * The payout boost (GDD 8). This is the strongest rewarded placement in
+       * an idle game — the player is one click from cashing in a whole run, so
+       * "+50% on that" is asked at the exact moment it is worth the most. It
+       * offers itself only when the boost is available and unclaimed; the
+       * dialog renders no button otherwise.
+       */
+      boost: ads.available && game.adOffer('formatBoost').ok
+        ? {
+            multiplier: ADS.rewarded.formatBoost.multiplier,
+            run: async () => {
+              const claimed = await ads.claim('formatBoost');
+              return claimed ? game.formatPayout() : null;
+            },
+          }
+        : null,
       onConfirm: async () => {
         if (sdk) sdk.game.gameplayStop();
         const summary = await formatSequence.run(async () => {
-          if (sdk) {
-            await new Promise((resolve) => {
-              sdk.ad.requestAd('midgame', {
-                adFinished: resolve,
-                adError: resolve,
-                adStarted: () => {},
-              });
-            });
-          }
+          // The interstitial goes *inside* the sequence, behind the stop
+          // screen: the machine is visibly dead, so the break costs the player
+          // nothing they were doing. No countdown here — the BSOD is already
+          // the warning that nothing is running.
+          await ads.midgame('format', { silent: true });
           const result = game.formatC();
           return {
             dollars: result.dollars ?? 0,
+            bonus: result.bonus ?? 0,
             prestigeCount: game.state.prestigeCount,
             ramMB: game.econ.ramCapacity(game.state),
           };
@@ -174,7 +197,9 @@ async function boot() {
         if (sdk) sdk.game.gameplayStart();
         notify({
           title: 'Format complete',
-          body: `Banked $${summary.dollars.toFixed(2)}. Spend it on hardware in My Computer.`,
+          body: `Banked $${(summary.dollars + summary.bonus).toFixed(2)}${
+            summary.bonus > 0 ? ` (including a $${summary.bonus.toFixed(2)} sponsor bonus)` : ''
+          }. Spend it on hardware in My Computer.`,
           tone: 'success',
         });
       },
@@ -227,6 +252,7 @@ async function boot() {
     gadgetRoot: document.getElementById('gadget-slot'),
     game,
     launch,
+    ads,
   });
   const taskbar = createTaskbar({ root: document.getElementById('taskbar'), game, wm, launch });
 
@@ -452,6 +478,14 @@ async function boot() {
       tone: combo.hitMine ? 'warn' : 'success',
     });
     if (sdk && combo.cleared) sdk.game.happytime();
+
+    /**
+     * A banked round is the closest thing this game has to a level ending: the
+     * board is gone, the reward is on screen and nothing is being clicked. That
+     * is the natural break the interstitial guide asks for — and the SDK, not
+     * this call site, decides whether it has been long enough.
+     */
+    if (tiles > 0) ads.midgame('sweeper-round');
   });
 
   game.bus.on(game.events.SWEEPER_TOKEN, ({ granted, bought }) => {
@@ -465,6 +499,36 @@ async function boot() {
   });
 
   game.bus.on(game.events.SWEEPER_STARTED, () => taskbar.flag('aerosweeper', false));
+
+  // The other natural break: a four-hour render has just been collected, which
+  // is a milestone screen in everything but name.
+  game.bus.on(game.events.RENDER_CLAIMED, () => ads.midgame('render-collected'));
+
+  /**
+   * One place to announce every rewarded payout, so a new placement gets its
+   * balloon for free and none of them can drift into inventing their own copy.
+   * The Format C: boost is deliberately silent here — the confirm dialog it was
+   * bought from restates the new figure, which is a better answer than a
+   * balloon behind it.
+   */
+  game.bus.on(game.events.AD_REWARD, ({ id, reward }) => {
+    if (id === 'formatBoost' || id === 'offlineDouble') return;
+    const bodies = {
+      buzz: () => `+${formatNumber(reward.buzz)} Buzz.`,
+      buff: () =>
+        `+${Math.round(reward.magnitude * 100)}% to everything for ${
+          reward.durationSeconds / 60
+        } minutes.`,
+      token: () => 'A fresh board is waiting in AeroSweeper.',
+      render: () => `The render jumped ${Math.round(reward.renderFraction * 100)}%.`,
+    };
+    notify({
+      title: id === 'gift' ? 'Sponsor bonus collected' : 'Thanks for watching',
+      body: bodies[reward.kind]?.() ?? 'Reward applied.',
+      tone: 'success',
+    });
+    audio.play('coin');
+  });
 
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({
@@ -493,27 +557,26 @@ async function boot() {
       root: document.body,
       offline,
       hoursCap: offline.cappedHours,
-      // Day 7 hangs the rewarded "2× offline Buzz" ad (GDD 8) off this seam.
-      onDouble: sdk
-        ? () => {
-            sdk.game.gameplayStop();
-            sdk.ad.requestAd('rewarded', {
-              adFinished: () => {
-                game.doubleOfflineBuzz();
-                notify({
-                  title: 'Welcome Back Bonus',
-                  body: 'Offline earnings doubled.',
-                  tone: 'success'
-                });
-                sdk.game.gameplayStart();
-              },
-              adError: () => {
-                sdk.game.gameplayStart();
-              },
-              adStarted: () => {}
-            });
-          }
-        : null,
+      /**
+       * The "Internet Cafe Bonus" (GDD 8) — the highest-converting placement an
+       * idle game has, because the player is looking at earnings they nearly
+       * left on the table. The dialog renders no button when ads cannot run.
+       */
+      multiplier: ADS.rewarded.offlineDouble.multiplier,
+      onDouble:
+        ads.available && game.adOffer('offlineDouble').ok
+          ? async () => {
+              const watched = await ads.rewarded('offlineDouble');
+              if (!watched) return;
+              const result = game.doubleOfflineBuzz();
+              if (!result.ok) return;
+              notify({
+                title: 'Internet Cafe bonus',
+                body: `Your buddies kept the machine warm — +${formatNumber(result.buzz)} Buzz.`,
+                tone: 'success',
+              });
+            }
+          : null,
       onClose: () => audio.unlock(),
     });
     game.clearOfflineReport();
@@ -594,7 +657,7 @@ async function boot() {
   if (sdk) sdk.game.loadingStop();
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch, audio, motion, sdk };
+  globalThis.AeroOS = { game, wm, launch, audio, motion, sdk, ads };
   mountDevPanel({ game });
 }
 

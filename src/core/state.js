@@ -107,6 +107,25 @@ export function createInitialState(now = Date.now()) {
       startedAt: 0,
     },
 
+    /**
+     * Ad bookkeeping (GDD 8). Only pacing lives here — what an offer is worth
+     * is derived in `core/ads.js` from the player's current production, so
+     * rebalancing a reward never needs a migration.
+     *
+     * `day` is the UTC day the `watched` counters belong to; a save loaded on a
+     * later day reads as "nothing watched yet" without anything having to run
+     * while the tab was closed. `lastAt` is deliberately *not* cleared by the
+     * rollover — a cooldown is a wall-clock timer, not a daily allowance.
+     */
+    ads: {
+      day: 0,
+      watched: {}, // placement id -> watches today
+      lastAt: {}, // placement id -> wall clock of the last completed watch
+      totalWatched: 0,
+      // A rewarded payout bought before a Format C:, spent by the next one.
+      formatBoost: false,
+    },
+
     // Timed bonuses from status events and rewarded ads. Playlist multipliers
     // are NOT buffs: they are derived from `retroamp` so they survive a reload.
     buffs: [],
@@ -154,8 +173,15 @@ export function createInitialState(now = Date.now()) {
 /**
  * Reset for "Format C:" — software is wiped, hardware and Dollars persist.
  * Pure: returns a new state, never mutates the argument.
+ *
+ * `bonusDollars` is paid into the wallet *without* being counted against
+ * lifetime earnings, which is what makes the rewarded "+50% payout" a bonus
+ * rather than an advance: `pendingPrestigeDollars` is the gap between what
+ * lifetime Buzz has ever been worth and what has already been paid, so folding
+ * the bonus into `dollarsEarnedTotal` would quietly borrow it back from the
+ * next Format C:.
  */
-export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
+export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonusDollars = 0 } = {}) {
   const fresh = createInitialState(now);
   // Burned discs outlive the wipe — that is the entire point of AeroBurn.
   carryDiscsThroughPrestige(state, fresh);
@@ -171,9 +197,16 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now()) {
 
   return {
     ...fresh,
-    dollars: state.dollars + dollarsEarned,
+    dollars: state.dollars + dollarsEarned + bonusDollars,
     dollarsEarnedTotal: state.dollarsEarnedTotal + dollarsEarned,
     username: state.username,
+    /**
+     * Daily ad allowances survive the wipe. They are a real-world budget, not
+     * a run's progress — and a cap a player can clear by pressing Format C:
+     * is not a cap. The pending payout boost is the exception: this reset is
+     * what spends it.
+     */
+    ads: { ...state.ads, formatBoost: false },
     lifetimeBuzz: state.lifetimeBuzz,
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },

@@ -1,0 +1,219 @@
+/**
+ * Ad surfaces (GDD 8): the rewarded button, the interstitial warning, and the
+ * banner frame.
+ *
+ * One rule runs through all three, and it is the portal's, not a preference:
+ * an ad must never be mistaken for the game, and the game must never be
+ * mis-clicked into an ad. So rewarded buttons are a distinct colour from every
+ * other control in the OS, the interstitial announces itself and eats clicks
+ * while it counts down, and the banner sits in a labelled well with a margin
+ * wide enough that nothing interactive shares an edge with it.
+ */
+
+/* ------------------------------------------------------------- ad buttons */
+
+/**
+ * The rewarded button. Amber, because every other affordance in this shell is
+ * blue or green — a player should be able to tell at a glance which buttons
+ * cost them thirty seconds. The play glyph is part of the contract too: the
+ * guide asks for a video icon next to the reward so nobody is surprised by
+ * what opens.
+ */
+.ad-button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #3a2400;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd77a, #f5a623);
+  border: none;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-soft), 0 2px 6px rgb(60 34 0 / 28%);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 45%);
+  transition: filter 140ms var(--ease-aero), transform 140ms var(--ease-aero);
+}
+
+.ad-button:hover:not(:disabled) {
+  filter: brightness(1.07);
+}
+
+.ad-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Cooling down. Still a button, still legible, plainly not ready — a control
+   that vanishes for fifteen minutes reads as a bug the player cannot report. */
+.ad-button:disabled {
+  color: rgb(58 36 0 / 60%);
+  cursor: default;
+  background: linear-gradient(180deg, #d9cdb4, #b7a98c);
+  box-shadow: var(--emboss-well-light);
+  filter: none;
+}
+
+.ad-button__icon {
+  font-size: 0.9em;
+  line-height: 1;
+}
+
+.ad-button__label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ------------------------------------------------------- the gadget offers */
+
+.gadget__offers {
+  display: grid;
+  gap: 6px;
+}
+
+.gadget__offer {
+  width: 100%;
+}
+
+/* ------------------------------------------- in-app offers, sized to their host */
+
+/* AeroSweeper's HUD is a tight strip: the ad button matches the Buzz button
+   beside it rather than towering over it. */
+.sw__ad-token {
+  min-height: 24px;
+  padding: 0 10px;
+  font-size: 0.68rem;
+}
+
+/* Shield99's quarantine row is two buttons side by side; the ad button takes
+   the amber, not the extra type size that would unbalance the pair. */
+.sh__extract.ad-button {
+  font-size: 0.7rem;
+}
+
+/* Aero Studio's toolbar sets its own metrics on .aero-btn; only the colour is
+   ours, so the video button reads as a different kind of action. */
+.aero-btn.ad-button {
+  color: #3a2400;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 45%);
+}
+
+/* --------------------------------------------------- the Format C: offer */
+
+/**
+ * Full width and above the actions row, never beside them: a video button next
+ * to "Format C:" is a mis-click on the one action in the game that cannot be
+ * undone.
+ */
+.confirm__boost {
+  width: 100%;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+
+.confirm__boosted {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #1f7a2e;
+}
+
+.confirm__body .is-boosted {
+  color: #1f7a2e;
+}
+
+/* ------------------------------------------------------ the interstitial warning */
+
+/**
+ * The countdown before a midgame ad. It covers the desktop on purpose: an idle
+ * game has no level boundary to hide a break behind, and the three seconds
+ * before the video are exactly when a player is still clicking. Swallowing
+ * those clicks is what keeps an ad break from reading as a click trap.
+ */
+.ad-countdown {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  background: rgb(4 20 38 / 55%);
+  backdrop-filter: blur(2px);
+  animation: ad-countdown-in 200ms var(--ease-aero);
+}
+
+@keyframes ad-countdown-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.ad-countdown__card {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  width: min(320px, 82vw);
+  padding: 18px 20px;
+  color: var(--text-invert);
+  text-align: center;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--emboss), 0 12px 34px rgb(2 16 30 / 45%);
+  text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+}
+
+.ad-countdown__icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.ad-countdown__lede {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ad-countdown__count {
+  display: inline-block;
+  min-width: 1ch;
+  font-size: 1.3rem;
+  color: var(--aero-cyan);
+}
+
+.ad-countdown__note {
+  font-size: 0.72rem;
+  opacity: 0.78;
+}
+
+/* ------------------------------------------------------------------ banner */
+
+/**
+ * The banner well. Labelled, recessed, and separated from the shop rows above
+ * it by more space than any two controls in the window get — the banner guide
+ * asks for 10–15px of clearance around anything clickable, and a shop is
+ * nothing but clickable rows.
+ */
+.ad-banner {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0 6px;
+  padding: 8px;
+  background: rgb(13 36 55 / 6%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--emboss-well-light);
+}
+
+.ad-banner__label {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.ad-banner__slot {
+  display: grid;
+  place-items: center;
+  min-height: 100px;
+  overflow: hidden;
+}
