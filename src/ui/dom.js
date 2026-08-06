@@ -35,7 +35,7 @@ export function throttle(fn, ms) {
 /** Fill a progress bar element, clamped, with a tone class for warn/critical. */
 export function setBar(fillEl, ratio, { warn = 0.75, critical = 0.9 } = {}) {
   const r = Math.max(0, Math.min(ratio, 1));
-  fillEl.style.width = `${r * 100}%`;
+  fillEl.style.clipPath = `inset(0 ${(1 - r) * 100}% 0 0)`;
   fillEl.classList.toggle('is-warn', r >= warn && r < critical);
   fillEl.classList.toggle('is-critical', r >= critical);
 }

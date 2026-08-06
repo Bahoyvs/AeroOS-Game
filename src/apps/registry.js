@@ -6,6 +6,7 @@ import * as placeholder from './placeholder.js';
 import * as retroamp from './retroamp.js';
 import * as shield99 from './shield99.js';
 import * as system from './system.js';
+import * as aerostudio from './aerostudio.js';
 
 /**
  * Maps an app id to the module that renders its window body. Anything missing
@@ -21,7 +22,8 @@ const IMPLEMENTATIONS = {
   lemonwire,
   shield99,
   aeroburn,
-  // Day 7: aerostudio, pinball
+  aerostudio,
+  // Day 7: pinball
 };
 
 export function mountApp(id, body, ctx) {

@@ -165,7 +165,7 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     nodes.heat.hidden = !revealed;
     nodes.heatValue.textContent = `${econ.systemHeat(s)}°C`;
     nodes.heat.dataset.level = heatLevel;
-    nodes.heatBar.style.width = `${econ.heatRatio(s) * 100}%`;
+    nodes.heatBar.style.clipPath = `inset(0 ${(1 - econ.heatRatio(s)) * 100}% 0 0)`;
     document.body.dataset.heat = heatLevel;
 
     const ready = econ.canPrestige(s);

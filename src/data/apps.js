@@ -59,7 +59,7 @@ export const APPS = [
     day: 7,
     ram: 192,
     install: { cost: 12000, unlockAt: 8000 },
-    window: { width: 440, height: 300 },
+    window: { width: 720, height: 520 },
     blurb: 'Long GPU-bound render, biggest single payout in the game.',
   },
   {

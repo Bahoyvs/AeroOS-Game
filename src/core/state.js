@@ -97,6 +97,18 @@ export function createInitialState(now = Date.now()) {
     // Scripted onboarding (GDD 7). `hardwareRevealed` gates My Computer and the
     // CPU/RAM readouts until the player hits their first memory bottleneck.
     tutorial: { step: 0, done: false, hardwareRevealed: false },
+
+    // Aero Studio (Day 7). Mega-project render center.
+    aerostudio: {
+      isRendering: false,
+      currentProject: null,
+      progress: 0,
+      upgrades: {
+        sidechainCompression: 0,
+        arpeggiator: 0,
+        environmentalFx: 0,
+      },
+    },
   };
 }
 

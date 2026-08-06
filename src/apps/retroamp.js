@@ -150,12 +150,12 @@ export function mount(body, { game }) {
       // Settle the bars once rather than leaving them frozen mid-bounce.
       if (vizIdle) return;
       vizIdle = true;
-      for (const bar of viz.children) bar.style.height = '12%';
+      for (const bar of viz.children) bar.style.transform = 'scaleY(0.12)';
       return;
     }
     vizIdle = false;
     for (const bar of viz.children) {
-      bar.style.height = `${12 + Math.random() * 88}%`;
+      bar.style.transform = `scaleY(${0.12 + Math.random() * 0.88})`;
     }
   }, 120);
 

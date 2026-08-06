@@ -559,10 +559,13 @@
 
 .amp__bar {
   flex: 1;
-  height: 12%;
+  height: 100%;
+  transform: scaleY(0.12);
+  transform-origin: bottom;
   background: linear-gradient(180deg, #d6ff8f, #2f9e4f);
   border-radius: 1px;
-  transition: height 120ms linear;
+  transition: transform 120ms linear;
+  will-change: transform;
 }
 
 .amp__playlists {
@@ -1209,4 +1212,384 @@
   margin: 0;
   font-size: 0.66rem;
   color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------- Aero Studio */
+
+.app-aerostudio {
+  --aero-glass-bg: rgba(255, 255, 255, 0.4);
+  --aero-bevel: inset 0 2px 3px rgba(255,255,255,0.8), inset 0 -2px 3px rgba(0,0,0,0.3);
+  --aero-aqua: #00ffd5;
+  --aero-ocean: #0077ff;
+
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--aero-glass-bg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 12px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.app-aerostudio > * {
+  flex: 0 0 auto;
+}
+
+.app-aerostudio > .aero-preview {
+  flex: 1 1 120px;
+}
+
+.aero-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(220,230,240,0.6) 100%);
+  border: 1px solid rgba(255,255,255,0.9);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--aero-bevel), 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.aero-btn {
+  background: linear-gradient(180deg, #f0f8ff 0%, #cce0ff 100%);
+  border: 1px solid #99c2ff;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-weight: bold;
+  color: #004499;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 2px rgba(0,0,0,0.1);
+  text-shadow: 0 1px 0 #fff;
+}
+.aero-btn:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #ddebff 100%);
+}
+.aero-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.aero-btn.is-danger {
+  background: linear-gradient(180deg, #ffe0e0 0%, #ffb3b3 100%);
+  border-color: #ff8080;
+  color: #990000;
+}
+.aero-btn.is-danger:hover {
+  background: linear-gradient(180deg, #ffebeb 0%, #ffcccc 100%);
+}
+
+.aero-status {
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+  text-align: right;
+  font-size: 0.75rem;
+  color: #113355;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.8);
+}
+.aero-status strong {
+  font-size: 0.85rem;
+}
+.aero-status span {
+  color: #446688;
+}
+
+.aero-preview {
+  min-height: 120px;
+  background: #000;
+  border-radius: 4px;
+  border: 2px solid #334455;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,1), 0 1px 0 rgba(255,255,255,0.3);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.aero-waveform {
+  position: absolute;
+  top: 0; left: 0; right: -40px; bottom: 0;
+  background-image: 
+    linear-gradient(90deg, rgba(0, 255, 213, 0.15) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(0, 255, 213, 0.15) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.aero-preview.is-active .aero-waveform {
+  animation: aero-pan 4s linear infinite;
+  opacity: 1;
+}
+
+@keyframes aero-pan {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-40px, 0, 0); }
+}
+
+.aero-render-text {
+  position: absolute;
+  font-size: 1.5rem;
+  letter-spacing: 0.2rem;
+  font-weight: bold;
+  color: #334455;
+  text-shadow: 0 1px 0 #000;
+  z-index: 1;
+}
+
+.aero-preview.is-active .aero-render-text {
+  color: var(--aero-aqua);
+  text-shadow: 0 0 8px var(--aero-ocean);
+  animation: aero-pulse-text 2s infinite alternate ease-in-out;
+  will-change: opacity;
+}
+
+@keyframes aero-pulse-text {
+  0% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+.aero-heading {
+  margin: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #113355;
+  text-shadow: 0 1px 0 #fff;
+}
+
+.aero-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.aero-track {
+  display: block;
+}
+
+.aero-track-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(230,240,250,0.8));
+  border: 1px solid rgba(255,255,255,0.8);
+  border-radius: 6px;
+  box-shadow: var(--aero-bevel), 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+  text-align: left;
+  /* Prevent background color from leaking over borders */
+  background-clip: padding-box;
+}
+.aero-track-btn:hover {
+  background: linear-gradient(180deg, #ffffff, rgba(240,250,255,0.9));
+}
+.aero-track-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.aero-track-info {
+  display: flex;
+  flex-direction: column;
+}
+.aero-track-info strong {
+  font-size: 0.8rem;
+  color: #003366;
+}
+.aero-track-info small {
+  font-size: 0.65rem;
+  color: #446688;
+}
+
+.aero-track-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.aero-level {
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: var(--aero-ocean);
+}
+.aero-cost {
+  font-size: 0.65rem;
+  color: #555;
+}
+
+.aero-render-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.aero-progress-track {
+  height: 16px;
+  background: #112233;
+  border-radius: 8px;
+  border: 1px solid #000;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.3);
+  overflow: hidden;
+}
+
+.aero-progress-fill {
+  height: 100%;
+  width: 100%;
+  clip-path: inset(0 100% 0 0);
+  border-radius: 0 !important; /* Prevent pill shape inheriting from .meter__fill */
+  background: linear-gradient(180deg, #00ffd5 0%, #00aa88 100%) !important;
+  box-shadow: inset 0 1px 2px rgba(255,255,255,0.8), inset 0 -1px 2px rgba(0,0,0,0.3);
+  transition: clip-path 0.2s linear;
+  will-change: clip-path;
+}
+
+.aero-eta {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #113355;
+  text-shadow: 0 1px 0 #fff;
+}
+
+/* Body glow */
+.app-aerostudio {
+  transition: box-shadow 0.3s;
+}
+.app-aerostudio.is-rendering {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 0 20px rgba(0, 255, 213, 0.4);
+}
+
+/* Playhead */
+.aero-playhead-wrapper {
+  position: absolute;
+  top: 0; bottom: 0; left: 0; right: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.aero-preview.is-active .aero-playhead-wrapper {
+  animation: aero-scan 4s linear infinite;
+}
+.aero-playhead {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 2px;
+  background: #ff3366;
+  box-shadow: 0 0 10px #ff3366, 0 0 4px #ff3366;
+}
+@keyframes aero-scan {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(100% - 2px)); }
+}
+
+/* Timecode */
+.aero-timecode {
+  position: absolute;
+  bottom: 8px; right: 8px;
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 0.8rem;
+  color: #fff;
+  text-shadow: 0 0 4px #000;
+  z-index: 2;
+  opacity: 0.5;
+}
+.aero-preview.is-active .aero-timecode {
+  opacity: 1;
+  color: var(--aero-aqua);
+  text-shadow: 0 0 8px var(--aero-ocean);
+}
+
+/* EQ */
+.aero-track-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.aero-eq {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 12px;
+  opacity: 0.3;
+}
+.aero-eq span {
+  width: 3px;
+  height: 100%;
+  transform: scaleY(0.2);
+  transform-origin: bottom;
+  background: var(--aero-ocean);
+  border-radius: 1px;
+}
+.app-aerostudio.is-rendering .aero-eq {
+  opacity: 1;
+}
+.app-aerostudio.is-rendering .aero-eq span {
+  background: var(--aero-aqua);
+  animation: aero-bounce 0.8s infinite alternate ease-in-out;
+  will-change: transform;
+}
+.app-aerostudio.is-rendering .aero-eq span:nth-child(1) { animation-delay: -0.4s; }
+.app-aerostudio.is-rendering .aero-eq span:nth-child(2) { animation-delay: -0.2s; }
+.app-aerostudio.is-rendering .aero-eq span:nth-child(3) { animation-delay: -0.6s; }
+.app-aerostudio.is-rendering .aero-eq span:nth-child(4) { animation-delay: 0.0s; }
+@keyframes aero-bounce {
+  0% { transform: scaleY(0.2); }
+  100% { transform: scaleY(1); }
+}
+
+/* Barber shop pole */
+.aero-progress-fill {
+  position: relative;
+  overflow: hidden;
+}
+.aero-progress-fill::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0; width: 200%;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255,255,255,0.15),
+    rgba(255,255,255,0.15) 10px,
+    transparent 10px,
+    transparent 20px
+  );
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.app-aerostudio.is-rendering .aero-progress-fill::after {
+  opacity: 1;
+  animation: aero-stripe 1s linear infinite;
+}
+@keyframes aero-stripe {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-28px); }
+}
+
+/* Responsive design for Mobile */
+@media (max-width: 600px) {
+  .aero-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .aero-status {
+    margin-left: 0;
+    text-align: center;
+    margin-top: 4px;
+  }
+  .aero-track-btn {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .aero-track-stats {
+    align-items: flex-start;
+  }
 }

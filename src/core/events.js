@@ -59,6 +59,9 @@ export const EVENTS = {
   BURN_STARTED: 'aeroburn:started', // { cd, job }
   BURN_DONE: 'aeroburn:done', // { cd, disc }
   DISC_PLAYED: 'aeroburn:played', // { cd, buzz }
+  RENDER_STARTED: 'aerostudio:started', // { projectName }
+  RENDER_DONE: 'aerostudio:done', // { projectName, payout }
+  AERO_UPGRADE_BOUGHT: 'aerostudio:upgraded', // { upgradeId, cost }
   PLAYLIST_LOADED: 'retroamp:loaded', // { playlist }
   PLAYLIST_ENDED: 'retroamp:ended', // { playlist, reason }
   TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }

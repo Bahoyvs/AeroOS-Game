@@ -202,3 +202,30 @@ export const SAVE = {
   key: 'aeroos.save.v1',
   autosaveMs: 15000,
 };
+
+export const AEROSTUDIO = {
+  // Payout multiplier: A finished render pays this many seconds of current production
+  payoutSeconds: 14400, // 4 hours
+
+  // A completely un-upgraded render at standard 1x production takes roughly this long in seconds
+  // (Base speed is scaled by current production)
+  baseRenderRequired: 7200,
+
+  upgrades: {
+    sidechainCompression: {
+      baseCost: 75000,
+      costGrowth: 1.5,
+      speedBonus: 0.25,
+    },
+    arpeggiator: {
+      baseCost: 250000,
+      costGrowth: 1.8,
+      speedBonus: 0.50,
+    },
+    environmentalFx: {
+      baseCost: 1000000,
+      costGrowth: 2.2,
+      speedBonus: 1.0,
+    }
+  }
+};

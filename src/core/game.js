@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
@@ -6,6 +6,7 @@ import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
 import * as burner from './aeroburn.js';
+import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as dl from './downloads.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
@@ -96,6 +97,22 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const disc = burner.updateBurn(state, dt);
     if (disc) {
       bus.emit(EVENTS.BURN_DONE, { cd: getCD(disc.typeId), disc });
+      save();
+    }
+
+    const render = aerostudio.updateRender(state, dt);
+    if (render?.done) {
+      const payout = econ.buzzPerSecond(state, now) * AEROSTUDIO.payoutSeconds;
+      grantBuzz(payout, 'aerostudio');
+      bus.emit(EVENTS.RENDER_DONE, { projectName: render.projectName, payout });
+      if (window.CrazyGames?.SDK?.game) {
+        window.CrazyGames.SDK.game.happytime();
+      }
+      bus.emit(EVENTS.NOTIFY, { 
+        title: "Render Complete!", 
+        body: `Your project "${render.projectName}" is exported and topped the charts!`, 
+        tone: "success" 
+      });
       save();
     }
 
@@ -408,6 +425,25 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, tier: next };
   }
 
+  function startRender(projectName) {
+    const result = aerostudio.startRender(state, projectName);
+    if (result.ok) bus.emit(EVENTS.RENDER_STARTED, { projectName });
+    return result;
+  }
+
+  function cancelRender() {
+    return aerostudio.cancelRender(state);
+  }
+
+  function buyAeroUpgrade(upgradeId) {
+    const result = aerostudio.buyUpgrade(state, upgradeId);
+    if (result.ok) {
+      bus.emit(EVENTS.AERO_UPGRADE_BOUGHT, { upgradeId, cost: result.cost });
+      save();
+    }
+    return result;
+  }
+
   /**
    * Ask the shell to run the Format C: sequence (AO-17). The game does not own
    * the animation, so it announces the intent and lets main.js drive the BSOD,
@@ -480,6 +516,9 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     setSettings,
     currentTutorialStep: () => currentStep(state),
     buyHardware,
+    startRender,
+    cancelRender,
+    buyAeroUpgrade,
     formatC,
     requestFormat,
     hardReset,

@@ -260,12 +260,14 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
 
 /** Global multiplier from hardware, system health and global-kind buffs. */
 export function globalMultiplier(state, now = Date.now()) {
+  const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   return (
     hardwareEffects(state).production *
     bloatPenalty(state) *
     infectionPenalty(state) *
     retroampMultiplier(state, now) *
-    buffMultiplier(state, 'global', now)
+    buffMultiplier(state, 'global', now) *
+    renderPenalty
   );
 }
 
@@ -281,6 +283,7 @@ export function buzzPerSecond(state, now = Date.now()) {
  */
 export function rateBreakdown(state, now = Date.now()) {
   const base = state.chat.bots * CHAT_BOT.baseRate;
+  const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   return {
     bots: state.chat.bots,
     perBot: CHAT_BOT.baseRate,
@@ -291,6 +294,7 @@ export function rateBreakdown(state, now = Date.now()) {
     virus: infectionPenalty(state),
     cpu: hardwareEffects(state).production,
     bloat: bloatPenalty(state),
+    render: renderPenalty,
     open: state.apps.aerochat?.open === true,
     total: buzzPerSecond(state, now),
   };
