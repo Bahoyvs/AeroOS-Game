@@ -1,4 +1,5 @@
 import { AEROSTUDIO } from '../data/balance.js';
+import { cooldownMultiplier } from './economy.js';
 
 export function getUpgradeCost(upgradeId, currentLevel) {
   const def = AEROSTUDIO.upgrades[upgradeId];
@@ -80,9 +81,10 @@ export function updateRender(state, dt) {
   if (!state.aerostudio.isRendering) return null;
   
   const multi = getSpeedMultiplier(state);
+  const gpuMulti = cooldownMultiplier(state);
   
   const progressGained = dt * multi;
-  state.aerostudio.progress += progressGained / AEROSTUDIO.baseRenderRequired;
+  state.aerostudio.progress += progressGained / (AEROSTUDIO.baseRenderRequired * gpuMulti);
   
   if (state.aerostudio.progress >= 1) {
     state.aerostudio.progress = 1;

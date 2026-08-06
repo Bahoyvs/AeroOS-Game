@@ -557,7 +557,30 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true };
   }
 
+  const dev = import.meta.env.DEV ? {
+    addBuzz(amount) {
+      grantBuzz(amount, 'dev');
+    },
+    addMoney(amount) {
+      state.dollars += amount;
+      state.dollarsEarnedTotal += amount;
+      bus.emit(EVENTS.NOTIFY, { title: 'Dev', body: `Added $${amount.toLocaleString()}`, tone: 'success' });
+    },
+    skipTime(seconds) {
+      tick(seconds);
+      bus.emit(EVENTS.NOTIFY, { title: 'Dev', body: `Skipped ${seconds}s`, tone: 'info' });
+    },
+    clearCooldowns() {
+      state.retroamp.cooldownUntil = {};
+      state.shield99.adCooldownUntil = 0;
+      state.sweeper.nextTokenAt = 0;
+      state.sweeper.tokens = SWEEPER.maxTokens;
+      bus.emit(EVENTS.NOTIFY, { title: 'Dev', body: 'Cooldowns cleared', tone: 'success' });
+    }
+  } : null;
+
   return {
+    dev,
     bus,
     events: EVENTS,
     econ,

@@ -18,6 +18,7 @@ import { createTaskbar } from './ui/taskbar.js';
 import { createTutorialCoach } from './ui/tutorial.js';
 import { showWelcomeBack } from './ui/welcomeBack.js';
 import { createWindowManager } from './ui/windowManager.js';
+import { mountDevPanel } from './ui/devPanel.js';
 
 /**
  * Resolve the CrazyGames SDK before anything reads a setting from it. Save
@@ -550,6 +551,7 @@ async function boot() {
 
   // Handy during development; harmless in production.
   globalThis.AeroOS = { game, wm, launch, audio, motion, sdk };
+  mountDevPanel({ game });
 }
 
 /** Boot failures are silent otherwise — an async boot() rejects into nothing. */
