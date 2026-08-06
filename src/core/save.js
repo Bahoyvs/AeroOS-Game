@@ -89,7 +89,17 @@ function withDefaults(loaded, defaults) {
  * applied in order, so a very old save walks the whole chain.
  */
 const MIGRATIONS = {
-  // 1: (data) => ({ ...data, newField: 0, version: 2 }),
+  // 1 -> 2: settings.reducedMotion (boolean) became settings.motion, a
+  // three-state preference, so the player can also force motion back *on* when
+  // it is the OS suppressing it.
+  1: (data) => {
+    const { reducedMotion, ...settings } = data.settings ?? {};
+    return {
+      ...data,
+      settings: { ...settings, motion: reducedMotion === true ? 'reduced' : 'auto' },
+      version: 2,
+    };
+  },
 };
 
 export function migrate(data) {

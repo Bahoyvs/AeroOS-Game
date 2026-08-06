@@ -155,14 +155,21 @@
   border-radius: 999px;
 }
 
+/**
+ * Scaled, not clipped or resized: `transform` is the only one of the three the
+ * compositor can run on its own. The track already rounds and clips, so the
+ * fill needs no radius of its own — inheriting one would get squashed with it.
+ *
+ * 100ms matches the gadget's update throttle. See setBar() in src/ui/dom.js.
+ */
 .meter__fill {
   width: 100%;
   height: 100%;
-  clip-path: inset(0 100% 0 0);
   background: linear-gradient(180deg, #a9f7ff, var(--aero-blue));
-  border-radius: inherit;
-  transition: clip-path 200ms linear;
-  will-change: clip-path;
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  transition: transform 100ms linear;
+  will-change: transform;
 }
 
 .meter__fill--bloat {
@@ -340,14 +347,15 @@
   border-radius: 999px;
 }
 
+/* Event-driven, not per-frame, so this one can afford a longer settle. */
 .task__ram-fill {
   display: block;
   width: 100%;
   height: 100%;
-  clip-path: inset(0 100% 0 0);
   background: linear-gradient(90deg, var(--aero-cyan), var(--aero-blue));
-  transition: clip-path 200ms linear;
-  will-change: clip-path;
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  transition: transform 200ms linear;
 }
 
 .task__ram-fill.is-warn {
@@ -642,10 +650,13 @@
   display: block;
   width: 100%;
   height: 100%;
-  clip-path: inset(0 100% 0 0);
   background: linear-gradient(90deg, #7fe4ff, #d6ff8f);
-  transition: clip-path 400ms linear, background 600ms linear;
-  will-change: clip-path;
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  /* The gradient may take its time; the scale may not — it is rewritten at the
+     gadget's 100ms throttle and has to land before the next write. */
+  transition: transform 100ms linear, background 600ms linear;
+  will-change: transform;
 }
 
 .heat[data-level='warn'] .heat__value {

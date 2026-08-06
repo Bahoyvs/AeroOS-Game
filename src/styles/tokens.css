@@ -32,11 +32,31 @@
   --font-ui: 'Segoe UI', Tahoma, 'Trebuchet MS', system-ui, sans-serif;
 }
 
+/**
+ * Reduced motion is a resolved decision, not a raw media query — src/ui/motion.js
+ * stamps `data-motion` on <html> from the OS preference *and* the player's own
+ * setting, so someone whose machine has animations switched off system-wide can
+ * still turn the desktop's motion back on from My Computer.
+ *
+ * The media query below only covers the gap before boot stamps the attribute.
+ * Durations go to 0.001ms rather than 0 so `transitionend`/`animationend` still
+ * fire — windowManager.close() removes its node on one of them.
+ */
+:root[data-motion='reduced'] *,
+:root[data-motion='reduced'] *::before,
+:root[data-motion='reduced'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion]) *,
+  :root:not([data-motion]) *::before,
+  :root:not([data-motion]) *::after {
     animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
 }

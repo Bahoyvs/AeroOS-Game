@@ -32,10 +32,22 @@ export function throttle(fn, ms) {
   };
 }
 
-/** Fill a progress bar element, clamped, with a tone class for warn/critical. */
+/**
+ * Fill a progress bar element, clamped, with a tone class for warn/critical.
+ *
+ * The ratio is published as a custom property and the stylesheet decides how to
+ * draw it — `transform: scaleX()` for a plain bar (composited, so a full bar
+ * costs the compositor a matrix and the main thread nothing), `clip-path` for
+ * one with a striped overlay that must not be squashed with it.
+ *
+ * Whatever a fill uses, its transition must be no longer than the interval its
+ * caller updates on. A 200ms transition rewritten every 100ms never reaches its
+ * target: it is cancelled and restarted forever, which reads as a bar that
+ * lags and stutters instead of one that moves.
+ */
 export function setBar(fillEl, ratio, { warn = 0.75, critical = 0.9 } = {}) {
   const r = Math.max(0, Math.min(ratio, 1));
-  fillEl.style.clipPath = `inset(0 ${(1 - r) * 100}% 0 0)`;
+  fillEl.style.setProperty('--fill', String(r));
   fillEl.classList.toggle('is-warn', r >= warn && r < critical);
   fillEl.classList.toggle('is-critical', r >= critical);
 }

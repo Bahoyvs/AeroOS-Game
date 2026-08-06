@@ -12,6 +12,7 @@ import { HEAT } from './data/balance.js';
 import { createAudio } from './ui/audio.js';
 import { confirmFormat, createFormatSequence } from './ui/bsod.js';
 import { createDesktop } from './ui/desktop.js';
+import { createMotionPreference } from './ui/motion.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
 import { createTutorialCoach } from './ui/tutorial.js';
@@ -79,6 +80,10 @@ async function boot() {
     game.setUsername(username);
   }
 
+  // Whether the desktop animates at all. Stamped on <html> before the first
+  // window opens, so nothing plays a transition the player has switched off.
+  const motion = createMotionPreference({ game });
+
   // Audio (AO-26). Synthesised, so there is nothing to preload; the context
   // only starts on the first real gesture, per the autoplay policy.
   const audio = createAudio({
@@ -136,9 +141,7 @@ async function boot() {
   // beat where the machine actually wipes.
   const formatSequence = createFormatSequence({
     root: document.body,
-    reducedMotion: () =>
-      game.state.settings.reducedMotion ||
-      matchMedia('(prefers-reduced-motion: reduce)').matches,
+    reducedMotion: motion.isReduced,
   });
 
   game.bus.on(game.events.FORMAT_REQUESTED, ({ dollars }) => {
@@ -481,11 +484,19 @@ async function boot() {
   });
   window.addEventListener('pagehide', () => game.save());
 
-  document.getElementById('boot')?.classList.add('is-done');
+  // Fade the splash out, then take it off the page. Left in place it is an
+  // invisible full-screen layer whose scanning bar keeps animating — and
+  // therefore keeps being composited — for the rest of the session.
+  const bootScreen = document.getElementById('boot');
+  if (bootScreen) {
+    bootScreen.classList.add('is-done');
+    bootScreen.addEventListener('transitionend', () => bootScreen.remove(), { once: true });
+    setTimeout(() => bootScreen.remove(), 1000);
+  }
   if (sdk) sdk.game.loadingStop();
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch, audio, sdk };
+  globalThis.AeroOS = { game, wm, launch, audio, motion, sdk };
 }
 
 /** Boot failures are silent otherwise — an async boot() rejects into nothing. */

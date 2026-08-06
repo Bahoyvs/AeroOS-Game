@@ -30,10 +30,15 @@
     transform: translateY(100%);
   }
 
-  /* Only the front window is interactive; the rest wait in the taskbar. */
+  /* Only the front window is interactive; the rest wait in the taskbar. Like a
+     minimised window, one at opacity 0 must not keep paying for its glass —
+     phones are where that blur costs the most. */
   .aero-window.inactive {
     pointer-events: none;
     opacity: 0;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition-property: opacity, transform, backdrop-filter, -webkit-backdrop-filter;
   }
 
   .aero-window__resize {

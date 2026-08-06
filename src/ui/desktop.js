@@ -122,10 +122,13 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
   nodes.nudge.addEventListener('click', (event) => {
     const amount = game.nudge();
     spawnFloater(event, `+${formatNumber(amount)}`);
-    nodes.nudge.classList.remove('is-pressed');
-    // Force a reflow so the animation restarts on rapid clicks.
-    void nodes.nudge.offsetWidth;
+    // Rewind rather than remove/reflow/re-add: reading offsetWidth to restart an
+    // animation forces a synchronous layout of the whole document, on the one
+    // interaction the player performs fastest.
     nodes.nudge.classList.add('is-pressed');
+    for (const animation of nodes.nudge.getAnimations()) {
+      if (animation.animationName === 'nudge-shake') animation.currentTime = 0;
+    }
   });
 
   function spawnFloater(event, text) {
@@ -165,7 +168,9 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     nodes.heat.hidden = !revealed;
     nodes.heatValue.textContent = `${econ.systemHeat(s)}°C`;
     nodes.heat.dataset.level = heatLevel;
-    nodes.heatBar.style.clipPath = `inset(0 ${(1 - econ.heatRatio(s)) * 100}% 0 0)`;
+    // Tone comes from the level on .heat, so the fill's own warn/critical
+    // classes stay switched off.
+    setBar(nodes.heatBar, econ.heatRatio(s), { warn: 2, critical: 2 });
     document.body.dataset.heat = heatLevel;
 
     const ready = econ.canPrestige(s);

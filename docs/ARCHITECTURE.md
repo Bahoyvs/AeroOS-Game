@@ -176,6 +176,33 @@ Two integration details worth knowing:
 - The PDA breakpoint lives in two places that must agree: `mobileQuery` in
   `windowManager.js` and the `max-width: 820px` block in `styles/mobile.css`.
 
+## Motion
+
+Nothing in the stylesheet reads `prefers-reduced-motion` directly. `ui/motion.js` resolves
+the OS preference against `state.settings.motion` (`auto` | `full` | `reduced`) and stamps
+the answer on `<html data-motion>`; `tokens.css` keys its reduced-motion block off that
+attribute, with a bare media query covering only the moment before boot stamps it.
+
+The reason it is three-state rather than a straight media query: "show animations in
+Windows" is a machine-wide switch a lot of players flip once and forget, and under a plain
+`@media (prefers-reduced-motion: reduce)` rule it silently collapses every window
+transition, meter and playhead in the game to 0.001 ms. That is indistinguishable from the
+game being broken, and there is nothing on screen to say otherwise. My Computer's *Display*
+panel is the way back.
+
+## Progress bars
+
+`setBar(fill, ratio)` writes the ratio to a `--fill` custom property and lets the
+stylesheet choose how to draw it: `transform: scaleX(var(--fill))` for a plain bar (the
+compositor can run that alone), `clip-path` for one whose striped child would be squashed
+by a scale. Never `width` — that is a layout on every frame of the transition.
+
+The rule that actually bites: **a fill's transition must not be longer than the interval
+its caller updates on.** The gadget re-runs `setBar` every 100 ms; a 200 ms transition on
+it is cancelled and restarted forever, never once reaching its target, which reads as a bar
+that lags and stutters rather than one that moves. If you change a throttle, change the
+matching transition.
+
 ## Adding an app
 
 1. Declare it in `src/data/apps.js` (RAM cost, install price, unlock threshold, roadmap day).
