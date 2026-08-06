@@ -27,7 +27,7 @@ export function createNotifier(root, { timeout = 4500, max = 3 } = {}) {
     else if (tone === 'error') iconName = 'MsMpRes_132.png';
 
     const node = el('div', { class: `balloon balloon--${tone}`, role: 'status' }, [
-      el('img', { class: 'balloon__icon', src: `/icons/${iconName}`, alt: tone }),
+      el('img', { class: 'balloon__icon', src: `${import.meta.env.BASE_URL}icons/${iconName}`, alt: tone }),
       el('div', { class: 'balloon__content' }, [
         el('div', { class: 'balloon__title', text: title }),
         body ? el('div', { class: 'balloon__body', text: body }) : null,
