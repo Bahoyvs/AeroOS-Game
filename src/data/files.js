@@ -11,7 +11,7 @@
 export const FILES = [
   {
     id: 'wallpapers',
-    name: 'Aero_Wallpaper_Pack_HQ.zip',
+    name: 'Windows_Vista_DreamScene_Pack.zip',
     sizeGB: 0.2,
     risk: 0.05,
     seeders: 48,
@@ -19,7 +19,7 @@ export const FILES = [
   },
   {
     id: 'soft-signals',
-    name: 'SOFT_SIGNALS_-_full_album_[320kbps].rar',
+    name: 'AERO_AMBIENCE_-_full_album_[320kbps].rar',
     sizeGB: 0.5,
     risk: 0.1,
     seeders: 31,
@@ -27,7 +27,7 @@ export const FILES = [
   },
   {
     id: 'skins',
-    name: 'WinAmp_skins_MEGA_PACK_2005.zip',
+    name: 'WMP11_Custom_Glass_Skins_2007.zip',
     sizeGB: 0.1,
     risk: 0.12,
     seeders: 22,
@@ -35,7 +35,7 @@ export const FILES = [
   },
   {
     id: 'anime',
-    name: 'Naruto_ep01_[fansub].rmvb',
+    name: 'Bleach_ep01_[Dattebayo]_HQ.rmvb',
     sizeGB: 0.35,
     risk: 0.18,
     seeders: 14,
@@ -43,7 +43,7 @@ export const FILES = [
   },
   {
     id: 'cam-movie',
-    name: 'totally_legal_movie_CAM_GOOD_QUALITY.avi',
+    name: 'Transformers_2007_CAM_XviD-aXXo.avi',
     sizeGB: 1.4,
     risk: 0.28,
     seeders: 9,
@@ -51,7 +51,7 @@ export const FILES = [
   },
   {
     id: 'battlefront',
-    name: 'Star_Wars_Battlefront_II_[NO-CD].iso',
+    name: 'Crysis_2007_Full_Game+Keygen.iso',
     sizeGB: 4,
     risk: 0.22,
     seeders: 6,
@@ -59,7 +59,7 @@ export const FILES = [
   },
   {
     id: 'speed-boost',
-    name: 'system32_SPEED_BOOST_2005.exe',
+    name: 'LimeWire_PRO_v4.18_Crack_NoVirus.exe',
     sizeGB: 0.003,
     risk: 0.75,
     seeders: 302, // suspiciously popular

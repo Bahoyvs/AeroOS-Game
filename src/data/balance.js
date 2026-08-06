@@ -42,8 +42,8 @@ export const STATUS_EVENT = {
 export const STATUS_BONUSES = [
   {
     id: 'battlefront',
-    status: 'is playing Star Wars Battlefront II',
-    label: 'LAN night',
+    status: 'is playing Crysis on max settings',
+    label: 'LAN Party',
     kind: 'chat',
     magnitude: 0.25,
     durationSeconds: 60,
@@ -51,8 +51,8 @@ export const STATUS_BONUSES = [
   },
   {
     id: 'soft-signals',
-    status: 'is listening to SOFT SIGNALS',
-    label: 'Good playlist',
+    status: 'is listening to AERO AMBIENCE',
+    label: 'Aero Vibes',
     kind: 'global',
     magnitude: 0.15,
     durationSeconds: 90,
@@ -60,8 +60,8 @@ export const STATUS_BONUSES = [
   },
   {
     id: 'serial-key',
-    status: 'found a working serial key',
-    label: 'Registered edition',
+    status: 'found a working keygen on LimeWire',
+    label: 'PRO Version Unlocked',
     kind: 'click',
     magnitude: 1.0,
     durationSeconds: 45,
@@ -69,8 +69,8 @@ export const STATUS_BONUSES = [
   },
   {
     id: 'burning-cd',
-    status: 'is burning you a mix CD',
-    label: 'Mix CD',
+    status: 'is burning a mix CD with Nero',
+    label: 'Nero Mix CD',
     kind: 'burst',
     magnitude: 45, // seconds of production, paid instantly
     durationSeconds: 0,
@@ -78,8 +78,8 @@ export const STATUS_BONUSES = [
   },
   {
     id: 'forwarding',
-    status: 'forwarded this to 10 people',
-    label: 'Chain mail',
+    status: 'forwarded a cursed chain email',
+    label: 'Chain Mail Panic',
     kind: 'chat',
     magnitude: 0.6,
     durationSeconds: 25,

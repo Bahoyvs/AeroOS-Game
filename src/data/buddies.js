@@ -11,47 +11,47 @@ const NICKS = [
   'Baho_007',
   'xX_aero_Xx',
   '~*SilverFrost*~',
-  'dial_up_dan',
+  'vista_vibes',
   'GlossyPanda',
-  'mIRC_veteran',
-  'N0kia_3310',
-  'CD_Burner_King',
+  'rawr_xD',
+  'Motorola_Razr',
+  'LimeWire_Legend',
   'frutiger.fan',
-  'LAN_party_lisa',
+  'scene_queen_xX',
   'MSN_Marcus',
-  'bubble.tea.99',
-  '[[ neon_kid ]]',
+  '~*StArBuCkS_L0v3r*~',
+  'AeroGlass_Kid',
   'DriveByDownload',
   'sysfan_spins',
-  'lo-fi_lauren',
+  'ParamoreFan_05',
   'ctrl_alt_defeat',
-  'WinAmpWizard',
+  'WMP_visualizer',
   'pixel_pusher',
-  'modem_mika',
-  'gLiTtEr_gRrL',
-  'defrag_daddy',
+  'Halo3_Sniper',
+  'xX_DaRk_AnGeL_Xx',
+  'gadget_geek_09',
   'ScreenSaverSam',
   'burnt_toast_04',
 ];
 
-const SUFFIXES = ['', '_', '99', 'xX', '_2k5', '.tr', '01'];
+const SUFFIXES = ['', '_', '99', 'xX', '_2007', '.tr', '09'];
 
-const AVATARS = ['🙂', '😎', '👾', '🐧', '🦊', '🐼', '🌸', '⭐', '🎧', '💾', '📀', '🛸', '🐉', '☕'];
+const AVATARS = ['🙂', '😎', '👾', '🎮', '🛹', '🎸', '🌸', '🖤', '🎧', '💾', '💿', '🦋', '🐬', '🧊'];
 
 /** Ordinary flavour statuses — no mechanical effect (see STATUS_BONUSES). */
 const AMBIENT_STATUSES = [
-  'brb, mum needs the phone',
-  'is defragging C:',
+  'listening to: Linkin Park - Numb',
+  'rawr means i love you in dinosaur XD',
   'changed their display picture',
-  'is away — dinner',
-  'is watching a 240p music video',
-  'is downloading something totally legal',
-  'has 3 windows open and no idea why',
-  'is waiting for a 4 MB file',
+  'don\'t message me, i\'m mad.',
+  'downloading 1 song off limewire, 5 hours left...',
+  'is customising their MySpace layout',
+  'stuck on Windows Vista updates...',
+  'playing Halo 3 custom games',
   'nudge me if you need anything',
-  'is reading the CD booklet',
-  'left the modem on all night',
-  'is customising their profile again',
+  'does anyone have the cheat codes for GTA?',
+  '~*~ LiFe iS PaIn ~*~',
+  '(brb) changing my aero glass color',
 ];
 
 /** Cheap deterministic hash — same index always yields the same buddy. */
