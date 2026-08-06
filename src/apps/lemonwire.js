@@ -22,6 +22,27 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 const sizeText = (gb) => (gb < 1 ? `${Math.round(gb * 1024)} MB` : `${gb} GB`);
 
+/** The list's type column. `kind` comes from src/data/files.js. */
+const KIND_GLYPH = {
+  audio: '♪',
+  video: '▶',
+  image: '▣',
+  archive: '🗜',
+  disc: '💿',
+  program: '⚙',
+};
+
+/**
+ * Decorative chrome (AO-21 revision): the category tabs and the search box are
+ * period dressing, not controls. They are marked aria-hidden and are not
+ * focusable — a screen reader announcing four tabs that do nothing is worse
+ * than not announcing them, and the real navigation is the list below.
+ */
+const CATEGORY_TABS = ['Audio', 'Video', 'Images', 'Documents', 'Programs'];
+
+/** Fake swarm sizes for the sidebar. Flavour only — nothing reads these. */
+const CATEGORY_COUNTS = ['12,481', '3,912', '981', '402', '66'];
+
 /** Demand as words, so the reason a file pays well is legible before clicking. */
 function demandLabel(demand) {
   if (demand >= 1.6) return 'rare';
@@ -33,43 +54,72 @@ function demandLabel(demand) {
 export function mount(body, { game }) {
   body.classList.add('app-lemonwire');
   body.innerHTML = `
-    <div class="lw__bar">
+    <div class="lw__chrome">
       <span class="lw__logo" aria-hidden="true">🍋</span>
-      <span class="lw__status" data-role="status">Connecting…</span>
-      <span class="lw__uprate" data-role="uprate"></span>
-    </div>
-
-    <div class="lw__disk">
-      <div class="lw__disk-label">
-        <span>Disk</span><span data-role="disk-text">0 / 0 GB</span>
+      <span class="lw__wordmark">LemonWire<small>PRO 4.9</small></span>
+      <div class="lw__search" aria-hidden="true">
+        <span class="lw__search-field">frutiger aero mix</span>
+        <span class="lw__search-go">Search</span>
       </div>
-      <div class="meter__track"><div class="meter__fill" data-role="disk-bar"></div></div>
-      <div class="lw__disk-trash" data-role="disk-trash" hidden></div>
     </div>
 
-    <div class="lw__quarantine" data-role="infected" hidden>
-      <strong>⚠ Infected — sharing suspended</strong>
-      <span>Run a Shield99 scan to clean the machine. Production is halved until you do.</span>
+    <div class="lw__tabs" aria-hidden="true">
+      ${CATEGORY_TABS.map(
+        (label, i) => `<span class="lw__tab${i === 0 ? ' is-active' : ''}">${label}</span>`,
+      ).join('')}
     </div>
 
-    <h4 class="lw__heading">Seeding <small data-role="slot-count"></small></h4>
-    <ul class="lw__seeds" data-role="seeds"></ul>
+    <aside class="lw__side">
+      <h5 class="lw__side-heading" aria-hidden="true">Filters</h5>
+      <ul class="lw__filters" aria-hidden="true">
+        ${CATEGORY_TABS.map(
+          (label, i) =>
+            `<li><span>${label}</span><span class="lw__filter-count">${CATEGORY_COUNTS[i]}</span></li>`,
+        ).join('')}
+      </ul>
 
-    <div class="lw__connection">
-      <div class="lw__connection-text">
+      <h5 class="lw__side-heading">Connection</h5>
+      <div class="lw__connection">
         <strong data-role="conn-label"></strong>
         <span data-role="conn-note"></span>
+        <button type="button" class="lw__upgrade" data-role="conn-buy"></button>
       </div>
-      <button type="button" class="lw__upgrade" data-role="conn-buy"></button>
+
+      <h5 class="lw__side-heading">Disk</h5>
+      <div class="lw__disk">
+        <div class="lw__disk-label">
+          <span>Used</span><span data-role="disk-text">0 / 0 GB</span>
+        </div>
+        <div class="lw__pbar"><div class="meter__fill" data-role="disk-bar"></div></div>
+        <div class="lw__disk-trash" data-role="disk-trash" hidden></div>
+      </div>
+    </aside>
+
+    <div class="lw__main">
+      <div class="lw__bar">
+        <span class="lw__status" data-role="status">Connecting…</span>
+        <span class="lw__uprate" data-role="uprate"></span>
+      </div>
+
+      <div class="lw__quarantine" data-role="infected" hidden>
+        <strong>⚠ Infected — sharing suspended</strong>
+        <span>Run a Shield99 scan to clean the machine. Production is halved until you do.</span>
+      </div>
+
+      <h4 class="lw__heading">Seeding <small data-role="slot-count"></small></h4>
+      <ul class="lw__seeds" data-role="seeds"></ul>
+
+      <h4 class="lw__heading">Shared files</h4>
+      <div class="lw__columns" aria-hidden="true">
+        <span></span><span>Name</span><span>Size</span><span>Swarm</span><span>Buzz/s</span>
+      </div>
+      <ul class="lw__results" data-role="results"></ul>
+
+      <h4 class="lw__heading" data-role="trash-heading" hidden>
+        Recycle Bin <small data-role="trash-count"></small>
+      </h4>
+      <ul class="lw__library" data-role="trash" hidden></ul>
     </div>
-
-    <h4 class="lw__heading">Shared files</h4>
-    <ul class="lw__results" data-role="results"></ul>
-
-    <h4 class="lw__heading" data-role="trash-heading" hidden>
-      Recycle Bin <small data-role="trash-count"></small>
-    </h4>
-    <ul class="lw__library" data-role="trash" hidden></ul>
   `;
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
@@ -114,14 +164,17 @@ export function mount(body, { game }) {
         },
       },
       [
-        el('span', { class: 'lw__file-name', text: file.name }),
+        el('span', { class: 'lw__result-row' }, [
+          el('span', { class: 'lw__kind', 'aria-hidden': 'true', text: KIND_GLYPH[file.kind] ?? '▤' }),
+          el('span', { class: 'lw__file-name', text: file.name }),
+          el('span', { class: 'lw__file-size', text: sizeText(file.sizeGB) }),
+          el('span', { class: 'lw__file-swarm', text: String(file.seeders) }),
+          el('span', { class: 'lw__result-rate', dataset: { role: `rate-${file.id}` } }),
+        ]),
         el('span', { class: 'lw__file-meta' }, [
-          el('span', { text: sizeText(file.sizeGB) }),
-          el('span', { text: `${file.seeders} seeders` }),
           el('span', { class: `lw__demand is-${demand}`, text: demand }),
           el('span', { class: `lw__risk is-${risk}`, text: `${risk} risk` }),
         ]),
-        el('span', { class: 'lw__result-rate', dataset: { role: `rate-${file.id}` } }),
       ],
     );
     resultsRoot.appendChild(el('li', {}, button));
@@ -162,7 +215,7 @@ export function mount(body, { game }) {
             ]),
             // A seed has no end state, so the bar shows share of income rather
             // than progress: which slot is actually carrying the app.
-            el('div', { class: 'meter__track' }, el('div', { class: 'meter__fill' })),
+            el('div', { class: 'lw__pbar' }, el('div', { class: 'meter__fill' })),
             el('div', { class: 'lw__seed-meta' }, [
               el('span', { class: 'is-rate', dataset: { role: `seed-rate-${seed.id}` } }),
               el('span', { dataset: { role: `seed-up-${seed.id}` } }),

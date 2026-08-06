@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99 } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
@@ -11,6 +11,7 @@ import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as lw from './lemonwire.js';
 import * as shield from './shield99.js';
+import * as sweeper from './sweeper.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
@@ -131,6 +132,13 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         body: `"${render.projectName}" is ready — collect your reward!`,
         tone: 'success',
       });
+      save();
+    }
+
+    // AeroSweeper tokens refill whether or not the tab was open — wall clock.
+    const tokens = sweeper.updateTokens(state, now);
+    if (tokens > 0) {
+      bus.emit(EVENTS.SWEEPER_TOKEN, { granted: tokens, tokens: state.sweeper.tokens, bought: false });
       save();
     }
 
@@ -288,9 +296,9 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         reason === 'burnt-out'
           ? playlist.durationSeconds
           : Math.min(
-              playlist.durationSeconds,
-              Math.max(0, (now - state.retroamp.startedAt) / 1000),
-            );
+            playlist.durationSeconds,
+            Math.max(0, (now - state.retroamp.startedAt) / 1000),
+          );
       const owed = playlist.cooldownSeconds * (used / playlist.durationSeconds);
       if (owed > 0) state.retroamp.cooldownUntil[id] = now + owed * 1000;
     }
@@ -383,6 +391,89 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     bus.emit(EVENTS.QUARANTINE_CLAIMED, { threat, reward, viaAd });
     save();
     return { ok: true, threat, reward };
+  }
+
+  /* ----------------------------------------------------------- AeroSweeper */
+
+  /**
+   * Deal a fresh board (Day 7). One token, one round.
+   *
+   * The round object is *returned*, not stored: it lasts a minute and means
+   * nothing once banked, so the app module holds it. It carries the injected
+   * `rng` with it, because the mine layout is not decided until the first click
+   * and no mechanic in this codebase reaches for `Math.random` itself.
+   */
+  function startSweeperRound() {
+    const check = sweeper.canPlay(state);
+    if (!check.ok) return check;
+
+    const now = Date.now();
+    sweeper.spendToken(state, now);
+    bus.emit(EVENTS.SWEEPER_STARTED, { tokensLeft: state.sweeper.tokens });
+    save();
+    return { ok: true, round: sweeper.createRound(SWEEPER, rng), tokensLeft: state.sweeper.tokens };
+  }
+
+  /** Skip the queue with Buzz. The board is pacing, not a paywall. */
+  function buySweeperToken() {
+    const now = Date.now();
+    const check = econ.canBuySweeperToken(state, now);
+    if (!check.ok) return check;
+
+    const cost = econ.sweeperTokenCost(state, now);
+    state.buzz -= cost;
+    sweeper.addToken(state, 1);
+    bus.emit(EVENTS.SWEEPER_TOKEN, { granted: 1, tokens: state.sweeper.tokens, bought: true, cost });
+    save();
+    return { ok: true, cost, tokens: state.sweeper.tokens };
+  }
+
+  /**
+   * Bank the round — by cashing out, by clearing the board, or by standing on a
+   * mine. Everything it was worth is settled here: a click buff sized by the
+   * squares survived, which is what turns the Nudge button red and sends the
+   * player back to it, plus a Buzz payout so a spent token always buys
+   * something.
+   *
+   * A mine halves the buff rather than taking it. The whole round is an
+   * argument for one more square, and a penalty that erases the session just
+   * teaches the player to stop after the first click.
+   */
+  function endSweeperRound(tiles, { hitMine = false, cleared = false } = {}) {
+    const now = Date.now();
+    const combo = sweeper.comboFor(Math.max(0, Math.floor(tiles)), { hitMine, cleared });
+
+    state.sweeper.rounds += 1;
+    state.sweeper.bestTiles = Math.max(state.sweeper.bestTiles, combo.tiles);
+    if (cleared) state.sweeper.sweeps += 1;
+
+    const survived = hitMine ? SWEEPER.mineFraction : 1;
+    const buzz = econ.buzzPerSecond(state, now) * SWEEPER.buzzSecondsPerTile * combo.tiles * survived;
+    if (buzz > 0) grantBuzz(buzz, 'aerosweeper');
+
+    if (combo.magnitude > 0) {
+      addBuff(
+        state,
+        {
+          id: SWEEPER.comboBuffId,
+          kind: 'click',
+          magnitude: combo.magnitude,
+          durationSeconds: combo.durationSeconds,
+          label: 'Sweeper combo',
+          source: 'aerosweeper',
+        },
+        now,
+      );
+    }
+
+    bus.emit(EVENTS.SWEEPER_ENDED, {
+      tiles: combo.tiles,
+      combo,
+      buzz,
+      best: state.sweeper.bestTiles,
+    });
+    save();
+    return { ok: true, combo, buzz };
   }
 
   /* -------------------------------------------------------------- AeroBurn */
@@ -612,6 +703,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     startScan,
     startBurn,
     playDisc,
+    startSweeperRound,
+    buySweeperToken,
+    endSweeperRound,
+    sweeperTokenSeconds: (now = Date.now()) => sweeper.secondsToNextToken(state, now),
     skipOnboarding,
     setSettings,
     currentTutorialStep: () => currentStep(state),

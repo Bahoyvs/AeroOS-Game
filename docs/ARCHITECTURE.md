@@ -14,6 +14,7 @@ index.html
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
     │   ├── lemonwire.js      seed slots, the connection, the Recycle Bin
+    │   ├── sweeper.js        the minefield, plus tokens and the combo
     │   ├── shield99.js       threat spawns, quarantine loot, virus safety net, scans
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
@@ -45,6 +46,7 @@ index.html
     │   ├── lemonwire.js      seed slots, disk usage, the connection shop
     │   ├── shield99.js       antivirus window, quarantine, the taskbar tray icon
     │   ├── aeroburn.js       disc burner and shelf
+    │   ├── aerosweeper.js    the minefield, and the nerve it takes to sweep it
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile
@@ -205,6 +207,36 @@ Two integration details worth knowing:
 - The PDA breakpoint lives in two places that must agree: `mobileQuery` in
   `windowManager.js` and the `max-width: 820px` block in `styles/mobile.css`.
 
+## Chrome without borders
+
+Depth in this shell comes from light, not outlines: `--emboss` (a lit top edge
+and a shaded bottom one) for raised surfaces, `--emboss-well` for recessed ones.
+A 1px border on a translucent panel stacks against every neighbour's, which is
+how a taskbar full of buttons turns into a grid of hard lines.
+
+`.glass` lives in `tokens.css` rather than `index.css` for a cascade reason
+worth knowing: `@import` rules are placed *before* everything else in a
+stylesheet, so a utility class authored in `index.css` outranked every component
+that tried to override it at equal specificity. The taskbar's blue gradient, its
+square corners and the coach's cyan rule were all written and none of them
+rendered.
+
+## The Nudge dock
+
+On a phone the gadget is pinned to the top of the screen, which is the worst
+possible home for the button a clicker is built around. Under the PDA
+breakpoint the Nudge button leaves the gadget's grid and docks above the
+taskbar, and the window stack, the balloons and the coach all reserve
+`--nudge-dock-height` so nothing lands under it.
+
+Two things that look like details and are not: the button is centred with
+`left`/`right` insets rather than `translateX(-50%)`, because `nudge-shake`
+animates `transform` and would throw a centred button half its width sideways on
+every tap; and the gadget drops its `backdrop-filter` in PDA mode, because a
+filtered element becomes the containing block for `position: fixed` descendants
+— with it on, the dock pinned itself to the bottom of the *gadget*, off the top
+of the screen.
+
 ## Motion
 
 Nothing in the stylesheet reads `prefers-reduced-motion` directly. `ui/motion.js` resolves
@@ -231,6 +263,39 @@ its caller updates on.** The gadget re-runs `setBar` every 100 ms; a 200 ms tran
 it is cancelled and restarted forever, never once reaching its target, which reads as a bar
 that lags and stutters rather than one that moves. If you change a throttle, change the
 matching transition.
+
+## The one app you can lose
+
+AeroSweeper is the only window with a *stake*. Every other app in the OS is a
+place to spend and wait; this one asks the player to decide when to stop, and
+gets its tension from the fact that they can be wrong.
+
+Four consequences the code depends on:
+
+- **The board is not in `game.state`.** A round lasts a minute and means nothing
+  once it is banked. `game.startSweeperRound()` spends the token and *returns* a
+  round; the app module holds it, and what gets written back is one number,
+  through `game.endSweeperRound(tiles, { hitMine, cleared })`.
+- **The round carries the injected `rng`.** The mine layout is not decided until
+  the first click — that is what makes the opening move safe — so the round
+  needs randomness after `createGame()` has handed it out. It gets the game's
+  `rng`, not `Math.random`, like every other mechanic here.
+- **Closing the window cashes out.** The token is already spent, and losing a
+  swept board to a mis-tapped close button is the kind of thing that stops
+  someone opening the app at all. The cleanup function banks the round.
+- **The reward is an existing system.** The combo is an ordinary `click` buff,
+  so it expires on the wall clock, shows up in the buff list, and is already
+  inside `clickPower()`. The only bespoke part is that the Nudge button goes red
+  while it runs — `econ.sweeperCombo()` exists so the gadget can ask.
+
+The penalty is deliberately soft: a mine **halves** the banked multiplier rather
+than taking it. The entire round is an argument for opening one more square, and
+a penalty that erases the session teaches the player to stop after the first
+click instead — which is the one outcome that makes the app pointless.
+
+Apps also receive `audio` in their mount context for exactly this app: a flood
+fill turns over thirty squares in one click, which is far too fast and too
+transient to route through the event bus.
 
 ## Adding an app
 

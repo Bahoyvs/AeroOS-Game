@@ -1,6 +1,7 @@
 import { getApp } from '../data/apps.js';
 import * as aeroburn from './aeroburn.js';
 import * as aerochat from './aerochat.js';
+import * as aerosweeper from './aerosweeper.js';
 import * as lemonwire from './lemonwire.js';
 import * as placeholder from './placeholder.js';
 import * as retroamp from './retroamp.js';
@@ -23,7 +24,7 @@ const IMPLEMENTATIONS = {
   shield99,
   aeroburn,
   aerostudio,
-  // Day 7: pinball
+  aerosweeper,
 };
 
 export function mountApp(id, body, ctx) {

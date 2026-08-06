@@ -193,6 +193,11 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
       tone({ freq: 880, type: 'square', decay: 0.07, peak: 0.16 });
       setTimeout(() => ctx && tone({ freq: 1320, type: 'square', decay: 0.16, peak: 0.16 }), 60);
     },
+    // Squares turning over: a soft wooden knock, not another mouse click.
+    tile: () => {
+      tone({ freq: 880, type: 'triangle', decay: 0.05, peak: 0.12, slideTo: 1180 });
+      noise({ duration: 0.02, peak: 0.12, frequency: 2000, q: 1.2 });
+    },
   };
 
   function play(name) {
