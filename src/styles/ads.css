@@ -18,6 +18,11 @@
  * cost them thirty seconds. The play glyph is part of the contract too: the
  * guide asks for a video icon next to the reward so nobody is surprised by
  * what opens.
+ *
+ * The *shape* of it is the Nudge button's, not a flat swatch: the era's gloss
+ * is a two-tone gradient with a hard stop just under halfway, a lit top edge
+ * and a shaded bottom one. Same idiom as `.sys__format.is-ready` and
+ * `.sh__extract`, in the one hue this shell reserves for a sponsor.
  */
 .ad-button {
   display: inline-flex;
@@ -29,32 +34,68 @@
   font-family: inherit;
   font-size: 0.78rem;
   font-weight: 700;
-  color: #3a2400;
+  color: #4a3000;
   cursor: pointer;
-  background: linear-gradient(180deg, #ffd77a, #f5a623);
+  background: linear-gradient(180deg, #fff7e6 0%, #ffe3ac 45%, #f6bd5c 46%, #ffdfa6 100%);
   border: none;
   border-radius: var(--radius-sm);
-  box-shadow: var(--emboss-soft), 0 2px 6px rgb(60 34 0 / 28%);
-  text-shadow: 0 1px 0 rgb(255 255 255 / 45%);
-  transition: filter 140ms var(--ease-aero), transform 140ms var(--ease-aero);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    inset 0 -2px 3px rgb(96 58 4 / 20%),
+    0 2px 6px rgb(3 30 60 / 28%);
+  text-shadow: 0 1px 0 rgb(255 255 255 / 60%);
+  transition: background 160ms var(--ease-aero), box-shadow 160ms var(--ease-aero);
 }
 
+/* Aero hover is a wash of light, not a colour change. */
 .ad-button:hover:not(:disabled) {
-  filter: brightness(1.07);
+  background: linear-gradient(180deg, #fffdf6 0%, #ffeec9 45%, #ffca74 46%, #ffe9c0 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 95%),
+    inset 0 -2px 3px rgb(96 58 4 / 18%),
+    0 0 10px rgb(255 198 92 / 45%),
+    0 2px 6px rgb(3 30 60 / 28%);
 }
 
+/* Pressed: the light goes out of the top edge and the surface sinks. */
 .ad-button:active:not(:disabled) {
-  transform: translateY(1px);
+  background: linear-gradient(180deg, #f7d79a 0%, #f3c98a 45%, #e2a94a 46%, #f6d9a4 100%);
+  box-shadow:
+    inset 0 2px 3px rgb(96 58 4 / 30%),
+    inset 0 -1px 0 rgb(255 255 255 / 45%);
 }
 
-/* Cooling down. Still a button, still legible, plainly not ready — a control
-   that vanishes for fifteen minutes reads as a bug the player cannot report. */
+/**
+ * Cooling down. Still a button, still legible, plainly not ready — a control
+ * that vanishes for fifteen minutes reads as a bug the player cannot report.
+ * The gloss goes with it: a recessed, colourless well is what this shell uses
+ * everywhere else for "not now".
+ */
 .ad-button:disabled {
-  color: rgb(58 36 0 / 60%);
+  color: rgb(58 40 8 / 62%);
   cursor: default;
-  background: linear-gradient(180deg, #d9cdb4, #b7a98c);
+  background: linear-gradient(180deg, #f0e8d8 0%, #ded4c0 45%, #cabfa8 46%, #e4dbc9 100%);
   box-shadow: var(--emboss-well-light);
-  filter: none;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 45%);
+}
+
+/**
+ * In a window body the neighbours are 7.css buttons, which all carry a 1px
+ * rim; a borderless one floats. On the gadget and the taskbar the opposite is
+ * true — see the note on `--emboss` in ARCHITECTURE.md — so the rim is added
+ * per host rather than baked into `.ad-button`.
+ */
+.sh__extract.ad-button,
+.aero-btn.ad-button,
+.sw__ad-token,
+.confirm__boost,
+.welcome__double {
+  border: 1px solid #d8a53c;
+  /* ...and no cast shadow either: 7.css buttons sit flat on the window body,
+     so a floating one would read as a different kind of surface. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    inset 0 -2px 3px rgb(96 58 4 / 18%);
 }
 
 .ad-button__icon {
@@ -151,6 +192,13 @@
   }
 }
 
+/**
+ * Deep-blue chrome rather than the white `.glass` utility: this card carries
+ * white text over whatever the desktop happens to be showing, and the pale
+ * panel left it washed out against a bright wallpaper. The taskbar and the PDA
+ * gadget solve the same problem the same way — a dark translucent gradient,
+ * `--emboss` for the lit top edge, and the blur behind it.
+ */
 .ad-countdown__card {
   display: grid;
   gap: 6px;
@@ -159,8 +207,11 @@
   padding: 18px 20px;
   color: var(--text-invert);
   text-align: center;
+  background: linear-gradient(180deg, rgb(16 76 130 / 88%), rgb(6 38 72 / 92%));
   border-radius: var(--radius-lg);
   box-shadow: var(--emboss), 0 12px 34px rgb(2 16 30 / 45%);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
 }
 

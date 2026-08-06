@@ -164,7 +164,7 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
     return new Promise((resolve) => {
       const value = el('strong', { class: 'ad-countdown__count', text: String(seconds) });
       const shade = el('div', { class: 'ad-countdown', role: 'status', 'aria-live': 'polite' }, [
-        el('div', { class: 'ad-countdown__card glass' }, [
+        el('div', { class: 'ad-countdown__card' }, [
           el('span', { class: 'ad-countdown__icon', 'aria-hidden': 'true', text: '📺' }),
           el('p', { class: 'ad-countdown__lede' }, [document.createTextNode('Ad break in '), value]),
           el('small', {
