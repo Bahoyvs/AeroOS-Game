@@ -1995,3 +1995,216 @@
     align-items: flex-start;
   }
 }
+
+/* ==================================================================
+   REWARD COLLECTION OVERLAY
+   ================================================================== */
+
+/* The overlay covers the whole app body, sits above everything. */
+.aero-reward-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 8, 20, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border-radius: var(--radius-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.aero-reward-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The card inside the overlay */
+.aero-reward-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 36px;
+  background: linear-gradient(135deg,
+    rgba(0, 255, 213, 0.12) 0%,
+    rgba(0, 200, 160, 0.08) 50%,
+    rgba(255, 215, 0, 0.10) 100%);
+  border: 1px solid rgba(0, 255, 213, 0.35);
+  border-radius: 16px;
+  box-shadow:
+    0 0 40px rgba(0, 255, 213, 0.2),
+    0 0 80px rgba(255, 215, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  animation: aero-reward-appear 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  text-align: center;
+}
+
+@keyframes aero-reward-appear {
+  0% { transform: scale(0.8) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.aero-reward-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #00ffd5;
+  text-shadow: 0 0 12px rgba(0, 255, 213, 0.5);
+  letter-spacing: 0.04em;
+}
+
+.aero-reward-project {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+}
+
+.aero-reward-amount {
+  font-size: 1.5rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffd700, #ffaa00, #ffd700);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+  animation: aero-amount-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes aero-amount-glow {
+  0% { filter: drop-shadow(0 0 6px rgba(255, 215, 0, 0.3)); }
+  100% { filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.7)); }
+}
+
+/* The Collect Reward button — big, inviting, pulsing */
+.aero-reward-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 28px;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: #003322;
+  cursor: pointer;
+  background: linear-gradient(180deg, #00ffd5 0%, #00cc99 50%, #00aa77 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 4px 16px rgba(0, 255, 213, 0.4),
+    0 0 30px rgba(0, 255, 213, 0.15);
+  animation: aero-btn-pulse 1.8s ease-in-out infinite;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.aero-reward-btn:hover {
+  transform: scale(1.05);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 6px 24px rgba(0, 255, 213, 0.5),
+    0 0 40px rgba(0, 255, 213, 0.25);
+}
+
+.aero-reward-btn:active {
+  transform: scale(0.97);
+}
+
+.aero-reward-btn-icon {
+  font-size: 1.1rem;
+  animation: aero-bounce-icon 1s ease-in-out infinite;
+}
+
+@keyframes aero-btn-pulse {
+  0%, 100% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 16px rgba(0,255,213,0.4), 0 0 30px rgba(0,255,213,0.15); }
+  50% { box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 4px 24px rgba(0,255,213,0.6), 0 0 50px rgba(0,255,213,0.3); }
+}
+
+@keyframes aero-bounce-icon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
+/* Preview in reward-ready state: golden/green glow instead of cyan */
+.aero-preview.is-complete {
+  border-color: #00cc88;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,1), 0 0 20px rgba(0, 255, 180, 0.3);
+}
+
+.aero-preview.is-complete .aero-render-text {
+  color: #00ffd5;
+  text-shadow: 0 0 12px rgba(0, 255, 213, 0.6);
+  animation: aero-pulse-text 2.5s infinite alternate ease-in-out;
+}
+
+.aero-preview.is-complete .aero-timecode {
+  color: #00ffd5;
+  opacity: 0.8;
+}
+
+/* Reward-ready body glow — golden accent mixed with aqua */
+.app-aerostudio.is-reward-ready {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.6),
+    0 0 24px rgba(0, 255, 180, 0.3),
+    0 0 48px rgba(255, 215, 0, 0.1);
+}
+
+/* Progress bar turns gold when reward is ready */
+.app-aerostudio.is-reward-ready .aero-progress-fill {
+  background: linear-gradient(180deg, #ffd700 0%, #cc9900 100%) !important;
+}
+
+/* Sparkle container */
+.aero-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* Collecting animation: the overlay fades up and out */
+.app-aerostudio.is-collecting .aero-reward-overlay {
+  animation: aero-collect-out 0.6s ease-out forwards;
+}
+
+.app-aerostudio.is-collecting .aero-reward-card {
+  animation: aero-card-fly 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes aero-collect-out {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes aero-card-fly {
+  0% { transform: scale(1) translateY(0); opacity: 1; }
+  100% { transform: scale(1.15) translateY(-30px); opacity: 0; }
+}
+
+/* ETA text golden in reward state */
+.app-aerostudio.is-reward-ready .aero-eta {
+  color: #ffc800;
+  text-shadow: 0 0 4px rgba(255, 200, 0, 0.3);
+}
+
+/* Make app-aerostudio position relative so the overlay can be absolute */
+.app-aerostudio {
+  position: relative;
+}
+
+/* Mobile adjustments for the reward overlay */
+@media (max-width: 600px) {
+  .aero-reward-card {
+    padding: 20px 24px;
+  }
+  .aero-reward-amount {
+    font-size: 1.2rem;
+  }
+  .aero-reward-btn {
+    padding: 8px 20px;
+    font-size: 0.85rem;
+  }
+}

@@ -5,6 +5,11 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 /**
  * Aero Studio (Day 7) — Mega-project render center.
+ *
+ * UI states:
+ *  1. Idle          — "Ready" / "NO VIDEO" / Start active
+ *  2. Rendering     — "RENDERING..." / progress bar / Cancel active
+ *  3. Reward Ready  — "RENDER COMPLETE" / Collect button / glow
  */
 export function mount(body, { game }) {
   body.classList.add('app-aerostudio');
@@ -25,6 +30,20 @@ export function mount(body, { game }) {
       </div>
       <div class="aero-render-text" data-role="render-text">NO VIDEO</div>
       <div class="aero-timecode" data-role="timecode">00:00:00:00</div>
+    </div>
+
+    <!-- Reward collection overlay — hidden until render completes -->
+    <div class="aero-reward-overlay" data-role="reward-overlay">
+      <div class="aero-reward-card">
+        <div class="aero-reward-title">🎬 Render Complete!</div>
+        <div class="aero-reward-project" data-role="reward-project"></div>
+        <div class="aero-reward-amount" data-role="reward-amount"></div>
+        <button type="button" class="aero-reward-btn" data-role="collect-btn">
+          <span class="aero-reward-btn-icon">⬇</span>
+          Collect Reward
+        </button>
+      </div>
+      <div class="aero-sparkles" data-role="sparkles"></div>
     </div>
 
     <h4 class="aero-heading">Timeline / Track Upgrades</h4>
@@ -86,7 +105,11 @@ export function mount(body, { game }) {
   ref('start-btn').onclick = () => {
     const result = game.startRender("Argent Metal OST");
     if (!result.ok) {
-      game.notify('Error', 'Already rendering.', 'warn');
+      if (result.reason === 'pending-reward') {
+        game.notify('Collect first', 'Claim your reward before starting a new render.', 'warn');
+      } else {
+        game.notify('Error', 'Already rendering.', 'warn');
+      }
     }
     update();
   };
@@ -96,11 +119,27 @@ export function mount(body, { game }) {
     update();
   };
 
+  ref('collect-btn').onclick = () => {
+    const result = game.claimRenderReward();
+    if (result.ok) {
+      // Brief sparkle burst on the overlay before it vanishes.
+      body.classList.add('is-collecting');
+      setTimeout(() => {
+        body.classList.remove('is-collecting');
+        update();
+      }, 600);
+    }
+    update();
+  };
+
   /* --------------------------------------------------------------- update */
 
   const update = throttle(() => {
     const s = game.state;
-    const { isRendering, progress, upgrades } = s.aerostudio;
+    const { isRendering, progress, upgrades, pendingReward } = s.aerostudio;
+
+    // Determine UI phase
+    const hasReward = !!pendingReward;
 
     for (const [id, button] of trackRows) {
       const level = upgrades[id];
@@ -115,20 +154,54 @@ export function mount(body, { game }) {
       button.disabled = s.buzz < cost;
     }
 
-    ref('start-btn').disabled = isRendering;
+    ref('start-btn').disabled = isRendering || hasReward;
     ref('cancel-btn').disabled = !isRendering;
 
-    const statusStr = isRendering ? 'Rendering...' : 'Ready';
-    if (ref('status').textContent !== statusStr) ref('status').textContent = statusStr;
-
-    const renderTextStr = isRendering ? 'RENDERING...' : 'NO VIDEO';
-    if (ref('render-text').textContent !== renderTextStr) ref('render-text').textContent = renderTextStr;
-    
-    // Preview animation class
-    if (ref('preview').classList.contains('is-active') !== isRendering) {
-      ref('preview').classList.toggle('is-active', isRendering);
-      body.classList.toggle('is-rendering', isRendering);
+    // Status text
+    let statusStr, detailStr;
+    if (hasReward) {
+      statusStr = 'Complete!';
+      detailStr = `"${pendingReward.projectName}" is ready to collect.`;
+    } else if (isRendering) {
+      statusStr = 'Rendering...';
+      detailStr = `Working on ${s.aerostudio.currentProject}. Prod debuffed 20%.`;
+    } else {
+      statusStr = 'Ready';
+      detailStr = 'Select upgrades or start rendering.';
     }
+    if (ref('status').textContent !== statusStr) ref('status').textContent = statusStr;
+    if (ref('detail').textContent !== detailStr) ref('detail').textContent = detailStr;
+
+    // Render text in preview
+    let renderTextStr;
+    if (hasReward) {
+      renderTextStr = 'RENDER COMPLETE';
+    } else if (isRendering) {
+      renderTextStr = 'RENDERING...';
+    } else {
+      renderTextStr = 'NO VIDEO';
+    }
+    if (ref('render-text').textContent !== renderTextStr) ref('render-text').textContent = renderTextStr;
+
+    // Preview animation class
+    const shouldBeActive = isRendering;
+    if (ref('preview').classList.contains('is-active') !== shouldBeActive) {
+      ref('preview').classList.toggle('is-active', shouldBeActive);
+    }
+    body.classList.toggle('is-rendering', isRendering);
+
+    // Reward overlay
+    const overlayVisible = hasReward && !body.classList.contains('is-collecting');
+    ref('reward-overlay').classList.toggle('is-visible', overlayVisible);
+    body.classList.toggle('is-reward-ready', hasReward);
+
+    if (hasReward) {
+      ref('reward-project').textContent = `"${pendingReward.projectName}"`;
+      ref('reward-amount').textContent = `+${formatNumber(pendingReward.payout)} Buzz`;
+    }
+
+    // Preview reward-complete class for green glow
+    ref('preview').classList.toggle('is-complete', hasReward);
 
     if (isRendering) {
       // 2-hour movie at 24fps
@@ -139,7 +212,7 @@ export function mount(body, { game }) {
       const s = Math.floor((currentFrame / 24) % 60).toString().padStart(2, '0');
       const f = (currentFrame % 24).toString().padStart(2, '0');
       ref('timecode').textContent = `${h}:${m}:${s}:${f}`;
-    } else {
+    } else if (!hasReward) {
       ref('timecode').textContent = '00:00:00:00';
     }
 
@@ -150,15 +223,15 @@ export function mount(body, { game }) {
     if (isRendering) {
       const secondsLeft = ((1 - progress) * AEROSTUDIO.baseRenderRequired) / getSpeedMultiplier(s);
       etaText = `ETA: ${formatDuration(secondsLeft)}`;
-      ref('detail').textContent = `Working on ${s.aerostudio.currentProject}. Prod debuffed 20%.`;
-    } else {
-      ref('detail').textContent = 'Select upgrades or start rendering.';
+    } else if (hasReward) {
+      etaText = '🎉 Ready to collect!';
     }
 
     if (ref('eta').textContent !== etaText) ref('eta').textContent = etaText;
 
     // Tone stays aqua from the stylesheet, so warn/critical never trip.
-    setBar(ref('render-bar'), progress, { warn: 2, critical: 2 });
+    const barProgress = hasReward ? 1 : progress;
+    setBar(ref('render-bar'), barProgress, { warn: 2, critical: 2 });
   }, 200);
 
   update();
@@ -166,6 +239,6 @@ export function mount(body, { game }) {
   return () => {
     unsubscribe();
     clear(tracksRoot);
-    body.classList.remove('app-aerostudio');
+    body.classList.remove('app-aerostudio', 'is-rendering', 'is-reward-ready', 'is-collecting');
   };
 }

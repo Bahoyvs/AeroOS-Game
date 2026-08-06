@@ -127,6 +127,7 @@ export function createInitialState(now = Date.now()) {
       isRendering: false,
       currentProject: null,
       progress: 0,
+      pendingReward: null, // { projectName, payout } | null
       upgrades: {
         sidechainCompression: 0,
         arpeggiator: 0,
