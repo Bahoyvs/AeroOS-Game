@@ -122,7 +122,9 @@ async function boot() {
       }
       return;
     }
-    wm.open(app, (body) => mountApp(id, body, { game, wm }));
+    // Apps get the audio bus too: AeroSweeper turns over thirty squares in one
+    // click, which is far too fast and too transient for the event bus.
+    wm.open(app, (body) => mountApp(id, body, { game, wm, audio }));
   }
 
   // Closing a window must release its memory, however it was closed.
@@ -201,6 +203,7 @@ async function boot() {
     [game.events.BURN_DONE]: 'chime',
     [game.events.DISC_PLAYED]: 'coin',
     [game.events.PLAYLIST_LOADED]: 'click',
+    [game.events.SWEEPER_TOKEN]: 'chime',
   };
   for (const [event, sound] of Object.entries(SOUNDS)) {
     game.bus.on(event, () => audio.play(sound));
@@ -420,6 +423,47 @@ async function boot() {
       tone: 'success',
     });
   });
+
+  /**
+   * AeroSweeper (Day 7). The balloon is the handoff: the round is banked, the
+   * combo is running, and the thing to do with it is go and click.
+   */
+  game.bus.on(game.events.SWEEPER_ENDED, ({ tiles, combo, buzz }) => {
+    if (tiles === 0) {
+      notify({
+        title: 'Round over',
+        body: 'That board never opened. The first square is always safe — start there.',
+        tone: 'warn',
+      });
+      return;
+    }
+    notify({
+      title: combo.hitMine
+        ? `Mine at ${tiles} squares`
+        : combo.cleared
+          ? 'Board swept'
+          : `${tiles} squares banked`,
+      body: `Nudge pays ×${(1 + combo.magnitude).toFixed(1)} for ${Math.round(
+        combo.durationSeconds / 60,
+      )} minutes${buzz > 0 ? `, plus ${formatNumber(buzz)} Buzz` : ''}.${
+        combo.hitMine ? ' Half of it survived the blast.' : ''
+      }`,
+      tone: combo.hitMine ? 'warn' : 'success',
+    });
+    if (sdk && combo.cleared) sdk.game.happytime();
+  });
+
+  game.bus.on(game.events.SWEEPER_TOKEN, ({ granted, bought }) => {
+    if (bought) return; // the player just paid for it; they know
+    taskbar.flag('aerosweeper', true);
+    notify({
+      title: `${granted} sweeper ${granted === 1 ? 'token' : 'tokens'}`,
+      body: 'A fresh board is waiting. Safe squares multiply the Nudge button.',
+      tone: 'info',
+    });
+  });
+
+  game.bus.on(game.events.SWEEPER_STARTED, () => taskbar.flag('aerosweeper', false));
 
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({

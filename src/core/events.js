@@ -64,6 +64,9 @@ export const EVENTS = {
   RENDER_DONE: 'aerostudio:done', // { projectName, payout }
   RENDER_CLAIMED: 'aerostudio:claimed', // { projectName, payout }
   AERO_UPGRADE_BOUGHT: 'aerostudio:upgraded', // { upgradeId, cost }
+  SWEEPER_STARTED: 'sweeper:started', // { tokensLeft }
+  SWEEPER_ENDED: 'sweeper:ended', // { tiles, combo, buzz, best }
+  SWEEPER_TOKEN: 'sweeper:token', // { granted, tokens, bought }
   PLAYLIST_LOADED: 'retroamp:loaded', // { playlist }
   PLAYLIST_ENDED: 'retroamp:ended', // { playlist, reason }
   TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }

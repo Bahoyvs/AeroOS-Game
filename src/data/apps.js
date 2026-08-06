@@ -77,14 +77,15 @@ export const APPS = [
     blurb: 'Burn Buzz to a CD that survives Format C:.',
   },
   {
-    id: 'pinball',
-    name: 'Galactic Pinball 3D',
-    icon: 'icons/pinball.png',
+    id: 'aerosweeper',
+    name: 'AeroSweeper',
+    icon: 'icons/aerosweeper.png',
     day: 7,
-    ram: 128,
+    ram: 64,
     install: { cost: 6000, unlockAt: 5000 },
-    window: { width: 380, height: 460 },
-    blurb: 'Active mini-game for combo multipliers between idle ticks.',
+    // Square board plus the HUD above it and the one big button below.
+    window: { width: 340, height: 560 },
+    blurb: 'Push your luck. Every safe square multiplies the Nudge button.',
   },
 ];
 
@@ -110,4 +111,9 @@ export function getApp(id) {
   const app = BY_ID.get(id);
   if (!app) throw new Error(`Unknown app id: ${id}`);
   return app;
+}
+
+/** Is this id still on the roster? Old saves may name an app we have retired. */
+export function hasApp(id) {
+  return BY_ID.has(id);
 }

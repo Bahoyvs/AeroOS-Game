@@ -56,14 +56,7 @@ body.is-critical {
   filter: saturate(0.66) contrast(0.92) hue-rotate(-8deg);
 }
 
-.glass {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-}
+/* `.glass` lives in tokens.css — see the note there about cascade order. */
 
 button {
   font-family: inherit;

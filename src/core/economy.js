@@ -1,4 +1,4 @@
-import { BLOAT, CHAT_BOT, CLICK, HEAT, LEMONWIRE, OFFLINE, PRESTIGE } from '../data/balance.js';
+import { BLOAT, CHAT_BOT, CLICK, HEAT, LEMONWIRE, OFFLINE, PRESTIGE, SWEEPER } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import {
   HARDWARE,
@@ -359,6 +359,41 @@ export function clickPower(state, now = Date.now()) {
     bloatPenalty(state) *
     buffMultiplier(state, 'click', now)
   );
+}
+
+/* ------------------------------------------------------------ AeroSweeper */
+
+/**
+ * Buying a token, priced in seconds of current production so it costs the same
+ * *time* early and late. The floor stops a machine producing nothing from
+ * handing out free tokens.
+ */
+export function sweeperTokenCost(state, now = Date.now()) {
+  return Math.max(
+    SWEEPER.minTokenCost,
+    Math.ceil(buzzPerSecond(state, now) * SWEEPER.buyTokenSeconds),
+  );
+}
+
+export function canBuySweeperToken(state, now = Date.now()) {
+  if (state.sweeper.tokens >= SWEEPER.maxTokens) return { ok: false, reason: 'full' };
+  if (state.buzz < sweeperTokenCost(state, now)) return { ok: false, reason: 'too-expensive' };
+  return { ok: true };
+}
+
+/**
+ * The live combo, for the Nudge button and the AeroSweeper HUD. It is stored as
+ * an ordinary click buff, so this is a lookup rather than a second timer — and
+ * the multiplier it reports is already inside `clickPower()`.
+ */
+export function sweeperCombo(state, now = Date.now()) {
+  const buff = state.buffs.find((b) => b.id === SWEEPER.comboBuffId && b.expiresAt > now);
+  if (!buff) return { active: false, multiplier: 1, secondsLeft: 0 };
+  return {
+    active: true,
+    multiplier: 1 + buff.magnitude,
+    secondsLeft: (buff.expiresAt - now) / 1000,
+  };
 }
 
 /* ----------------------------------------------------------------- offline */
