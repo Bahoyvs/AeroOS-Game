@@ -13,8 +13,7 @@
     "check": "npm run test && npm run build"
   },
   "dependencies": {
-    "7.css": "^0.16.0",
-    "pixi.js": "^8.19.0"
+    "7.css": "^0.16.0"
   },
   "devDependencies": {
     "vite": "^8.0.0",

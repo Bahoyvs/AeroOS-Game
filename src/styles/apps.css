@@ -2317,51 +2317,53 @@
   }
 }
 
-/* --------------------------------------------------- Galactic Pinball 3D */
+
+/* ------------------------------------------------------------ AeroSweeper */
 
 /**
- * The table is a canvas, so this stylesheet only has to do two things: give
- * that canvas a box that can shrink, and keep the controls big enough to hit
- * with a thumb. Everything inside the box is drawn by src/apps/pinball.js.
+ * The board is the Aero icon set rendered as a grid: covered squares are
+ * bulging pieces of glass with the light on top, and opening one *removes* the
+ * glass — it becomes a recess in the panel with the shadow now falling inward.
+ * The whole read of the game is that contrast, so nothing else on screen is
+ * allowed to be as glossy as an unopened square.
  */
-.app-pinball {
+.app-sweeper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  height: calc(100% + 12px);
-  margin: -6px;
-  padding: 6px;
-  color: #dbe9f5;
-  background: linear-gradient(180deg, #0a1730, #050b1c);
+  gap: 7px;
 }
 
-.pin__hud {
+.app-sweeper > * {
+  flex: 0 0 auto;
+}
+
+.sw__hud {
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
 }
 
-.pin__tokens {
+.sw__tokens {
   display: grid;
   gap: 1px;
   min-width: 0;
 }
 
-.pin__token-pips {
-  font-size: 0.9rem;
+.sw__token-pips {
+  font-size: 0.85rem;
   line-height: 1;
   letter-spacing: 0.16em;
-  color: var(--aero-cyan);
+  color: var(--aero-blue);
 }
 
-.pin__token-text {
+.sw__token-text {
   font-size: 0.64rem;
-  color: #8fa8c2;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.pin__buy {
+.sw__buy {
   min-width: 0;
   min-height: 24px;
   padding: 0 10px;
@@ -2369,102 +2371,191 @@
   cursor: pointer;
 }
 
-/**
- * `min-height: 0` is what makes the canvas shrinkable: a flex item defaults to
- * min-height auto, so the stage would refuse to go below the size Pixi last
- * gave it and the window could only ever grow.
- */
-.pin__stage {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  background: #050b1c;
-  box-shadow: inset 0 0 0 1px rgb(127 228 255 / 25%), inset 0 2px 12px rgb(0 0 0 / 60%);
-  /* The table is the one surface in the OS that must not scroll or zoom under
-     a thumb: every touch on it is a flipper. */
-  touch-action: none;
-  cursor: pointer;
-}
-
-.pin__stage:focus-visible {
-  outline: 1px solid var(--aero-cyan);
-  outline-offset: -1px;
-}
-
-.pin__canvas {
-  display: block;
-}
-
-.pin__fallback {
-  position: absolute;
-  inset: 12px;
-  margin: 0;
-  font-size: 0.72rem;
-  line-height: 1.5;
-  text-align: center;
-  align-self: center;
-  color: #ffb3a3;
-}
-
-.pin__readout {
+.sw__status {
   display: flex;
   gap: 8px;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  font-size: 0.7rem;
+  padding: 3px 7px;
+  font-size: 0.72rem;
+  background: rgb(13 36 55 / 6%);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-well-light);
   font-variant-numeric: tabular-nums;
 }
 
-.pin__hits strong {
-  font-size: 1.1rem;
-  color: var(--aero-cyan);
+.sw__mines strong {
+  color: var(--error);
 }
 
-.pin__combo {
+/* The stake. It is the number the player is deciding about, so it is the
+   largest thing in the row and it changes colour when there is one. */
+.sw__multiplier {
+  font-size: 0.9rem;
   font-weight: 700;
-  color: #ffd166;
+  color: var(--text-muted);
 }
 
-/* Big on purpose: it is held down, and on a phone it is held with a thumb. */
-.pin__launch {
-  display: grid;
-  gap: 4px;
-  min-height: 44px;
-  padding: 6px 10px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+.sw__multiplier.is-live {
+  color: #2f7a2f;
+}
+
+.sw__flag-toggle {
+  min-width: 0;
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 0.66rem;
   cursor: pointer;
-  touch-action: none;
 }
 
-.pin__plunger {
-  display: block;
-  height: 6px;
-  overflow: hidden;
-  background: rgb(5 11 28 / 45%);
-  box-shadow: var(--emboss-well-light);
+.sw__flag-toggle.is-on {
+  font-weight: 700;
+  box-shadow: inset 0 0 0 2px rgb(210 75 63 / 55%);
+}
+
+/* ------------------------------------------------------------- the board */
+
+.sw__board {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 9), 1fr);
+  gap: 2px;
+  /* Square whatever the window does, so the tiles never go oblong — and capped,
+     because a board dragged to 900px wide is 900px tall and pushes its own
+     cash-out button off the bottom of the window. */
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  max-width: 340px;
+  align-self: center;
+  padding: 4px;
+  background: rgb(13 36 55 / 12%);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 2px 6px rgb(13 36 55 / 35%), 0 1px 0 rgb(255 255 255 / 70%);
 }
 
 /**
- * Scaled, not clipped — a plain bar, so the compositor can run it alone. No
- * transition at all: this one follows a finger, and anything smoothing it would
- * make the plunger feel like it is lagging behind the press.
+ * A covered square: outset glass, lit from above. `min-width: 0` and
+ * `min-height: 0` are not optional — 7.css gives every button a 75×23 floor,
+ * which on a nine-column grid would push the board wider than the window.
  */
-.pin__plunger-fill {
-  display: block;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, var(--aero-green), #d6ff8f);
-  transform: scaleX(var(--fill, 0));
-  transform-origin: left center;
+.sw__tile {
+  display: grid;
+  place-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  background: linear-gradient(160deg, #eaf5ff 0%, #b6dbfa 45%, #74b3e8 100%);
+  border: none;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 1px rgb(255 255 255 / 95%),
+    inset 0 -2px 3px rgb(20 70 110 / 30%),
+    0 1px 2px rgb(4 26 48 / 35%);
 }
 
-.pin__hint {
+/* 7.css paints its own hover gradient behind every button; ours is the tile. */
+.sw__tile::before {
+  content: none;
+}
+
+.sw__tile:hover:not(:disabled) {
+  background: linear-gradient(160deg, #ffffff 0%, #d2ebff 45%, #8ec6f2 100%);
+}
+
+.sw__tile:active {
+  box-shadow:
+    inset 0 2px 3px rgb(20 70 110 / 45%),
+    inset 0 -1px 0 rgb(255 255 255 / 60%);
+}
+
+/* Opened: the glass is gone and the light falls into the hole it left. */
+.sw__tile.is-revealed {
+  cursor: default;
+  background: rgb(255 255 255 / 22%);
+  box-shadow: inset 1px 2px 4px rgb(13 36 55 / 45%), inset -1px -1px 0 rgb(255 255 255 / 45%);
+}
+
+.sw__tile.is-flagged {
+  background: linear-gradient(160deg, #fff4f2 0%, #ffd7cf 46%, #f5aa9d 100%);
+}
+
+.sw__tile.is-mine {
+  background: rgb(210 75 63 / 22%);
+}
+
+/* The one you actually stood on. */
+.sw__tile.is-blast {
+  background: radial-gradient(circle at 50% 45%, #ffd5a3 0%, #e2593f 60%, #b0301c 100%);
+  box-shadow: inset 0 0 6px rgb(90 12 4 / 60%), 0 0 10px rgb(226 89 63 / 70%);
+}
+
+/* Minesweeper's number colours, unchanged since 1990 because they work. */
+.sw__tile.is-1 { color: #1b4ed4; }
+.sw__tile.is-2 { color: #1f7a2f; }
+.sw__tile.is-3 { color: #d24b3f; }
+.sw__tile.is-4 { color: #10246b; }
+.sw__tile.is-5 { color: #8a2418; }
+.sw__tile.is-6 { color: #12726f; }
+.sw__tile.is-7 { color: #2b2b2b; }
+.sw__tile.is-8 { color: #6b6b6b; }
+
+/* ------------------------------------------------------ result and action */
+
+.sw__banner {
   margin: 0;
-  font-size: 0.62rem;
+  padding: 5px 8px;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  border-radius: var(--radius-sm);
+}
+
+.sw__banner.is-good {
+  color: #1f5c1f;
+  background: linear-gradient(180deg, #f4fff0, #d8f6c8);
+}
+
+.sw__banner.is-bad {
+  color: #7a1f1f;
+  background: linear-gradient(180deg, #fff0ef, #ffdcd8);
+}
+
+/* Big, because it is the only decision the app asks for. */
+.sw__action {
+  min-height: 40px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+/**
+ * Cashing out is the safe move, so it is the green one — and it is a different
+ * colour from "deal a board" so that a player mid-round can find it without
+ * reading, which is the whole point of a nerve mechanic.
+ */
+.sw__action.is-cashout {
+  color: #10380f;
+  background: linear-gradient(180deg, #f6fff0 0%, #d6f5bd 45%, #9fdd77 46%, #e2f8d2 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 95%),
+    inset 0 -2px 3px rgb(20 80 20 / 25%),
+    0 2px 6px rgb(20 60 20 / 30%);
+}
+
+.sw__action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.sw__hint {
+  margin: 0;
+  font-size: 0.64rem;
   line-height: 1.4;
-  color: #7f97b0;
+  color: var(--text-muted);
 }

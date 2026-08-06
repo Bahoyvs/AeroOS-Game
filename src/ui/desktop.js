@@ -150,12 +150,12 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch }) {
     nodes.dollars.textContent = `$${s.dollars.toFixed(2)}`;
 
     /**
-     * A pinball combo is the one buff whose whole value is that the player
+     * A sweeper combo is the one buff whose whole value is that the player
      * *notices* it: it multiplies clicks, it is short, and it is wasted if they
      * are looking at another window. So the button itself goes red and counts
      * down (Day 7). Everything else about it is an ordinary click buff.
      */
-    const combo = econ.pinballCombo(s);
+    const combo = econ.sweeperCombo(s);
     nodes.nudge.classList.toggle('is-combo', combo.active);
     nodes.nudgePower.textContent = combo.active
       ? `+${formatNumber(econ.clickPower(s))} · ×${combo.multiplier.toFixed(1)} for ${Math.ceil(combo.secondsLeft)}s`

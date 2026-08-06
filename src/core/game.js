@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO, PINBALL, SHIELD99 } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
@@ -9,8 +9,8 @@ import * as burner from './aeroburn.js';
 import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as lw from './lemonwire.js';
-import * as pinball from './pinball.js';
 import * as shield from './shield99.js';
+import * as sweeper from './sweeper.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
@@ -131,10 +131,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       save();
     }
 
-    // Pinball tokens refill whether or not the tab was open — wall clock.
-    const tokens = pinball.updateTokens(state, now);
+    // AeroSweeper tokens refill whether or not the tab was open — wall clock.
+    const tokens = sweeper.updateTokens(state, now);
     if (tokens > 0) {
-      bus.emit(EVENTS.PINBALL_TOKEN, { granted: tokens, tokens: state.pinball.tokens, bought: false });
+      bus.emit(EVENTS.SWEEPER_TOKEN, { granted: tokens, tokens: state.sweeper.tokens, bought: false });
       save();
     }
 
@@ -389,69 +389,85 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, threat, reward };
   }
 
-  /* -------------------------------------------------------------- Pinball */
+  /* ----------------------------------------------------------- AeroSweeper */
 
   /**
-   * Put a ball on the table (Day 7). One token, one ball — the app module owns
-   * the physics from here and reports back once, when the ball drains.
+   * Deal a fresh board (Day 7). One token, one round.
+   *
+   * The round object is *returned*, not stored: it lasts a minute and means
+   * nothing once banked, so the app module holds it. It carries the injected
+   * `rng` with it, because the mine layout is not decided until the first click
+   * and no mechanic in this codebase reaches for `Math.random` itself.
    */
-  function launchPinball() {
-    const check = pinball.canLaunch(state);
+  function startSweeperRound() {
+    const check = sweeper.canPlay(state);
     if (!check.ok) return check;
 
     const now = Date.now();
-    pinball.spendToken(state, now);
-    bus.emit(EVENTS.PINBALL_LAUNCHED, { tokensLeft: state.pinball.tokens });
+    sweeper.spendToken(state, now);
+    bus.emit(EVENTS.SWEEPER_STARTED, { tokensLeft: state.sweeper.tokens });
     save();
-    return { ok: true, tokensLeft: state.pinball.tokens };
+    return { ok: true, round: sweeper.createRound(SWEEPER, rng), tokensLeft: state.sweeper.tokens };
   }
 
-  /** Skip the queue with Buzz. The table is pacing, not a paywall. */
-  function buyPinballToken() {
+  /** Skip the queue with Buzz. The board is pacing, not a paywall. */
+  function buySweeperToken() {
     const now = Date.now();
-    const check = econ.canBuyPinballToken(state, now);
+    const check = econ.canBuySweeperToken(state, now);
     if (!check.ok) return check;
 
-    const cost = econ.pinballTokenCost(state, now);
+    const cost = econ.sweeperTokenCost(state, now);
     state.buzz -= cost;
-    pinball.addToken(state, 1);
-    bus.emit(EVENTS.PINBALL_TOKEN, { granted: 1, tokens: state.pinball.tokens, bought: true, cost });
+    sweeper.addToken(state, 1);
+    bus.emit(EVENTS.SWEEPER_TOKEN, { granted: 1, tokens: state.sweeper.tokens, bought: true, cost });
     save();
-    return { ok: true, cost, tokens: state.pinball.tokens };
+    return { ok: true, cost, tokens: state.sweeper.tokens };
   }
 
   /**
-   * The ball drained. Everything the run was worth is settled here: a click
-   * buff sized by the bumpers it hit — which is what turns the Nudge button
-   * red and sends the player back to it — plus a Buzz consolation so a bad ball
-   * is still worth the token.
+   * Bank the round — by cashing out, by clearing the board, or by standing on a
+   * mine. Everything it was worth is settled here: a click buff sized by the
+   * squares survived, which is what turns the Nudge button red and sends the
+   * player back to it, plus a Buzz payout so a spent token always buys
+   * something.
+   *
+   * A mine halves the buff rather than taking it. The whole round is an
+   * argument for one more square, and a penalty that erases the session just
+   * teaches the player to stop after the first click.
    */
-  function endPinballRun(hits) {
+  function endSweeperRound(tiles, { hitMine = false, cleared = false } = {}) {
     const now = Date.now();
-    const combo = pinball.comboFor(Math.max(0, Math.floor(hits)));
+    const combo = sweeper.comboFor(Math.max(0, Math.floor(tiles)), { hitMine, cleared });
 
-    state.pinball.runs += 1;
-    state.pinball.bestHits = Math.max(state.pinball.bestHits, combo.hits);
+    state.sweeper.rounds += 1;
+    state.sweeper.bestTiles = Math.max(state.sweeper.bestTiles, combo.tiles);
+    if (cleared) state.sweeper.sweeps += 1;
 
-    const buzz = econ.buzzPerSecond(state, now) * PINBALL.buzzSecondsPerBumper * combo.hits;
-    if (buzz > 0) grantBuzz(buzz, 'pinball');
+    const survived = hitMine ? SWEEPER.mineFraction : 1;
+    const buzz = econ.buzzPerSecond(state, now) * SWEEPER.buzzSecondsPerTile * combo.tiles * survived;
+    if (buzz > 0) grantBuzz(buzz, 'aerosweeper');
 
     if (combo.magnitude > 0) {
       addBuff(
         state,
         {
-          id: PINBALL.comboBuffId,
+          id: SWEEPER.comboBuffId,
           kind: 'click',
           magnitude: combo.magnitude,
           durationSeconds: combo.durationSeconds,
-          label: 'Pinball combo',
-          source: 'pinball',
+          label: 'Sweeper combo',
+          source: 'aerosweeper',
         },
         now,
       );
     }
 
-    bus.emit(EVENTS.PINBALL_RUN_ENDED, { hits: combo.hits, combo, buzz, best: state.pinball.bestHits });
+    bus.emit(EVENTS.SWEEPER_ENDED, {
+      tiles: combo.tiles,
+      combo,
+      buzz,
+      best: state.sweeper.bestTiles,
+    });
     save();
     return { ok: true, combo, buzz };
   }
@@ -637,10 +653,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     startScan,
     startBurn,
     playDisc,
-    launchPinball,
-    buyPinballToken,
-    endPinballRun,
-    pinballTokenSeconds: (now = Date.now()) => pinball.secondsToNextToken(state, now),
+    startSweeperRound,
+    buySweeperToken,
+    endSweeperRound,
+    sweeperTokenSeconds: (now = Date.now()) => sweeper.secondsToNextToken(state, now),
     skipOnboarding,
     setSettings,
     currentTutorialStep: () => currentStep(state),

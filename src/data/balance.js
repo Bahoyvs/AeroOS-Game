@@ -254,44 +254,62 @@ export const AEROBURN = {
 };
 
 /**
- * Galactic Pinball 3D (Day 7) — the one *active* mechanic in an idle game.
+ * AeroSweeper (Day 7) — the one *active* mechanic in an idle game.
  *
  * Everything else in AeroOS pays for a decision and then runs itself. This pays
- * for aim: a ball kept alive off the bumpers turns into a click multiplier, and
- * the multiplier is worthless unless the player then goes and clicks. That is
- * the whole shape of it — the reward for playing well is a reason to play
- * *more*, not a lump of Buzz.
+ * for nerve. Every safe square banks a little more click multiplier, and the
+ * multiplier is worthless unless the player then goes and clicks — so the
+ * reward for playing well is a reason to play *more*, not a lump of Buzz.
+ *
+ * The decision the board actually asks is when to stop. Cash out and the combo
+ * is yours; keep going and it grows; hit a mine and half of it is gone. Half,
+ * not four fifths: the point of the round is to tempt someone into one more
+ * square, and a penalty that erases the session teaches them to stop early
+ * instead.
  *
  * Tokens are the pacing. They refill on the wall clock (a token earned
  * overnight is waiting in the morning, like offline earnings), and Buzz buys
- * one at the price of ten minutes of production — so the table is never a wall,
- * just a queue.
+ * one, so the board is never a wall — just a queue.
  */
-export const PINBALL = {
+export const SWEEPER = {
   maxTokens: 3,
-  tokensPerRefill: 3,
-  refillSeconds: 3600,
+  tokensPerRefill: 1,
+  refillSeconds: 7200, // one token every two hours
 
   // Buying a token is priced in seconds of current production, so it stays
   // meaningful at every stage. The floor covers a machine producing nothing.
-  buyTokenSeconds: 600,
-  minTokenCost: 750,
+  buyTokenSeconds: 900,
+  minTokenCost: 1000,
+
+  // The classic beginner board. 71 safe squares, so a perfect sweep is ×8.1.
+  rows: 9,
+  cols: 9,
+  mines: 10,
 
   /**
    * The combo. It rides on the existing 'click' buff kind, so the Nudge button,
    * the rate breakdown and the buff list all pick it up without a second
    * multiplier system — and it expires on the wall clock like every other buff.
    */
-  comboBuffId: 'pinball-combo',
-  comboPerBumper: 0.4,
-  maxCombo: 14, // +1400%: a great ball, not a broken one
-  comboSecondsBase: 18,
-  comboSecondsPerBumper: 1.4,
-  maxComboSeconds: 90,
+  comboBuffId: 'sweeper-combo',
+  perTile: 0.1,
+  // A rail rather than a limit: the 9×9 board tops out well under this, but a
+  // bigger board must not be able to hand out an unbounded multiplier.
+  maxCombo: 12,
+  cashOutSeconds: 180,
 
-  // The consolation prize, in seconds of current production per bumper — a
-  // terrible ball still pays something, or a wasted token is a wasted hour.
-  buzzSecondsPerBumper: 5,
+  /** What survives a mine. Forgiving on purpose — see the note above. */
+  mineFraction: 0.5,
+  /** Clearing all 71 squares is rare enough to be worth more than the sum. */
+  clearBonus: 1.5,
+
+  /**
+   * Seconds of current production per safe square, paid on cash-out. A round
+   * that ends badly still pays something, or a spent token is a wasted hour —
+   * but deliberately less than the 900 seconds a bought token costs, so the
+   * board is never a Buzz press. The multiplier is the prize.
+   */
+  buzzSecondsPerTile: 25,
 };
 
 /**

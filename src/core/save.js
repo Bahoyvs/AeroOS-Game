@@ -1,4 +1,5 @@
 import { LEMONWIRE, SAVE } from '../data/balance.js';
+import { hasApp } from '../data/apps.js';
 import { hasFile } from '../data/files.js';
 import { SAVE_VERSION, createInitialState } from './state.js';
 
@@ -169,6 +170,18 @@ export function deserialize(raw, now = Date.now()) {
   if (!parsed || typeof parsed !== 'object') return null;
 
   const state = withDefaults(migrate(parsed), createInitialState(now));
+
+  /**
+   * Drop apps the roster no longer has. `withDefaults` keeps unknown keys on
+   * purpose — that is what makes a save forward-compatible — but `state.apps`
+   * is the one place where an unknown key is a live grenade: `ramUsed()` walks
+   * it and calls `getApp(id)`, which throws for an id nobody declares any more.
+   * A retired app must cost the player a stale entry, not their save.
+   */
+  for (const id of Object.keys(state.apps)) {
+    if (!hasApp(id)) delete state.apps[id];
+  }
+
   // Windows never survive a reload as "open with no window on screen".
   for (const app of Object.values(state.apps)) app.minimized = false;
   return state;

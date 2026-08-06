@@ -87,7 +87,7 @@ runs "Format C:". All software is wiped, but Dollars are awarded for permanent h
   reduced non-ad path). Kept closed, the free trial rescue covers the first one only.
 - **AeroBurn** — burns excess Buzz onto a "CD" that survives the prestige wipe, granting
   starting boosts for the next run.
-- **Galactic Pinball 3D** — active mini-game window for generating Buzz and combo
+- **AeroSweeper** — active mini-game window for generating Buzz and combo
   multipliers while waiting on idle tasks.
 
 ## 7. Onboarding & game pacing

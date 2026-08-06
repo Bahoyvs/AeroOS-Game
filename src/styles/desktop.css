@@ -217,7 +217,7 @@
 }
 
 /**
- * A pinball combo is live (Day 7). This is the only state in the game that
+ * An AeroSweeper combo is live (Day 7). This is the only state in the game that
  * shouts: the multiplier is short, it only pays while the player is clicking,
  * and a bonus nobody notices in time is a bonus that did not happen.
  *

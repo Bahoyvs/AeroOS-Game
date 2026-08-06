@@ -11,7 +11,7 @@ import {
   serialize,
 } from '../src/core/save.js';
 import { SAVE_VERSION, createInitialState } from '../src/core/state.js';
-import { LEMONWIRE, PINBALL, SAVE } from '../src/data/balance.js';
+import { LEMONWIRE, SAVE, SWEEPER } from '../src/data/balance.js';
 
 describe('save round-trip', () => {
   it('restores currencies, hardware and bots', () => {
@@ -161,19 +161,42 @@ describe('resilience', () => {
   });
 
   /**
-   * Pinball was added without a version bump, which is only safe because
+   * AeroSweeper was added without a version bump, which is only safe because
    * `withDefaults` backfills a missing slice. A save written before Day 7 must
-   * come back with a full set of tokens rather than `undefined` — the app
-   * reads `tokens` on its first frame.
+   * come back with a full set of tokens rather than `undefined` — the app reads
+   * `tokens` on its first frame.
    */
-  it('hands a save written before Day 7 a working pinball table', () => {
+  it('hands a save written before Day 7 a working sweeper', () => {
     const loaded = deserialize(JSON.stringify({ version: SAVE_VERSION, buzz: 10 }), 0);
-    expect(loaded.pinball).toEqual({
-      tokens: PINBALL.maxTokens,
+    expect(loaded.sweeper).toEqual({
+      tokens: SWEEPER.maxTokens,
       nextTokenAt: 0,
-      bestHits: 0,
-      runs: 0,
+      bestTiles: 0,
+      rounds: 0,
+      sweeps: 0,
     });
+  });
+
+  /**
+   * A retired app is the one unknown key that cannot simply be carried: every
+   * RAM calculation walks `state.apps` and looks each id up in the roster.
+   */
+  it('drops an app the roster no longer has, and keeps the rest of the save', () => {
+    const loaded = deserialize(
+      JSON.stringify({
+        version: SAVE_VERSION,
+        buzz: 4200,
+        apps: {
+          aerochat: { installed: true, open: true, minimized: false },
+          pinball: { installed: true, open: true, minimized: false },
+        },
+      }),
+      0,
+    );
+
+    expect(loaded.apps.pinball).toBeUndefined();
+    expect(loaded.apps.aerochat.installed).toBe(true);
+    expect(loaded.buzz).toBe(4200);
   });
 
   it('stamps unknown future-less versions rather than dropping progress', () => {

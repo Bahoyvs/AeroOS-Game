@@ -1,5 +1,5 @@
 import { ALL_APPS } from '../data/apps.js';
-import { LEMONWIRE, PINBALL } from '../data/balance.js';
+import { LEMONWIRE, SWEEPER } from '../data/balance.js';
 import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
@@ -87,16 +87,17 @@ export function createInitialState(now = Date.now()) {
     },
 
     /**
-     * Galactic Pinball 3D (Day 7). Only the pacing is persisted: tokens and the
-     * clock that refills them. The ball is not state — it lasts twenty seconds
-     * and means nothing afterwards — and the combo a run pays out is an
-     * ordinary click buff, so it lives in `buffs` with everything else timed.
+     * AeroSweeper (Day 7). Only the pacing is persisted: tokens and the clock
+     * that refills them. The board is not state — it lasts a minute and means
+     * nothing once it is banked — and the combo a round pays out is an ordinary
+     * click buff, so it lives in `buffs` with everything else timed.
      */
-    pinball: {
-      tokens: PINBALL.maxTokens,
+    sweeper: {
+      tokens: SWEEPER.maxTokens,
       nextTokenAt: 0, // wall clock; 0 means "full, nothing pending"
-      bestHits: 0,
-      runs: 0,
+      bestTiles: 0,
+      rounds: 0,
+      sweeps: 0, // boards cleared outright
     },
 
     retroamp: {

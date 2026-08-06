@@ -14,7 +14,7 @@ index.html
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
     │   ├── lemonwire.js      seed slots, the connection, the Recycle Bin
-    │   ├── pinball.js        the table's physics, plus tokens and the combo
+    │   ├── sweeper.js        the minefield, plus tokens and the combo
     │   ├── shield99.js       threat spawns, quarantine loot, virus safety net, scans
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
@@ -27,7 +27,6 @@ index.html
     │   ├── buddies.js        derived buddy identities (never stored)
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
     │   ├── files.js          LemonWire's shared files (size, risk, seeders)
-    │   ├── pinball.js        the pinball table's geometry, in table units
     │   ├── cds.js            AeroBurn disc types
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
@@ -47,7 +46,7 @@ index.html
     │   ├── lemonwire.js      seed slots, disk usage, the connection shop
     │   ├── shield99.js       antivirus window, quarantine, the taskbar tray icon
     │   ├── aeroburn.js       disc burner and shelf
-    │   ├── pinball.js        the WebGL table (PixiJS, dynamically imported)
+    │   ├── aerosweeper.js    the minefield, and the nerve it takes to sweep it
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile
@@ -265,33 +264,38 @@ it is cancelled and restarted forever, never once reaching its target, which rea
 that lags and stutters rather than one that moves. If you change a throttle, change the
 matching transition.
 
-## The one app that renders itself
+## The one app you can lose
 
-Galactic Pinball 3D is the only window whose contents are not DOM. The split is
-the same as everywhere else — `core/pinball.js` is the simulation and knows
-nothing about a screen — but the presentation half draws with **WebGL (PixiJS)**
-rather than elements, for one reason: a ball is a position change sixty times a
-second with five bumpers flashing over it, and as DOM nodes that is a style
-recalculation and a paint per frame on the one screen in the game that cannot
-afford either.
+AeroSweeper is the only window with a *stake*. Every other app in the OS is a
+place to spend and wait; this one asks the player to decide when to stop, and
+gets its tension from the fact that they can be wrong.
 
-Three consequences the code depends on:
+Four consequences the code depends on:
 
-- **PixiJS is `import()`ed, not imported.** It is a ~130 kB gzip chunk that a
-  player who never installs the app never downloads, and the OS boots without
-  it. `mount()` stays synchronous and sets a `disposed` flag, because the window
-  can be closed while the GPU is still waking up — the Application is destroyed
-  immediately if it resolves into a closed window.
-- **The table is not in `game.state`.** A ball position is not progress: it
-  lasts twenty seconds and means nothing afterwards. What the run writes back is
-  one number, through `game.endPinballRun(hits)`.
+- **The board is not in `game.state`.** A round lasts a minute and means nothing
+  once it is banked. `game.startSweeperRound()` spends the token and *returns* a
+  round; the app module holds it, and what gets written back is one number,
+  through `game.endSweeperRound(tiles, { hitMine, cleared })`.
+- **The round carries the injected `rng`.** The mine layout is not decided until
+  the first click — that is what makes the opening move safe — so the round
+  needs randomness after `createGame()` has handed it out. It gets the game's
+  `rng`, not `Math.random`, like every other mechanic here.
+- **Closing the window cashes out.** The token is already spent, and losing a
+  swept board to a mis-tapped close button is the kind of thing that stops
+  someone opening the app at all. The cleanup function banks the round.
 - **The reward is an existing system.** The combo is an ordinary `click` buff,
   so it expires on the wall clock, shows up in the buff list, and is already
   inside `clickPower()`. The only bespoke part is that the Nudge button goes red
-  while it runs — `econ.pinballCombo()` exists so the gadget can ask.
+  while it runs — `econ.sweeperCombo()` exists so the gadget can ask.
 
-Apps also receive `audio` in their mount context for exactly this app: a sound
-per bumper is far too fast and too transient to route through the event bus.
+The penalty is deliberately soft: a mine **halves** the banked multiplier rather
+than taking it. The entire round is an argument for opening one more square, and
+a penalty that erases the session teaches the player to stop after the first
+click instead — which is the one outcome that makes the app pointless.
+
+Apps also receive `audio` in their mount context for exactly this app: a flood
+fill turns over thirty squares in one click, which is far too fast and too
+transient to route through the event bus.
 
 ## Adding an app
 

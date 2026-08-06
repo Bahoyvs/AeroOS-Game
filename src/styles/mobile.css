@@ -23,7 +23,7 @@
      * inset is only the Nudge dock. It has to be reserved rather than overlaid:
      * a docked button floating over the last 80px of every window would sit on
      * top of whatever control an app happens to put at its own bottom edge —
-     * AeroChat's buy row, the pinball plunger — and those are not decoration.
+     * AeroChat's buy row, AeroSweeper's cash-out — and those are not decoration.
      */
     inset: calc(var(--gadget-height) + env(safe-area-inset-top)) 0
       calc(var(--nudge-dock-height) + var(--nudge-dock-gap)) 0 !important;

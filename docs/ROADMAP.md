@@ -224,7 +224,7 @@ after it. ✅
 
 ---
 
-## Day 7 — Aero Studio, Pinball, IoT Botnet, Mini-Mod
+## Day 7 — Aero Studio, AeroSweeper, IoT Botnet, Mini-Mod
 
 **Goal:** the last of the software roster, something to do while idling, and an
 end-game ceiling.
@@ -232,23 +232,36 @@ end-game ceiling.
 - [ ] Aero Studio: a long GPU-scaled render with the biggest single payout —
       the GPU track still has no consumer, so this is what makes it felt.
 
-- [x] Galactic Pinball 3D (`src/apps/pinball.js`): the mini-game, paying Buzz and
-      combo multipliers. Shipped as **WebGL rather than canvas or DOM** —
-      PixiJS, behind a dynamic `import()` so nobody downloads a renderer for an
-      app they have not installed.
+- [x] AeroSweeper (`src/apps/aerosweeper.js`): the mini-game, paying Buzz and
+      combo multipliers. **Minesweeper, not pinball.** A pinball table was built
+      first and cut: a WebGL renderer and a hand-rolled physics solver is a lot
+      of machinery to make a ball feel right in a window, and "feels slightly
+      wrong" is the one outcome a mini-game cannot survive. A minefield is a
+      grid of buttons and a flood fill — it is *exactly* what a browser is good
+      at — and it takes a push-your-luck mechanic without being bent into one.
 
-      Two design decisions worth recording. The reward is a *click* buff, not
-      Buzz: an idle game's active mini-game should hand the player a reason to
-      go back to the button, and a lump sum does the opposite. And tokens
-      (three an hour, wall clock, or one for ten minutes of production) are
-      pacing rather than a paywall — the table is a thing to do while idling,
-      and something available all the time is something to grind.
+      Three design decisions worth recording:
 
-      The physics lives in `src/core/pinball.js` and the geometry in
-      `src/data/pinball.js`, so a table nobody can see is still unit-testable in
-      plain Node — `tests/pinball.test.js` asserts the drain, the bumper kick,
-      the flipper's energy transfer and that the weakest plunge still clears the
-      lane.
+      - The reward is a *click* buff, not Buzz. An idle game's active mini-game
+        should hand the player a reason to go back to the button; a lump sum
+        does the opposite.
+      - The stake is always on screen. Every safe square is +0.1×, and the
+        cash-out button shows what leaving now is worth — a push-your-luck round
+        where the player cannot see what they are risking is just a button that
+        sometimes disappoints.
+      - **A mine halves the combo rather than taking it.** The whole round is an
+        argument for opening one more square, and a punitive loss teaches the
+        player to stop after the first click, which makes the app pointless.
+
+      Tokens (one every two hours, wall clock, or one for fifteen minutes of
+      production) are pacing rather than a paywall.
+
+      The board lives in `src/core/sweeper.js` with no DOM, so
+      `tests/sweeper.test.js` asserts the whole game in plain Node: that the
+      first click and its neighbours are never mined, that the flood fill cannot
+      uncover a mine, that a full sweep is detected, and that a mine leaves
+      exactly half the multiplier.
+
 - [x] Shell pass: the taskbar, the gadget and every meter lost their borders in
       favour of a lit/shaded bevel (`--emboss`), and the Nudge button now docks
       in the thumb zone on phones instead of sitting in the top corner of a
@@ -259,11 +272,11 @@ end-game ceiling.
 - [ ] IoT Botnet unlocked by the top CPU tier: hijack smart plugs/fans/bridges for
       large passive Buzz (GDD 5).
 - [ ] Mini-Mod widget mode: collapse the OS into a thin vertical sidebar (GDD 3).
-- [ ] Performance pass: keep the render step under budget with the pinball canvas,
+- [ ] Performance pass: keep the render step under budget with the sweeper board,
       many windows and 500 bots on a mid-range phone.
 
-**Files:** `src/apps/pinball.js`, `src/core/botnet.js`, `src/ui/miniMod.js`
-**DoD:** 60 fps on a mid-range phone with pinball running and the desktop full of windows.
+**Files:** `src/apps/aerosweeper.js`, `src/core/botnet.js`, `src/ui/miniMod.js`
+**DoD:** 60 fps on a mid-range phone with a board open and the desktop full of windows.
 
 ---
 
