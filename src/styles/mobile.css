@@ -9,11 +9,24 @@
        on :root, so the window stack always starts exactly below it however the
        content wraps — a fixed guess overflowed onto the window underneath. */
     --gadget-height: 112px;
+
+    /* The docked Nudge button. Everything else pinned to the bottom of the
+       screen (balloons, the coach) is lifted by this, so nothing ever lands
+       under the one control the player presses hundreds of times a minute. */
+    --nudge-dock-height: 76px;
+    --nudge-dock-gap: 10px;
   }
 
   .aero-window {
-    /* Bottom is 0: the containing .desktop already stops above the taskbar. */
-    inset: calc(var(--gadget-height) + env(safe-area-inset-top)) 0 0 0 !important;
+    /**
+     * The containing .desktop already stops above the taskbar, so the bottom
+     * inset is only the Nudge dock. It has to be reserved rather than overlaid:
+     * a docked button floating over the last 80px of every window would sit on
+     * top of whatever control an app happens to put at its own bottom edge —
+     * AeroChat's buy row, the pinball plunger — and those are not decoration.
+     */
+    inset: calc(var(--gadget-height) + env(safe-area-inset-top)) 0
+      calc(var(--nudge-dock-height) + var(--nudge-dock-gap)) 0 !important;
     width: auto !important;
     height: auto !important;
     max-width: none;
@@ -56,8 +69,9 @@
     transition: none;
   }
 
-  /* The gadget carries the Nudge button, so in PDA mode it is pinned above the
-     window stack rather than floating behind it. */
+  /* The gadget is the status readout in PDA mode, so it is pinned above the
+     window stack rather than floating behind it. The Nudge button leaves it —
+     see the dock below. */
   .desktop__gadget {
     position: fixed;
     top: env(safe-area-inset-top);
@@ -69,17 +83,28 @@
   .gadget {
     width: auto;
     gap: 4px 10px;
-    /* Nothing may escape the bar even mid-measure. */
+    /* Nothing may escape the bar even mid-measure. The docked Nudge button is
+       `position: fixed` and so is not clipped by this — its containing block is
+       the viewport, not the gadget. */
     overflow: hidden;
     border-top: 0;
     border-radius: 0;
+    /**
+     * No blur here, and not only because it is expensive on a phone: a
+     * `backdrop-filter` makes an element the containing block for every
+     * `position: fixed` descendant, and the Nudge button below is one. Left on,
+     * it pinned the dock to the bottom of *this bar* — off the top of the
+     * screen — instead of to the bottom of the viewport.
+     */
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: linear-gradient(180deg, rgb(12 66 116 / 82%), rgb(6 40 76 / 88%));
     grid-template-areas:
-      'header nudge'
-      'buzz nudge'
-      'rate nudge'
-      'ram bloat';
-    grid-template-columns: 1fr 118px;
-    grid-template-rows: auto auto auto auto;
+      'header rate'
+      'buzz buzz'
+      'ram bloat'
+      'heat heat';
+    grid-template-columns: 1fr auto;
     align-items: center;
   }
 
@@ -90,11 +115,12 @@
     grid-area: buzz;
   }
   .gadget__buzz-value {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
   }
   .gadget__rate {
     grid-area: rate;
     margin-top: 0;
+    text-align: right;
   }
   .gadget .meter:nth-of-type(1) {
     grid-area: ram;
@@ -102,13 +128,45 @@
   .gadget .meter:nth-of-type(2) {
     grid-area: bloat;
   }
-  .nudge-button {
-    grid-area: nudge;
-    height: calc(100% - 6px);
+  .gadget .heat {
+    grid-area: heat;
   }
   /* Dollars stay in My Computer on small screens. */
   .gadget__dollars {
     display: none;
+  }
+
+  /**
+   * The Nudge dock — the thumb zone.
+   *
+   * On a desktop the button is a row of the status widget and the pointer
+   * reaches it for free. On a phone that widget is pinned to the *top* of the
+   * screen, which puts the one control this game is built around exactly where
+   * a thumb cannot go: a clicker whose button lives in the far corner is a
+   * clicker nobody plays one-handed. So in PDA mode it leaves the gadget's grid
+   * and docks just above the taskbar, wide and tall enough to hit without
+   * looking.
+   *
+   * Centred with inset rather than `translateX(-50%)` on purpose: `nudge-shake`
+   * animates `transform`, and a centring transform here would be overwritten by
+   * the press animation — the button would jump half its width on every tap.
+   * The inset is clamped so it stays a button on a wide phone rather than
+   * becoming a slab across a small tablet.
+   */
+  .nudge-button {
+    position: fixed;
+    right: max(10%, calc(50% - 210px));
+    bottom: calc(var(--taskbar-height) + env(safe-area-inset-bottom) + var(--nudge-dock-gap));
+    left: max(10%, calc(50% - 210px));
+    z-index: 760;
+    height: var(--nudge-dock-height);
+    align-content: center;
+    justify-items: center;
+    font-size: 1.15rem;
+  }
+
+  .nudge-button__hint {
+    font-size: 0.82rem;
   }
 
   .desktop__icons {
@@ -130,9 +188,10 @@
     justify-items: center;
   }
 
+  /* Both of these used to sit at the bottom edge, which is now the dock. */
   .toasts {
     right: 8px;
-    bottom: 8px;
+    bottom: calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + 8px);
     left: 8px;
     width: auto;
   }
@@ -141,9 +200,9 @@
      cannot read the objective they are being asked to complete. */
   .coach {
     right: 8px;
-    bottom: 8px;
-    left: 8px;
+    bottom: calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + 8px);
     z-index: 750;
+    left: 8px;
     width: auto;
   }
 
@@ -154,6 +213,12 @@
 
 /* Very short landscape phones: the gadget would eat the whole screen. */
 @media (max-height: 480px) and (max-width: 820px) {
+  :root {
+    /* A thumb still has to reach it, but 76px of button plus the taskbar and
+       the gadget leaves nothing to play in when the screen is 400px tall. */
+    --nudge-dock-height: 54px;
+  }
+
   .desktop__icons {
     display: none;
   }

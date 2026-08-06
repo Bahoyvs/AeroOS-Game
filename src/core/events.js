@@ -63,6 +63,9 @@ export const EVENTS = {
   RENDER_STARTED: 'aerostudio:started', // { projectName }
   RENDER_DONE: 'aerostudio:done', // { projectName, payout }
   AERO_UPGRADE_BOUGHT: 'aerostudio:upgraded', // { upgradeId, cost }
+  PINBALL_LAUNCHED: 'pinball:launched', // { tokensLeft }
+  PINBALL_RUN_ENDED: 'pinball:ended', // { hits, combo, buzz, best }
+  PINBALL_TOKEN: 'pinball:token', // { granted, tokens, bought }
   PLAYLIST_LOADED: 'retroamp:loaded', // { playlist }
   PLAYLIST_ENDED: 'retroamp:ended', // { playlist, reason }
   TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }

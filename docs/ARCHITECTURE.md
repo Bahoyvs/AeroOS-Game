@@ -14,6 +14,7 @@ index.html
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
     │   ├── lemonwire.js      seed slots, the connection, the Recycle Bin
+    │   ├── pinball.js        the table's physics, plus tokens and the combo
     │   ├── shield99.js       threat spawns, quarantine loot, virus safety net, scans
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
@@ -26,6 +27,7 @@ index.html
     │   ├── buddies.js        derived buddy identities (never stored)
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
     │   ├── files.js          LemonWire's shared files (size, risk, seeders)
+    │   ├── pinball.js        the pinball table's geometry, in table units
     │   ├── cds.js            AeroBurn disc types
     │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
     ├── ui/                   presentation — reads state, calls actions
@@ -45,6 +47,7 @@ index.html
     │   ├── lemonwire.js      seed slots, disk usage, the connection shop
     │   ├── shield99.js       antivirus window, quarantine, the taskbar tray icon
     │   ├── aeroburn.js       disc burner and shelf
+    │   ├── pinball.js        the WebGL table (PixiJS, dynamically imported)
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
     └── styles/               tokens → desktop → window → apps → mobile
@@ -205,6 +208,36 @@ Two integration details worth knowing:
 - The PDA breakpoint lives in two places that must agree: `mobileQuery` in
   `windowManager.js` and the `max-width: 820px` block in `styles/mobile.css`.
 
+## Chrome without borders
+
+Depth in this shell comes from light, not outlines: `--emboss` (a lit top edge
+and a shaded bottom one) for raised surfaces, `--emboss-well` for recessed ones.
+A 1px border on a translucent panel stacks against every neighbour's, which is
+how a taskbar full of buttons turns into a grid of hard lines.
+
+`.glass` lives in `tokens.css` rather than `index.css` for a cascade reason
+worth knowing: `@import` rules are placed *before* everything else in a
+stylesheet, so a utility class authored in `index.css` outranked every component
+that tried to override it at equal specificity. The taskbar's blue gradient, its
+square corners and the coach's cyan rule were all written and none of them
+rendered.
+
+## The Nudge dock
+
+On a phone the gadget is pinned to the top of the screen, which is the worst
+possible home for the button a clicker is built around. Under the PDA
+breakpoint the Nudge button leaves the gadget's grid and docks above the
+taskbar, and the window stack, the balloons and the coach all reserve
+`--nudge-dock-height` so nothing lands under it.
+
+Two things that look like details and are not: the button is centred with
+`left`/`right` insets rather than `translateX(-50%)`, because `nudge-shake`
+animates `transform` and would throw a centred button half its width sideways on
+every tap; and the gadget drops its `backdrop-filter` in PDA mode, because a
+filtered element becomes the containing block for `position: fixed` descendants
+— with it on, the dock pinned itself to the bottom of the *gadget*, off the top
+of the screen.
+
 ## Motion
 
 Nothing in the stylesheet reads `prefers-reduced-motion` directly. `ui/motion.js` resolves
@@ -231,6 +264,34 @@ its caller updates on.** The gadget re-runs `setBar` every 100 ms; a 200 ms tran
 it is cancelled and restarted forever, never once reaching its target, which reads as a bar
 that lags and stutters rather than one that moves. If you change a throttle, change the
 matching transition.
+
+## The one app that renders itself
+
+Galactic Pinball 3D is the only window whose contents are not DOM. The split is
+the same as everywhere else — `core/pinball.js` is the simulation and knows
+nothing about a screen — but the presentation half draws with **WebGL (PixiJS)**
+rather than elements, for one reason: a ball is a position change sixty times a
+second with five bumpers flashing over it, and as DOM nodes that is a style
+recalculation and a paint per frame on the one screen in the game that cannot
+afford either.
+
+Three consequences the code depends on:
+
+- **PixiJS is `import()`ed, not imported.** It is a ~130 kB gzip chunk that a
+  player who never installs the app never downloads, and the OS boots without
+  it. `mount()` stays synchronous and sets a `disposed` flag, because the window
+  can be closed while the GPU is still waking up — the Application is destroyed
+  immediately if it resolves into a closed window.
+- **The table is not in `game.state`.** A ball position is not progress: it
+  lasts twenty seconds and means nothing afterwards. What the run writes back is
+  one number, through `game.endPinballRun(hits)`.
+- **The reward is an existing system.** The combo is an ordinary `click` buff,
+  so it expires on the wall clock, shows up in the buff list, and is already
+  inside `clickPower()`. The only bespoke part is that the Nudge button goes red
+  while it runs — `econ.pinballCombo()` exists so the gadget can ask.
+
+Apps also receive `audio` in their mount context for exactly this app: a sound
+per bumper is far too fast and too transient to route through the event bus.
 
 ## Adding an app
 

@@ -83,7 +83,9 @@ export const APPS = [
     day: 7,
     ram: 128,
     install: { cost: 6000, unlockAt: 5000 },
-    window: { width: 380, height: 460 },
+    // Tall and narrow: the table is 100×150 table units, and a window with the
+    // wrong aspect just letterboxes it.
+    window: { width: 360, height: 540 },
     blurb: 'Active mini-game for combo multipliers between idle ticks.',
   },
 ];

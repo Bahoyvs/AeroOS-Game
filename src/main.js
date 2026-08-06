@@ -122,7 +122,9 @@ async function boot() {
       }
       return;
     }
-    wm.open(app, (body) => mountApp(id, body, { game, wm }));
+    // Apps get the audio bus too: Galactic Pinball 3D fires a sound per bumper,
+    // which is far too fast and far too transient to route through the event bus.
+    wm.open(app, (body) => mountApp(id, body, { game, wm, audio }));
   }
 
   // Closing a window must release its memory, however it was closed.
@@ -201,6 +203,7 @@ async function boot() {
     [game.events.BURN_DONE]: 'chime',
     [game.events.DISC_PLAYED]: 'coin',
     [game.events.PLAYLIST_LOADED]: 'click',
+    [game.events.PINBALL_TOKEN]: 'chime',
   };
   for (const [event, sound] of Object.entries(SOUNDS)) {
     game.bus.on(event, () => audio.play(sound));
@@ -420,6 +423,41 @@ async function boot() {
       tone: 'success',
     });
   });
+
+  /**
+   * Galactic Pinball 3D (Day 7). The balloon is the handoff: the run is over,
+   * the combo is running, and the thing to do with it is go and click.
+   */
+  game.bus.on(game.events.PINBALL_RUN_ENDED, ({ hits, combo, buzz }) => {
+    if (hits === 0) {
+      notify({
+        title: 'Ball drained',
+        body: 'Straight down the middle. The flippers are the two halves of the table.',
+        tone: 'warn',
+      });
+      return;
+    }
+    notify({
+      title: `${hits} bumpers`,
+      body: `Nudge pays ×${(1 + combo.magnitude).toFixed(1)} for ${Math.round(
+        combo.durationSeconds,
+      )}s${buzz > 0 ? `, plus ${formatNumber(buzz)} Buzz` : ''}.`,
+      tone: 'success',
+    });
+    if (sdk && combo.hits >= 20) sdk.game.happytime();
+  });
+
+  game.bus.on(game.events.PINBALL_TOKEN, ({ granted, bought }) => {
+    if (bought) return; // the player just paid for it; they know
+    taskbar.flag('pinball', true);
+    notify({
+      title: `${granted} pinball ${granted === 1 ? 'token' : 'tokens'}`,
+      body: 'The table is free again. Combos multiply the Nudge button.',
+      tone: 'info',
+    });
+  });
+
+  game.bus.on(game.events.PINBALL_LAUNCHED, () => taskbar.flag('pinball', false));
 
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({

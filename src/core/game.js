@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99 } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO, PINBALL, SHIELD99 } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
@@ -9,6 +9,7 @@ import * as burner from './aeroburn.js';
 import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as lw from './lemonwire.js';
+import * as pinball from './pinball.js';
 import * as shield from './shield99.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
@@ -127,6 +128,13 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         body: `Your project "${render.projectName}" is exported and topped the charts!`, 
         tone: "success" 
       });
+      save();
+    }
+
+    // Pinball tokens refill whether or not the tab was open — wall clock.
+    const tokens = pinball.updateTokens(state, now);
+    if (tokens > 0) {
+      bus.emit(EVENTS.PINBALL_TOKEN, { granted: tokens, tokens: state.pinball.tokens, bought: false });
       save();
     }
 
@@ -381,6 +389,73 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, threat, reward };
   }
 
+  /* -------------------------------------------------------------- Pinball */
+
+  /**
+   * Put a ball on the table (Day 7). One token, one ball — the app module owns
+   * the physics from here and reports back once, when the ball drains.
+   */
+  function launchPinball() {
+    const check = pinball.canLaunch(state);
+    if (!check.ok) return check;
+
+    const now = Date.now();
+    pinball.spendToken(state, now);
+    bus.emit(EVENTS.PINBALL_LAUNCHED, { tokensLeft: state.pinball.tokens });
+    save();
+    return { ok: true, tokensLeft: state.pinball.tokens };
+  }
+
+  /** Skip the queue with Buzz. The table is pacing, not a paywall. */
+  function buyPinballToken() {
+    const now = Date.now();
+    const check = econ.canBuyPinballToken(state, now);
+    if (!check.ok) return check;
+
+    const cost = econ.pinballTokenCost(state, now);
+    state.buzz -= cost;
+    pinball.addToken(state, 1);
+    bus.emit(EVENTS.PINBALL_TOKEN, { granted: 1, tokens: state.pinball.tokens, bought: true, cost });
+    save();
+    return { ok: true, cost, tokens: state.pinball.tokens };
+  }
+
+  /**
+   * The ball drained. Everything the run was worth is settled here: a click
+   * buff sized by the bumpers it hit — which is what turns the Nudge button
+   * red and sends the player back to it — plus a Buzz consolation so a bad ball
+   * is still worth the token.
+   */
+  function endPinballRun(hits) {
+    const now = Date.now();
+    const combo = pinball.comboFor(Math.max(0, Math.floor(hits)));
+
+    state.pinball.runs += 1;
+    state.pinball.bestHits = Math.max(state.pinball.bestHits, combo.hits);
+
+    const buzz = econ.buzzPerSecond(state, now) * PINBALL.buzzSecondsPerBumper * combo.hits;
+    if (buzz > 0) grantBuzz(buzz, 'pinball');
+
+    if (combo.magnitude > 0) {
+      addBuff(
+        state,
+        {
+          id: PINBALL.comboBuffId,
+          kind: 'click',
+          magnitude: combo.magnitude,
+          durationSeconds: combo.durationSeconds,
+          label: 'Pinball combo',
+          source: 'pinball',
+        },
+        now,
+      );
+    }
+
+    bus.emit(EVENTS.PINBALL_RUN_ENDED, { hits: combo.hits, combo, buzz, best: state.pinball.bestHits });
+    save();
+    return { ok: true, combo, buzz };
+  }
+
   /* -------------------------------------------------------------- AeroBurn */
 
   /** Burn Buzz onto a disc that will outlive the next Format C: (AO-29). */
@@ -562,6 +637,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     startScan,
     startBurn,
     playDisc,
+    launchPinball,
+    buyPinballToken,
+    endPinballRun,
+    pinballTokenSeconds: (now = Date.now()) => pinball.secondsToNextToken(state, now),
     skipOnboarding,
     setSettings,
     currentTutorialStep: () => currentStep(state),

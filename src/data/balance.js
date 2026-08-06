@@ -254,6 +254,47 @@ export const AEROBURN = {
 };
 
 /**
+ * Galactic Pinball 3D (Day 7) — the one *active* mechanic in an idle game.
+ *
+ * Everything else in AeroOS pays for a decision and then runs itself. This pays
+ * for aim: a ball kept alive off the bumpers turns into a click multiplier, and
+ * the multiplier is worthless unless the player then goes and clicks. That is
+ * the whole shape of it — the reward for playing well is a reason to play
+ * *more*, not a lump of Buzz.
+ *
+ * Tokens are the pacing. They refill on the wall clock (a token earned
+ * overnight is waiting in the morning, like offline earnings), and Buzz buys
+ * one at the price of ten minutes of production — so the table is never a wall,
+ * just a queue.
+ */
+export const PINBALL = {
+  maxTokens: 3,
+  tokensPerRefill: 3,
+  refillSeconds: 3600,
+
+  // Buying a token is priced in seconds of current production, so it stays
+  // meaningful at every stage. The floor covers a machine producing nothing.
+  buyTokenSeconds: 600,
+  minTokenCost: 750,
+
+  /**
+   * The combo. It rides on the existing 'click' buff kind, so the Nudge button,
+   * the rate breakdown and the buff list all pick it up without a second
+   * multiplier system — and it expires on the wall clock like every other buff.
+   */
+  comboBuffId: 'pinball-combo',
+  comboPerBumper: 0.4,
+  maxCombo: 14, // +1400%: a great ball, not a broken one
+  comboSecondsBase: 18,
+  comboSecondsPerBumper: 1.4,
+  maxComboSeconds: 90,
+
+  // The consolation prize, in seconds of current production per bumper — a
+  // terrible ball still pays something, or a wasted token is a wasted hour.
+  buzzSecondsPerBumper: 5,
+};
+
+/**
  * Prestige tension (AO-27, GDD 7). Heat is the visible face of bloat: it rises
  * with uptime and with what is running, and it is what makes the player *want*
  * to Format C: before the maths tells them to.

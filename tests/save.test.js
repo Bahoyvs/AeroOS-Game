@@ -11,7 +11,7 @@ import {
   serialize,
 } from '../src/core/save.js';
 import { SAVE_VERSION, createInitialState } from '../src/core/state.js';
-import { LEMONWIRE, SAVE } from '../src/data/balance.js';
+import { LEMONWIRE, PINBALL, SAVE } from '../src/data/balance.js';
 
 describe('save round-trip', () => {
   it('restores currencies, hardware and bots', () => {
@@ -157,6 +157,22 @@ describe('resilience', () => {
       adCooldownUntil: 0,
       filesCleaned: 0,
       nextId: 1,
+    });
+  });
+
+  /**
+   * Pinball was added without a version bump, which is only safe because
+   * `withDefaults` backfills a missing slice. A save written before Day 7 must
+   * come back with a full set of tokens rather than `undefined` — the app
+   * reads `tokens` on its first frame.
+   */
+  it('hands a save written before Day 7 a working pinball table', () => {
+    const loaded = deserialize(JSON.stringify({ version: SAVE_VERSION, buzz: 10 }), 0);
+    expect(loaded.pinball).toEqual({
+      tokens: PINBALL.maxTokens,
+      nextTokenAt: 0,
+      bestHits: 0,
+      runs: 0,
     });
   });
 

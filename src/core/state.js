@@ -1,5 +1,5 @@
 import { ALL_APPS } from '../data/apps.js';
-import { LEMONWIRE } from '../data/balance.js';
+import { LEMONWIRE, PINBALL } from '../data/balance.js';
 import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
@@ -84,6 +84,19 @@ export function createInitialState(now = Date.now()) {
       adCooldownUntil: 0, // wall clock — it should burn down while the tab is shut
       filesCleaned: 0,
       nextId: 1,
+    },
+
+    /**
+     * Galactic Pinball 3D (Day 7). Only the pacing is persisted: tokens and the
+     * clock that refills them. The ball is not state — it lasts twenty seconds
+     * and means nothing afterwards — and the combo a run pays out is an
+     * ordinary click buff, so it lives in `buffs` with everything else timed.
+     */
+    pinball: {
+      tokens: PINBALL.maxTokens,
+      nextTokenAt: 0, // wall clock; 0 means "full, nothing pending"
+      bestHits: 0,
+      runs: 0,
     },
 
     retroamp: {

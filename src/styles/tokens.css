@@ -15,6 +15,24 @@
   --glass-shadow: 0 10px 30px rgb(4 26 48 / 35%), inset 0 1px 0 rgb(255 255 255 / 70%);
   --glass-blur: blur(14px) saturate(140%);
 
+  /**
+   * Depth without outlines.
+   *
+   * A 1px border on a translucent panel stacks against every neighbour's, which
+   * is what turns a taskbar full of buttons into a grid of hard lines. The era
+   * this game is imitating never drew those lines: it described a bevel with a
+   * lit top edge and a shaded bottom one, so the light has a direction and the
+   * surface has a thickness. `--emboss` is that bevel for a raised chrome
+   * surface, `--emboss-soft` for the smaller controls sitting on it, and
+   * `--emboss-well` inverts it for anything recessed (meter tracks, the tray).
+   */
+  --emboss: inset 0 1px 1px rgb(255 255 255 / 70%), inset 0 -1px 2px rgb(0 0 0 / 20%);
+  --emboss-soft: inset 0 1px 0 rgb(255 255 255 / 50%), inset 0 -1px 1px rgb(0 0 0 / 16%);
+  --emboss-well: inset 0 1px 2px rgb(0 20 40 / 45%), 0 1px 0 rgb(255 255 255 / 25%);
+  /* The same recess on a light window body, where the dark one has nothing to
+     catch: the shade goes inside and the lit lip below it goes white. */
+  --emboss-well-light: inset 0 1px 2px rgb(13 36 55 / 32%), 0 1px 0 rgb(255 255 255 / 70%);
+
   --taskbar-height: 44px;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -30,6 +48,25 @@
 
   --ease-aero: cubic-bezier(0.22, 0.61, 0.36, 1);
   --font-ui: 'Segoe UI', Tahoma, 'Trebuchet MS', system-ui, sans-serif;
+}
+
+/**
+ * The glass panel utility.
+ *
+ * It lives in the token sheet — the first import — on purpose. Sitting in
+ * index.css it was authored *after* every `@import`, so at equal specificity it
+ * silently outranked every component that tried to state its own background,
+ * radius or edge treatment: the taskbar's blue gradient, its square corners and
+ * the coach's cyan rule were all written and none of them ever rendered.
+ * First in the cascade, `.glass` is a default a component can simply override.
+ */
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
 }
 
 /**
