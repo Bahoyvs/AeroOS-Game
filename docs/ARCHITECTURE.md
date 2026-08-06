@@ -13,14 +13,15 @@ index.html
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
-    │   ├── downloads.js      LemonWire transfers, the Recycle Bin, virus safety net
+    │   ├── lemonwire.js      seed slots, the connection, the Recycle Bin
+    │   ├── shield99.js       threat spawns, quarantine loot, virus safety net, scans
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── save.js           storage backends, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
     ├── data/                 tuning — designers edit these, not the code
-    │   ├── balance.js        rates, costs, caps, thresholds
+    │   ├── balance.js        rates, costs, caps, thresholds, the Shield99 loot table
     │   ├── apps.js           software roster (RAM cost, price, roadmap day)
     │   ├── buddies.js        derived buddy identities (never stored)
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
@@ -41,8 +42,8 @@ index.html
     │   ├── registry.js       id → implementation, placeholder fallback
     │   ├── aerochat.js       core idle engine
     │   ├── retroamp.js       playlist deck (global multipliers)
-    │   ├── lemonwire.js      P2P downloads, disk usage, quarantine
-    │   ├── shield99.js       antivirus window + the taskbar tray icon
+    │   ├── lemonwire.js      seed slots, disk usage, the connection shop
+    │   ├── shield99.js       antivirus window, quarantine, the taskbar tray icon
     │   ├── aeroburn.js       disc burner and shelf
     │   ├── system.js         hardware shop + Format C:
     │   └── placeholder.js    "scheduled for Day N" stub
@@ -77,11 +78,13 @@ Timed systems pick their clock according to what should happen while the player 
 
 - **Simulation time** (accumulated `dt`, only advances while the loop runs) — status-message
   events in `core/statusEvents.js`. A claim window must not burn down in a background tab,
-  and a throttled tab must not silently miss bonuses. LemonWire's Recycle Bin is here too,
-  for the same reason its transfers are: the cost of deleting a file is time spent *at the
-  machine*, and a bin that emptied itself overnight would cost nothing.
+  and a throttled tab must not silently miss bonuses. Shield99's threat spawns are here for
+  the same reason: a lootbox that arrived while nobody was looking is not a reward. So is
+  LemonWire's Recycle Bin — the cost of freeing a slot is time spent *at the machine*, and
+  a bin that emptied itself overnight would cost nothing.
 - **Wall clock** (`Date.now()` timestamps) — buffs in `core/buffs.js`, autosave, offline
-  earnings. A 60-second buff should be over when you come back an hour later.
+  earnings, and Shield99's rewarded-ad cooldown. A 60-second buff should be over when you
+  come back an hour later, and so should a 90-second ad cooldown.
 
 Both are testable: simulation-time systems take `dt`, wall-clock systems take an optional
 `now`, and randomness is injected (`createGame({ rng })`). No test needs fake timers except
@@ -92,7 +95,7 @@ the ones deliberately exercising wall-clock expiry.
 Two ways to multiply production, and the choice is about persistence:
 
 - **Buffs** (`core/buffs.js`) are timed and stored as a list with wall-clock expiry — status
-  bonuses, later the rewarded-ad overclock. They are meant to run out.
+  bonuses, and the rewarded-ad payouts from Shield99's quarantine. They are meant to run out.
 - **Derived multipliers** are computed from durable state: buddy milestones from
   `chat.bots`, the playlist from `retroamp.playlist`. They survive a reload because there is
   nothing to expire — a permanent playlist stored as an `Infinity` buff would not, since
@@ -100,6 +103,32 @@ Two ways to multiply production, and the choice is about persistence:
 
 If a bonus should still be there after a refresh, derive it. If it should tick away whether
 or not the player is watching, make it a buff.
+
+## Seeding and quarantine: one loop across two apps
+
+LemonWire and Shield99 are a single mechanic wearing two windows, and neither is worth
+much alone:
+
+```
+seed slots (LemonWire)  →  passive Buzz, and a threat every few minutes
+                                       ↓
+                    Shield99 open?  ──yes──→  sealed in quarantine  →  rewarded ad → loot
+                                       └─no──→  free rescue, then a capped infection
+```
+
+Three consequences the code depends on:
+
+- **Income is production, not a payout.** A seed's Buzz goes through
+  `economy.seedBuzzPerSecond()` into `baseBuzzPerSecond()`, so it picks up every global
+  multiplier, feeds offline earnings, and needs no event of its own. `core/lemonwire.js`
+  only does bookkeeping (slots, the disk, the upload counters).
+- **Risk buys frequency, and Shield99 decides what it is worth.** Seeding
+  `system32_SPEED_BOOST_2005.exe` shortens the spawn timer either way; whether that reads
+  as loot or as a halved production rate is exactly the 48 MB question.
+- **The reward is resolved, then applied.** `shield99.rewardFor()` is pure and returns a
+  descriptor (`buzz` / `buff` / `render`); `game.extractQuarantine()` is what actually pays
+  it. That is what lets the same table serve the full rewarded-ad payout and the
+  fractional non-ad fallback without a second balance sheet.
 
 ## Hardware: flat percentages, derived capacities
 

@@ -1,12 +1,11 @@
 /**
  * LemonWire's shared-files list (AO-21, GDD 6).
  *
- * `risk` is the chance the finished download turns out to be infected, and it
- * correlates with reward: the sketchy 3 MB "speed boost" pays like a 4 GB ISO.
- * That is the whole decision the app offers — how much risk for how much Buzz.
- *
- * Payouts are measured in *seconds of current production* rather than flat Buzz
- * so a download stays meaningful at every stage of the game.
+ * These are the files the player can *seed*. Three fields decide what a slot is
+ * worth: `sizeGB` costs disk and pays a little, `seeders` is inverted into a
+ * rarity premium (a swarm of six needs you; a swarm of 302 does not), and
+ * `risk` pays the most while deciding how often Shield99 has something to
+ * quarantine. That is the whole decision the app offers.
  */
 
 export const FILES = [
@@ -74,6 +73,11 @@ export function getFile(id) {
   const file = BY_ID.get(id);
   if (!file) throw new Error(`Unknown file: ${id}`);
   return file;
+}
+
+/** Does this id still exist? Migrated saves may name a file we have retired. */
+export function hasFile(id) {
+  return BY_ID.has(id);
 }
 
 /** Rough risk band, for the UI to colour without repeating the thresholds. */

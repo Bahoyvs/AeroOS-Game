@@ -63,6 +63,19 @@ export function cancelRender(state) {
   return { ok: true };
 }
 
+/**
+ * Shove the current render forward by a fraction of the whole job — what
+ * Trojan.RenderFarm pays out (src/core/shield99.js). Returns how much progress
+ * was actually applied, which is less than asked for near the end.
+ */
+export function boostRender(state, fraction) {
+  if (!state.aerostudio.isRendering) return { ok: false, reason: 'not-rendering' };
+
+  const before = state.aerostudio.progress;
+  state.aerostudio.progress = Math.min(1, before + fraction);
+  return { ok: true, gained: state.aerostudio.progress - before };
+}
+
 export function updateRender(state, dt) {
   if (!state.aerostudio.isRendering) return null;
   

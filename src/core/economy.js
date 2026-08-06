@@ -1,4 +1,4 @@
-import { BLOAT, CHAT_BOT, CLICK, HEAT, OFFLINE, PRESTIGE } from '../data/balance.js';
+import { BLOAT, CHAT_BOT, CLICK, HEAT, LEMONWIRE, OFFLINE, PRESTIGE } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import {
   HARDWARE,
@@ -12,7 +12,8 @@ import {
 import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
 import { canBurn } from './aeroburn.js';
-import { canDownload, infectionPenalty, storageUsedGB } from './downloads.js';
+import { canSeed, connectionAt, seedWeight, storageUsedGB } from './lemonwire.js';
+import { infectionPenalty } from './shield99.js';
 
 /**
  * Every number the game shows is derived here. Functions are pure and take the
@@ -43,7 +44,7 @@ export function ramCapacity(state) {
   return hardwareEffects(state).ramMB;
 }
 
-/** Storage ceiling for LemonWire downloads — the HDD track's other job. */
+/** Storage ceiling for LemonWire's seeds — one of the HDD track's other jobs. */
 export function storageCapacityGB(state) {
   return hardwareEffects(state).storageGB;
 }
@@ -57,9 +58,28 @@ export function canBurnDisc(state, typeId) {
   return canBurn(state, typeId);
 }
 
-/** Can this file be downloaded? Wraps the capacity lookup for the UI. */
-export function canDownloadFile(state, fileId) {
-  return canDownload(state, fileId, storageCapacityGB(state));
+/**
+ * Seed slots. The base count lives in the save (so a future upgrade can raise
+ * it); the HDD track adds the rest, which is the second job of that track and
+ * the reason a bigger disk is worth Dollars beyond the raw capacity.
+ */
+export function seedSlots(state) {
+  const fromHdd = Math.floor(state.hardware.hdd / LEMONWIRE.hddTiersPerSlot);
+  return Math.min(LEMONWIRE.maxSeedSlots, state.lemonwire.maxSeedSlots + fromHdd);
+}
+
+export function seedSlotsFree(state) {
+  return Math.max(0, seedSlots(state) - state.lemonwire.activeSeeds.length);
+}
+
+/** The connection multiplier — every slot at once (LEMONWIRE.connections). */
+export function totalBandwidth(state) {
+  return connectionAt(state.lemonwire.connection).multiplier;
+}
+
+/** Can this file take a seed slot? Wraps the capacity lookups for the UI. */
+export function canSeedFile(state, fileId) {
+  return canSeed(state, fileId, seedSlots(state), storageCapacityGB(state));
 }
 
 /** Cooldown scale for heavy apps like Aero Studio (Day 6). */
@@ -247,13 +267,39 @@ export function chatMultiplier(state, now = Date.now()) {
   return chatMilestoneMultiplier(state) * buffMultiplier(state, 'chat', now);
 }
 
+/** AeroChat's contribution on its own, before the window check. */
+function chatRate(state, now = Date.now()) {
+  return state.chat.bots * CHAT_BOT.baseRate * chatMultiplier(state, now);
+}
+
+/**
+ * What one seed slot pays per second (AO-21, seeding refactor).
+ *
+ * Two terms, and both earn their place: the flat one is what makes the first
+ * seed feel like something on a stock machine, and the proportional one is what
+ * stops a slot being worthless at 300 buddies. The buddy rate is used as the
+ * yardstick whether or not AeroChat is open — the swarm's appetite follows how
+ * well connected the player is, not which window has focus.
+ */
+export function seedRate(state, fileId, now = Date.now()) {
+  const anchor = LEMONWIRE.flatBuzzPerSecond + chatRate(state, now) * LEMONWIRE.shareOfChatRate;
+  return anchor * seedWeight(fileId).total * totalBandwidth(state);
+}
+
+/** Everything the seed slots pay together. Zero while the window is closed. */
+export function seedBuzzPerSecond(state, now = Date.now()) {
+  if (!state.apps.lemonwire?.open) return 0;
+  return state.lemonwire.activeSeeds.reduce(
+    (sum, seed) => sum + seedRate(state, seed.fileId, now),
+    0,
+  );
+}
+
 /** Buzz/sec before global modifiers. Apps only produce while they are open. */
 export function baseBuzzPerSecond(state, now = Date.now()) {
   let rate = 0;
-  if (state.apps.aerochat?.open) {
-    rate += state.chat.bots * CHAT_BOT.baseRate * chatMultiplier(state, now);
-  }
-  // Later producers (LemonWire payouts, Aero Studio renders) hook in here.
+  if (state.apps.aerochat?.open) rate += chatRate(state, now);
+  rate += seedBuzzPerSecond(state, now);
   // RetroAmp is not a producer — it multiplies, via globalMultiplier.
   return rate;
 }
@@ -284,7 +330,12 @@ export function buzzPerSecond(state, now = Date.now()) {
 export function rateBreakdown(state, now = Date.now()) {
   const base = state.chat.bots * CHAT_BOT.baseRate;
   const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
+  // Seeding is a second producer, not a factor on the first, so it is reported
+  // as its own line rather than folded into the chain — the factors below still
+  // multiply to the AeroChat rate exactly (tests/economy.test.js).
+  const seeds = seedBuzzPerSecond(state, now) * globalMultiplier(state, now);
   return {
+    seeds,
     bots: state.chat.bots,
     perBot: CHAT_BOT.baseRate,
     base,

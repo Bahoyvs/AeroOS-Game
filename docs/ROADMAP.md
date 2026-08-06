@@ -115,23 +115,35 @@ own effect. ✅
 
 | Ticket | Task | Status |
 | --- | --- | --- |
-| AO-21 | LemonWire P2P download sim with virus safety net (50% floor) | ✅ `src/apps/lemonwire.js`, `src/core/downloads.js` |
-| AO-22 | Shield99 tray icon + free first-virus rescue | ✅ `src/apps/shield99.js`, tray status in the taskbar |
+| AO-21 | LemonWire P2P sim with virus safety net (50% floor) | ✅ `src/apps/lemonwire.js`, `src/core/lemonwire.js` |
+| AO-22 | Shield99 tray icon + free first-virus rescue | ✅ `src/apps/shield99.js`, `src/core/shield99.js`, tray status in the taskbar |
 | AO-23 | Mobile: taskbar modal slide-up for apps | ✅ shipped Day 1; added swipe-down-to-dismiss |
 | AO-24 | Mobile: RAM usage bars under taskbar icons | ✅ shipped Day 1; fixed bars vanishing on big machines |
 
 LemonWire is the first mechanic that can go wrong, and the HDD track finally has
-a second job: downloads occupy real disk space, so a full disk means deleting
-something or buying a bigger drive. Files trade risk against reward — the
-sketchy 3 MB `system32_SPEED_BOOST_2005.exe` pays like a 4 GB ISO and infects
-three times out of four. Payouts are denominated in *seconds of current
-production*, so a download is still worth doing ten prestiges later.
+a second job: shared files occupy real disk space and the drive hands out seed
+slots, so a full disk means giving something up or buying a bigger one.
 
-The safety net is the GDD's, exactly (GDD 6): real-time protection blocks an
-infected file outright, otherwise the run's one free trial rescue catches it,
-otherwise the machine is infected — production halved, LemonWire locked, and
-**nothing already earned is taken away**. A second infection cannot stack below
-that floor, and a Shield99 scan always cures it.
+**Reworked after playtesting (the seeding refactor).** LemonWire shipped as a
+download manager: queue a transfer, watch a bar, collect a lump sum, repeat. The
+bars were the app — the decision behind them took two seconds and the waiting
+took minutes, so the window turned into a chore that had to be visited rather
+than a system that ran. It is now a *seeder*: a file in a slot pays Buzz every
+second it is shared, and the only question the app asks is which files get the
+slots. Rare files (few seeders) beat popular ones, risky files pay more than
+safe ones, and big ones charge the disk for the privilege. The connection
+(dial-up → fibre) is the Buzz sink that multiplies every slot at once.
+
+The safety net is still the GDD's, exactly (GDD 6) — but the threat is now the
+*reward*. Seeding attracts one every few minutes, and what happens next is the
+whole reason to spend 48 MB on Shield99: with it open the threat is caught and
+sealed in **quarantine**, where opening it is the game's rewarded-ad placement
+(worth ~15 minutes of current production, with a 25% non-ad fallback so an ad
+blocker never locks anybody out). With nothing watching, the old net runs
+instead: the run's one free trial rescue catches it, otherwise the machine is
+infected — production halved, sharing suspended, and **nothing already earned is
+taken away**. A second infection cannot stack below that floor, and a Shield99
+scan always cures it.
 
 AO-23 and AO-24 were largely satisfied on Day 1, because PDA mode was built as a
 first-class target rather than a fallback. What was actually missing: a

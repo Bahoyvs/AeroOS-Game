@@ -77,12 +77,14 @@ runs "Format C:". All software is wiped, but Dollars are awarded for permanent h
 - **RetroAmp** — global Buzz multipliers based on the loaded playlist. An indie
   "SOFT SIGNALS" playlist gives a permanent small multiplier; heavy metal gives a massive
   short-burst multiplier but costs a lot of RAM.
-- **LemonWire** — P2P download simulator. Finished downloads grant huge Buzz.
-  *Safety net:* a virus no longer ruins a run — it caps production drops at a soft floor
-  of 50%, or only locks LemonWire itself.
+- **LemonWire** — P2P sharing. Files placed in seed slots pay passive Buzz for as long as
+  they are shared; rare and risky files pay most, and the connection tier multiplies every
+  slot. *Safety net:* a virus no longer ruins a run — it caps production drops at a soft
+  floor of 50%, or only suspends LemonWire itself.
 - **Aero Studio** — video rendering, GPU-dependent. Long cooldown, highest single payout.
-- **Shield99** — antivirus protecting against LemonWire viruses. Free trial rescue on the
-  first virus encountered.
+- **Shield99** — antivirus protecting against LemonWire's threats. Kept open, it catches
+  them and seals them in a quarantine the player opens for loot (rewarded ad, with a
+  reduced non-ad path). Kept closed, the free trial rescue covers the first one only.
 - **AeroBurn** — burns excess Buzz onto a "CD" that survives the prestige wipe, granting
   starting boosts for the next run.
 - **Galactic Pinball 3D** — active mini-game window for generating Buzz and combo

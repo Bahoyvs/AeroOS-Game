@@ -631,6 +631,12 @@
   filter: none;
 }
 
+/* Something is waiting in quarantine — worth a glance, not an alarm. */
+.tray__shield[data-status='catch'] {
+  filter: none;
+  animation: task-flash 2.2s var(--ease-aero) infinite;
+}
+
 .tray__shield[data-status='infected'] {
   filter: none;
   animation: task-flash 1s var(--ease-aero) infinite;

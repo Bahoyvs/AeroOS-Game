@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99 } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
@@ -8,7 +8,8 @@ import * as econ from './economy.js';
 import * as burner from './aeroburn.js';
 import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
-import * as dl from './downloads.js';
+import * as lw from './lemonwire.js';
+import * as shield from './shield99.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
@@ -88,10 +89,23 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     if (spawned) bus.emit(EVENTS.STATUS_SPAWNED, spawned);
     if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
 
-    for (const job of dl.updateDownloads(state, dt, rng)) completeDownload(job);
+    lw.updateSeeds(state, dt, econ.totalBandwidth(state));
 
-    for (const item of dl.updateTrash(state, dt)) {
+    for (const item of lw.updateTrash(state, dt)) {
       bus.emit(EVENTS.TRASH_EMPTIED, { file: getFile(item.fileId) });
+    }
+
+    const threat = shield.updateThreats(state, dt, rng, now);
+    if (threat) {
+      if (threat.outcome === 'quarantined') {
+        bus.emit(EVENTS.THREAT_QUARANTINED, {
+          item: threat.item,
+          threat: shield.getThreat(threat.item.threatId),
+        });
+      } else {
+        bus.emit(EVENTS.VIRUS, { outcome: threat.outcome });
+      }
+      save();
     }
 
     const disc = burner.updateBurn(state, dt);
@@ -116,7 +130,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       save();
     }
 
-    const scan = dl.updateScan(state, dt);
+    const scan = shield.updateScan(state, dt);
     if (scan?.done) {
       bus.emit(EVENTS.SCAN_DONE, { cured: scan.cured });
       save();
@@ -286,50 +300,85 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
   /* ------------------------------------------------- LemonWire / Shield99 */
 
-  /** Queue a download (AO-21). Refusals explain themselves to the UI. */
-  function startDownload(fileId) {
-    const check = dl.canDownload(state, fileId, econ.storageCapacityGB(state));
+  /** Put a file in a seed slot (AO-21). Refusals explain themselves to the UI. */
+  function startSeeding(fileId) {
+    const check = econ.canSeedFile(state, fileId);
     if (!check.ok) return check;
 
-    const job = dl.startDownload(state, fileId);
-    bus.emit(EVENTS.DOWNLOAD_STARTED, { job, file: getFile(fileId) });
-    return { ok: true, job };
+    const seed = lw.startSeeding(state, fileId, Date.now());
+    bus.emit(EVENTS.SEED_STARTED, { seed, file: getFile(fileId) });
+    save();
+    return { ok: true, seed };
   }
 
-  function cancelDownload(jobId) {
-    const result = dl.cancelDownload(state, jobId);
-    if (result.ok) bus.emit(EVENTS.DOWNLOAD_CANCELLED, { job: result.job });
+  /** Free the slot. The file goes to the bin, so the disk lags behind. */
+  function stopSeeding(seedId) {
+    const result = lw.stopSeeding(state, seedId);
+    if (result.ok) {
+      bus.emit(EVENTS.SEED_STOPPED, {
+        file: getFile(result.seed.fileId),
+        secondsLeft: result.secondsLeft,
+      });
+      save();
+    }
     return result;
   }
 
-  /** Moves the file to the trash — the disk does not come back straight away. */
-  function deleteFile(fileId) {
-    const result = dl.deleteFile(state, fileId);
+  /** Buy the next connection tier — the multiplier over every slot at once. */
+  function upgradeConnection() {
+    const result = lw.upgradeConnection(state);
     if (result.ok) {
-      bus.emit(EVENTS.FILE_DELETED, { file: getFile(fileId), secondsLeft: result.secondsLeft });
+      bus.emit(EVENTS.BANDWIDTH_UPGRADED, { connection: result.connection, cost: result.cost });
+      save();
     }
     return result;
   }
 
   /**
-   * A finished download pays out, and an infected one meets the safety net
-   * (GDD 6): real-time protection blocks it, otherwise the run's free rescue
-   * catches it, otherwise the machine is infected — capped, never ruinous.
+   * Open a quarantined file (the rewarded-ad lootbox).
+   *
+   * The ad itself belongs to the shell — the SDK is a browser API and core does
+   * not touch it — so this is called *after* `adFinished` with `viaAd: true`.
+   * The manual path is always available at a fraction of the reward, because a
+   * player with an ad blocker must never be locked out of a mechanic.
    */
-  function completeDownload(job) {
-    const file = getFile(job.fileId);
-    const payout = dl.payoutFor(job.fileId, econ.buzzPerSecond(state));
+  function extractQuarantine(itemId, { viaAd = false } = {}) {
+    const now = Date.now();
+    const check = shield.canExtract(state, itemId, { viaAd, now });
+    if (!check.ok) return check;
 
-    state.lemonwire.library.push(job.fileId);
-    state.lemonwire.completed += 1;
-    grantBuzz(payout, 'download');
-    bus.emit(EVENTS.DOWNLOAD_DONE, { file, payout });
+    const threat = shield.getThreat(check.item.threatId);
+    const reward = shield.rewardFor(threat, {
+      fraction: viaAd ? 1 : SHIELD99.manualRewardFraction,
+      buzzPerSecond: econ.buzzPerSecond(state, now),
+      isRendering: state.aerostudio.isRendering,
+    });
 
-    if (!job.infected) return;
+    shield.takeFromQuarantine(state, itemId);
+    if (viaAd) shield.startAdCooldown(state, now);
 
-    const { outcome } = dl.resolveInfection(state);
-    bus.emit(EVENTS.VIRUS, { file, outcome });
-    if (outcome === 'infected') save();
+    if (reward.kind === 'buzz') {
+      grantBuzz(reward.buzz, 'quarantine');
+    } else if (reward.kind === 'buff') {
+      addBuff(
+        state,
+        {
+          id: `quarantine-${threat.id}`,
+          kind: 'global',
+          magnitude: reward.magnitude,
+          durationSeconds: reward.durationSeconds,
+          label: threat.name,
+          source: 'shield99',
+        },
+        now,
+      );
+    } else if (reward.kind === 'render') {
+      aerostudio.boostRender(state, reward.renderFraction);
+    }
+
+    bus.emit(EVENTS.QUARANTINE_CLAIMED, { threat, reward, viaAd });
+    save();
+    return { ok: true, threat, reward };
   }
 
   /* -------------------------------------------------------------- AeroBurn */
@@ -357,7 +406,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
   /** Start a Shield99 scan (AO-22). Curing is what ends an infection. */
   function startScan() {
-    const result = dl.startScan(state);
+    const result = shield.startScan(state);
     if (result.ok) bus.emit(EVENTS.SCAN_STARTED, {});
     return result;
   }
@@ -506,9 +555,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     claimStatusBonus,
     loadPlaylist,
     ejectPlaylist,
-    startDownload,
-    cancelDownload,
-    deleteFile,
+    startSeeding,
+    stopSeeding,
+    upgradeConnection,
+    extractQuarantine,
     startScan,
     startBurn,
     playDisc,
@@ -527,17 +577,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         grantBuzz(offlineReport.buzz, 'rewarded-ad');
         save();
       }
-    },
-    activateTrojanScanBoost() {
-      addBuff(state, {
-        id: 'trojan-scan-boost',
-        kind: 'global',
-        magnitude: 1.0, // +100% = 2x
-        durationSeconds: 4 * 3600, // 4 hours
-        label: 'Trojan Scan Boost',
-        source: 'shield99'
-      }, Date.now());
-      save();
     },
     notify(title, body, tone = 'info') {
       bus.emit(EVENTS.NOTIFY, { title, body, tone });

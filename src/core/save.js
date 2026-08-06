@@ -1,4 +1,5 @@
-import { SAVE } from '../data/balance.js';
+import { LEMONWIRE, SAVE } from '../data/balance.js';
+import { hasFile } from '../data/files.js';
 import { SAVE_VERSION, createInitialState } from './state.js';
 
 /**
@@ -98,6 +99,41 @@ const MIGRATIONS = {
       ...data,
       settings: { ...settings, motion: reducedMotion === true ? 'reduced' : 'auto' },
       version: 2,
+    };
+  },
+
+  // 2 -> 3: LemonWire stopped being a download manager. `queue` (in-flight
+  // transfers) and `library` (finished files sitting on the disk) both became
+  // `activeSeeds` — a file the player owned is a file they can share, so the
+  // fair reading of an old save is "everything you had is now seeding", capped
+  // at the slots the machine actually has. The Recycle Bin carries over
+  // untouched; it means the same thing it always did.
+  2: (data) => {
+    const old = data.lemonwire ?? {};
+    const owned = [
+      ...(old.library ?? []),
+      ...(old.queue ?? []).map((job) => job?.fileId),
+    ].filter((id) => typeof id === 'string' && hasFile(id));
+
+    const slots = LEMONWIRE.baseSeedSlots + Math.floor((data.hardware?.hdd ?? 0) / LEMONWIRE.hddTiersPerSlot);
+    const seeded = [...new Set(owned)].slice(0, Math.min(slots, LEMONWIRE.maxSeedSlots));
+    const now = data.lastSeen ?? Date.now();
+
+    return {
+      ...data,
+      lemonwire: {
+        activeSeeds: seeded.map((fileId, index) => ({
+          id: index + 1,
+          fileId,
+          startedAt: now,
+          uploadedMB: 0,
+        })),
+        maxSeedSlots: LEMONWIRE.baseSeedSlots,
+        connection: 0,
+        trash: (old.trash ?? []).filter((item) => hasFile(item?.fileId)),
+        nextId: seeded.length + 1,
+      },
+      version: 3,
     };
   },
 };
