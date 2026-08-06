@@ -763,7 +763,9 @@
  * is meant to feel like they are somewhere slightly disreputable, and a flat
  * grey panel of buttons reads as a settings dialog instead.
  */
-.app-lemonwire {
+/* Two classes, deliberately: 7.css sets the padding as `.window-body.has-space`
+   and a single class cannot outrank it. See the note below. */
+.aero-window__body.app-lemonwire {
   display: grid;
   grid-template-areas:
     'chrome chrome'
@@ -771,12 +773,21 @@
     'side main';
   grid-template-columns: 136px minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
-  /* Edge to edge inside the window body's own border (7.css puts 6px of
-     padding on .has-space), because chrome that floats has no edges. The
-     height wins that padding back so the two panes fill the window and scroll
-     inside themselves rather than scrolling the whole client area. */
-  margin: -6px;
-  height: calc(100% + 12px);
+  /**
+   * Edge to edge, because chrome that floats has no edges.
+   *
+   * `mount()` puts this class on the window body *itself*, not on a child — so
+   * the only thing between the chrome and the frame is that body's own `padding`
+   * from 7.css's `.has-space`, and dropping it is the whole trick. It must not
+   * be done with a negative margin: `.window-body` carries `margin: 0 6px 6px`,
+   * which is what holds it inside the window, and cancelling that pushes the
+   * app 6px out through the frame on every side.
+   *
+   * No height override either. The body is already `flex: 1` in the window's
+   * column, so `minmax(0, 1fr)` on the last row resolves against the right box
+   * and the two panes scroll inside themselves.
+   */
+  padding: 0;
   color: #1d2b16;
   background: #fff;
 }
@@ -1326,7 +1337,9 @@
  * the connection and the disk, which are the only parts of it that do anything.
  */
 @media (max-width: 820px) {
-  .app-lemonwire {
+  /* Matching the base rule's two classes — a media query adds no specificity,
+     so a single-class selector here would simply lose to it. */
+  .aero-window__body.app-lemonwire {
     grid-template-areas:
       'chrome'
       'tabs'
