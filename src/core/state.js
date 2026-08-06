@@ -1,11 +1,12 @@
 import { ALL_APPS } from '../data/apps.js';
+import { LEMONWIRE } from '../data/balance.js';
 import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
  * cannot satisfy, and add a migration in src/core/save.js.
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 /** Apps the player boots with on a fresh install. */
 const PREINSTALLED = new Set(['system', 'aerochat']);
@@ -45,12 +46,15 @@ export function createInitialState(now = Date.now()) {
       nextEventIn: 0, // rolled on the first tick with AeroChat open
     },
 
+    // LemonWire seeds instead of downloading: a file in a slot pays Buzz for as
+    // long as it is shared. `maxSeedSlots` is the *base* count — the effective
+    // number is that plus what the HDD tier adds (econ.seedSlots).
     lemonwire: {
-      queue: [], // active downloads: { id, fileId, downloadedGB }
-      library: [], // completed file ids, taking up HDD space
-      trash: [], // [{ fileId, secondsLeft }] — deleted, but still on the disk
+      activeSeeds: [], // [{ id, fileId, startedAt, uploadedMB }]
+      maxSeedSlots: LEMONWIRE.baseSeedSlots,
+      connection: 0, // index into LEMONWIRE.connections; the bandwidth multiplier
+      trash: [], // [{ fileId, secondsLeft }] — stopped, but still on the disk
       nextId: 1,
-      completed: 0,
     },
 
     // AeroBurn (AO-29). Discs survive Format C: — see resetForPrestige.
@@ -60,11 +64,26 @@ export function createInitialState(now = Date.now()) {
       burned: 0,
     },
 
-    // Shield99 / virus state (AO-22). `infection` is null or { at }.
+    /**
+     * Two slices, because they are two different things:
+     *
+     * `security` is the *machine's* condition — infected or not, the run's free
+     * rescue, a scan in progress. It exists whether or not Shield99 is even
+     * installed, which is precisely when it matters most.
+     */
     security: {
-      infection: null,
+      infection: null, // null or { at }
       rescuesUsed: 0, // the free trial rescue, one per run
       scan: null,
+    },
+
+    /** ...and `shield99` is the app's own data: its catch, and its ad pacing. */
+    shield99: {
+      quarantine: [], // [{ id, threatId, at }] — sealed, waiting to be opened
+      nextThreatIn: 0, // simulation seconds; rolled on the first tick while seeding
+      adCooldownUntil: 0, // wall clock — it should burn down while the tab is shut
+      filesCleaned: 0,
+      nextId: 1,
     },
 
     retroamp: {

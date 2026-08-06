@@ -48,12 +48,13 @@ export const EVENTS = {
   STATUS_MISSED: 'status:missed', // { index, bonusId }
   STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }
   BUFF_EXPIRED: 'buff:expired', // { buff }
-  DOWNLOAD_STARTED: 'lemonwire:started', // { job, file }
-  DOWNLOAD_DONE: 'lemonwire:done', // { file, payout }
-  DOWNLOAD_CANCELLED: 'lemonwire:cancelled', // { job }
-  FILE_DELETED: 'lemonwire:deleted', // { file, secondsLeft }
+  SEED_STARTED: 'lemonwire:seeding', // { seed, file }
+  SEED_STOPPED: 'lemonwire:stopped', // { file, secondsLeft }
+  BANDWIDTH_UPGRADED: 'lemonwire:bandwidth', // { connection, cost }
   TRASH_EMPTIED: 'lemonwire:trashed', // { file } — its disk space came back
-  VIRUS: 'security:virus', // { file, outcome: blocked | rescued | infected }
+  THREAT_QUARANTINED: 'shield99:quarantined', // { item, threat }
+  QUARANTINE_CLAIMED: 'shield99:claimed', // { threat, reward, viaAd }
+  VIRUS: 'security:virus', // { outcome: blocked | rescued | infected }
   SCAN_STARTED: 'security:scan', // {}
   SCAN_DONE: 'security:scanned', // { cured }
   BURN_STARTED: 'aeroburn:started', // { cd, job }

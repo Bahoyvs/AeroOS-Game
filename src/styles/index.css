@@ -11,6 +11,17 @@
   box-sizing: border-box;
 }
 
+/**
+ * `hidden` beats layout. The UA rule for it is `display: none` at the lowest
+ * possible specificity, so any component that sets `display: grid|flex` on
+ * itself quietly un-hides its own hidden state — which is how LemonWire's
+ * infection banner ended up permanently on screen. Components that predate this
+ * rule carry their own `[hidden]` override; they are harmless duplicates now.
+ */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   height: 100%;

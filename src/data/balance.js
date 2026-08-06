@@ -114,47 +114,65 @@ export const OFFLINE = {
   minSeconds: 60, // ignore alt-tabs shorter than this
 };
 
+/**
+ * LemonWire is a *seeding* app, not a download manager.
+ *
+ * A file put in a seed slot pays Buzz every second it is shared — no progress
+ * bar to babysit, no completion event to wait for. What the player actually
+ * decides is which files fill their slots, and that is a three-way trade:
+ * bigger files eat the disk, rarer files (few seeders) pay more because the
+ * swarm needs *them*, and riskier files pay more still while attracting the
+ * threats Shield99 turns into loot.
+ */
 export const LEMONWIRE = {
-  maxConcurrent: 3,
-  gbPerSecond: 0.06, // base rate before per-file modifiers
-  payoutSecondsPerGB: 45, // completion pays this many seconds of production per GB
-  minPayoutBuzz: 25, // an early download still feels like something
+  baseSeedSlots: 3,
+  hddTiersPerSlot: 2, // every other HDD tier unlocks another slot
+  maxSeedSlots: 5,
 
   /**
-   * Risk vs reward. A file's seeders and risk scale its download *speed*, and
-   * the payout scales inversely — wait ten times as long, earn ten times as
-   * much. Two knobs keep that from collapsing into a pointless choice:
+   * Per-seed income = (`flatBuzzPerSecond` + buddy rate × `shareOfChatRate`)
+   * × the file's weight × bandwidth.
    *
-   * `riskPayoutBonus` is the premium *on top of* the inverse. Without it the
-   * Buzz-per-second-of-waiting is identical for every file (the inverse cancels
-   * exactly), so risk would add infection chance for no upside at all.
-   *
-   * `fakeSwarmAtRisk` is why a virus advertising 302 seeders does not download
-   * instantly: above this risk the swarm is bots, so the seeder count buys no
-   * speed. Without it a popular malware file is the *fastest* in the list.
+   * The flat term is what makes the first seed feel like something on a fresh
+   * machine; the share term is what keeps a seed relevant at 300 buddies. Both
+   * are needed — a purely flat rate is dead weight by mid-game, and a purely
+   * proportional one pays nothing when the player first installs the app.
    */
+  flatBuzzPerSecond: 0.6,
+  shareOfChatRate: 0.03,
+
+  // File weight: size and risk both pay, and rarity pays most.
+  weightPerGB: 0.35,
   riskPayoutBonus: 1.5,
-  fakeSwarmAtRisk: 0.25,
-
-  seedersPerSpeedUnit: 20, // 20 seeders = normal speed
-  minSeederModifier: 0.1, // a dead torrent still crawls
-  maxSeederModifier: 2, // ...and a huge swarm cannot exceed double speed
 
   /**
-   * Speed multiplier by risk band: high risk trickles, extreme risk barely
-   * moves. Because payout is the inverse of speed, the extreme modifier is a
-   * single dial trading *how long* against *how much* at constant Buzz per
-   * second of waiting — 0.002 makes the 3 MB "speed boost" a ~25 second wait
-   * for roughly two minutes of production, which is the jackpot the file is
-   * pretending to be. Halve it for a longer, richer gamble.
+   * Rarity premium. A file with 6 seeders needs *you*; one with 302 does not,
+   * and a swarm that big around a 3 MB "speed boost" is bots anyway. Without
+   * this the fat popular files would dominate every slot and the list would
+   * have one right answer.
    */
-  riskSpeedTiers: [
-    { atRisk: 0.5, modifier: 0.002 },
-    { atRisk: 0.25, modifier: 0.2 },
+  seedersPivot: 20,
+  minDemandModifier: 0.5,
+  maxDemandModifier: 2,
+
+  /**
+   * The connection. Bought with Buzz, kept for the run, and the only thing that
+   * multiplies *every* slot at once — which is what makes it worth saving for
+   * rather than filling one more slot.
+   */
+  connections: [
+    { id: 'dialup', label: '56k Dial-up', multiplier: 1, cost: 0 },
+    { id: 'isdn', label: 'ISDN 128k', multiplier: 1.6, cost: 6000 },
+    { id: 'adsl', label: 'ADSL 1 Mbit', multiplier: 2.4, cost: 40000 },
+    { id: 'fibre', label: 'Fibre 10 Mbit', multiplier: 3.5, cost: 250000 },
   ],
 
-  // Deleting only moves a file to the trash; the space stays used until this
-  // much simulation time has passed (AO: Trash Bin).
+  // Purely cosmetic: the KB/s counter next to a slot. Period-accurate rather
+  // than generous — a 56k line uploading at 12 KB/s is the joke.
+  uploadKBpsPerWeight: 6,
+
+  // Stopping a seed only moves the file to the trash; the space stays used
+  // until this much simulation time has passed (AO: Trash Bin).
   trashSeconds: 300,
 };
 
@@ -167,6 +185,68 @@ export const SECURITY = {
   productionFloor: 0.5,
   scanSeconds: 6,
   freeRescuesPerRun: 1,
+};
+
+/**
+ * Shield99's quarantine (the Day 5 refactor).
+ *
+ * Seeding attracts threats. With Shield99 installed they are *caught* and land
+ * in quarantine as sealed files — the surprise box. Without it they run the
+ * old safety net instead (free rescue, then a capped infection), which is what
+ * keeps risky seeding a decision rather than free money.
+ *
+ * Extracting a quarantined file is worth ~15 minutes of the player's current
+ * production, so it stays meaningful at every stage. A rewarded ad pays it in
+ * full; `manualRewardFraction` is the always-available fallback, because a
+ * player with an ad blocker must never be locked out of a mechanic.
+ */
+export const SHIELD99 = {
+  minSpawnSeconds: 180,
+  maxSpawnSeconds: 300,
+
+  // Total risk across the seed slots shortens the wait, up to this much.
+  riskUrgency: 1.5,
+  maxUrgency: 3,
+
+  maxQuarantine: 5, // a backlog, not a savings account
+  adCooldownSeconds: 90,
+  manualRewardFraction: 0.25,
+
+  /**
+   * The loot table. `weight` is the relative roll chance; the reward kinds map
+   * onto systems that already exist — a Buzz burst measured in seconds of
+   * production, a timed global buff, and a shove to the Aero Studio render.
+   *
+   * Names are deliberately silly period pastiche: this is a toy antivirus in a
+   * toy OS, and nothing here should read as a real security warning.
+   */
+  threats: [
+    {
+      id: 'adware',
+      name: 'Adware.Win32.Popupz',
+      tier: 'Common',
+      weight: 60,
+      blurb: 'Seventeen toolbars in a trenchcoat. Somebody was paid per install.',
+      reward: { kind: 'buzz', seconds: 900 },
+    },
+    {
+      id: 'worm',
+      name: 'Worm.LoveLetter.2005',
+      tier: 'Rare',
+      weight: 30,
+      blurb: 'Mails itself to your whole buddy list. They all reply.',
+      reward: { kind: 'buff', magnitude: 1, durationSeconds: 600 },
+    },
+    {
+      id: 'trojan',
+      name: 'Trojan.RenderFarm',
+      tier: 'Epic',
+      weight: 10,
+      blurb: 'Stole your GPU cycles. Shield99 is stealing them back.',
+      // No render running? Pay the equivalent in Buzz instead of nothing.
+      reward: { kind: 'render', fraction: 0.25, fallbackSeconds: 1200 },
+    },
+  ],
 };
 
 export const AEROBURN = {

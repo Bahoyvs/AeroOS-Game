@@ -779,6 +779,13 @@
   font-size: 18px;
 }
 
+.lw__uprate {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #2f7a2f;
+}
+
 .lw__disk {
   display: grid;
   gap: 3px;
@@ -828,7 +835,7 @@
 }
 
 .lw__results,
-.lw__queue,
+.lw__seeds,
 .lw__library {
   display: grid;
   gap: 4px;
@@ -857,8 +864,15 @@
   opacity: 0.45;
 }
 
-.lw__result.is-owned {
-  opacity: 0.5;
+.lw__result.is-seeding {
+  opacity: 0.55;
+}
+
+.lw__result-rate {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #2f7a2f;
+  font-variant-numeric: tabular-nums;
 }
 
 .lw__file-name {
@@ -876,13 +890,17 @@
   color: var(--text-muted);
 }
 
-.lw__speed {
+.lw__demand {
   margin-left: auto;
   font-style: italic;
 }
 
-.lw__speed.is-slow,
-.lw__speed.is-crawling {
+.lw__demand.is-rare {
+  color: #2f7a2f;
+  font-weight: 700;
+}
+
+.lw__demand.is-saturated {
   color: #97791b;
 }
 
@@ -903,7 +921,8 @@
   color: var(--error);
 }
 
-.lw__job {
+/* A seed slot: no end state, so the bar reads "share of income", not progress. */
+.lw__seed {
   display: grid;
   gap: 3px;
   padding: 6px 8px;
@@ -912,19 +931,25 @@
   border-radius: var(--radius-sm);
 }
 
-.lw__job-top {
+.lw__seed.is-empty {
+  background: rgb(13 36 55 / 4%);
+  border-style: dashed;
+  border-color: rgb(13 36 55 / 15%);
+}
+
+.lw__seed-top {
   display: flex;
   gap: 8px;
   align-items: center;
   justify-content: space-between;
 }
 
-.lw__job .meter__track {
+.lw__seed .meter__track {
   height: 6px;
   background: rgb(13 36 55 / 18%);
 }
 
-.lw__job-meta {
+.lw__seed-meta {
   display: flex;
   justify-content: space-between;
   font-size: 0.65rem;
@@ -932,8 +957,42 @@
   font-variant-numeric: tabular-nums;
 }
 
-.lw__cancel,
-.lw__delete {
+.lw__seed-meta .is-rate {
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
+.lw__connection {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: rgb(255 255 255 / 45%);
+  border: 1px solid rgb(255 255 255 / 70%);
+  border-radius: var(--radius-sm);
+}
+
+.lw__connection-text {
+  display: grid;
+  min-width: 0;
+  font-size: 0.7rem;
+}
+
+.lw__connection-text span {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.lw__upgrade {
+  min-width: 0;
+  min-height: 24px;
+  margin-left: auto;
+  padding: 0 10px;
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.lw__cancel {
   min-width: 0;
   min-height: 22px;
   padding: 0 8px;
@@ -1011,6 +1070,93 @@
   color: var(--text-muted);
 }
 
+/**
+ * The radar. Purely decorative, and deliberately the cheapest thing that reads
+ * as a 2005 antivirus: one rotating conic gradient over two rings, composited
+ * on its own layer so a permanently spinning element costs the main thread
+ * nothing.
+ */
+.sh__radar {
+  position: relative;
+  overflow: hidden;
+  height: 96px;
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(circle at 50% 50%, #0d3a24 0%, #06170f 70%),
+    #06170f;
+  border: 1px solid #1d6b45;
+  box-shadow: inset 0 0 18px rgb(0 0 0 / 60%);
+}
+
+.sh__radar-sweep {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 200px;
+  height: 200px;
+  margin: -100px 0 0 -100px;
+  background: conic-gradient(
+    from 0deg,
+    rgb(64 255 148 / 34%) 0deg,
+    rgb(64 255 148 / 6%) 40deg,
+    transparent 90deg,
+    transparent 360deg
+  );
+  border-radius: 50%;
+  animation: sh-sweep 3.4s linear infinite;
+  will-change: transform;
+}
+
+.sh__radar[data-state='catch'] .sh__radar-sweep {
+  animation-duration: 1.8s;
+}
+
+.sh__radar[data-state='infected'] .sh__radar-sweep {
+  background: conic-gradient(
+    from 0deg,
+    rgb(255 96 78 / 40%) 0deg,
+    rgb(255 96 78 / 8%) 40deg,
+    transparent 90deg,
+    transparent 360deg
+  );
+}
+
+.sh__radar-ring {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
+  border: 1px solid rgb(64 255 148 / 30%);
+  border-radius: 50%;
+}
+
+.sh__radar-ring.is-inner {
+  width: 38px;
+  height: 38px;
+  margin: -19px 0 0 -19px;
+}
+
+.sh__radar-count {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 1.1rem;
+  color: #7dffb8;
+  text-shadow: 0 0 8px rgb(64 255 148 / 70%);
+}
+
+.sh__radar[data-state='infected'] .sh__radar-count {
+  color: #ff9d90;
+  text-shadow: 0 0 8px rgb(255 96 78 / 70%);
+}
+
+@keyframes sh-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .sh__scan {
   display: grid;
   gap: 6px;
@@ -1035,6 +1181,214 @@
 .sh__button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+.sh__heading {
+  margin: 2px 0 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sh__heading small {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.sh__quarantine {
+  display: grid;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sh__empty {
+  font-size: 0.7rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.sh__threat {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px 8px;
+  align-items: center;
+  padding: 7px 9px;
+  background: linear-gradient(180deg, #fffdf2, #fdf3d6);
+  border: 1px solid #d8c383;
+  border-radius: var(--radius-sm);
+}
+
+.sh__threat.is-rare {
+  background: linear-gradient(180deg, #f2f8ff, #d9e9fd);
+  border-color: #8fb4dd;
+}
+
+.sh__threat.is-epic {
+  background: linear-gradient(180deg, #f8f2ff, #e6d9fd);
+  border-color: #a98fdd;
+}
+
+.sh__threat-icon {
+  font-size: 20px;
+}
+
+.sh__threat-text {
+  display: grid;
+  min-width: 0;
+}
+
+.sh__threat-name {
+  overflow: hidden;
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh__threat-blurb {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+}
+
+.sh__threat.is-rare .sh__tier {
+  color: #1b3f66;
+  border-color: #8fb4dd;
+}
+
+.sh__threat.is-epic .sh__tier {
+  color: #40206b;
+  border-color: #a98fdd;
+}
+
+.sh__tier {
+  padding: 1px 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #4a3c10;
+  background: rgb(255 255 255 / 65%);
+  border: 1px solid rgb(0 0 0 / 12%);
+  border-radius: 999px;
+}
+
+.sh__threat-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  gap: 6px;
+}
+
+.sh__extract {
+  flex: 1 1 auto;
+  min-height: 28px;
+  font-weight: 700;
+  font-size: 0.7rem;
+  color: #10381f;
+  background: linear-gradient(180deg, #eaffef 45%, #b6efc6 0, #8fdda6);
+  border-color: #5aa876;
+}
+
+.sh__manual {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 0.66rem;
+}
+
+/**
+ * The pay-off. The sealed file shatters into pixel shards and the coins fall
+ * out of it — the same beat a mid-2000s installer would have played a chime on.
+ *
+ * Everything here is decoration on top of a reward that has already been paid:
+ * under reduced motion every duration collapses to nothing, the shards never
+ * appear, and the prize label (a plain node on a timer, not an animation) still
+ * reads for its full two seconds.
+ */
+.sh__threat.is-extracting {
+  /* Above its siblings, or the shards that fly downward are painted over by
+     the next row in the list and the burst reads as half an effect. */
+  z-index: 2;
+  background: linear-gradient(180deg, #ffffff, #eafff0);
+  border-color: #7bd39a;
+}
+
+.sh__threat.is-extracting .sh__threat-icon,
+.sh__threat.is-extracting .sh__threat-actions {
+  opacity: 0.15;
+}
+
+.sh__burst {
+  position: absolute;
+  z-index: 3;
+  inset: 50% auto auto 26px;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.sh__shard {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #3aa564;
+  box-shadow: 0 0 5px rgb(58 165 100 / 85%);
+  animation: sh-shatter 620ms cubic-bezier(0.2, 0.7, 0.3, 1) var(--delay, 0ms) both;
+}
+
+.sh__shard:nth-child(even) {
+  background: #6aa9e0;
+  box-shadow: 0 0 5px rgb(106 169 224 / 85%);
+}
+
+.sh__coin {
+  position: absolute;
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #d99a00;
+  text-shadow: 0 1px 0 #fff8dc, 0 0 6px rgb(224 169 23 / 70%);
+  animation: sh-coin 900ms cubic-bezier(0.3, 0.1, 0.4, 1) var(--delay, 0ms) both;
+}
+
+.sh__prize {
+  position: absolute;
+  inset: auto 10px 6px auto;
+  padding: 2px 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #10381f;
+  background: rgb(255 255 255 / 88%);
+  border: 1px solid #7bd39a;
+  border-radius: 999px;
+}
+
+@keyframes sh-shatter {
+  from {
+    transform: rotate(var(--angle)) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  to {
+    transform: rotate(var(--angle)) translateX(var(--dist)) rotate(var(--spin));
+    opacity: 0;
+  }
+}
+
+@keyframes sh-coin {
+  0% {
+    transform: translate(0, 0) scale(0.6);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--x), var(--fall)) scale(1);
+    opacity: 0;
+  }
 }
 
 .sh__stats {

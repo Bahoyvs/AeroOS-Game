@@ -1,30 +1,33 @@
 import { FILES, getFile, riskLabel } from '../data/files.js';
 import {
-  progressOf,
-  secondsLeft,
-  speedModifiers,
+  connectionAt,
+  nextConnection,
+  seedWeight,
   storageUsedGB,
   trashUsedGB,
-} from '../core/downloads.js';
+  uploadKBps,
+} from '../core/lemonwire.js';
 import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 /**
- * LemonWire (AO-21) — the P2P download simulator.
+ * LemonWire (AO-21) — the P2P *seeder*.
  *
- * Search results on top, transfers underneath, and a disk gauge that ties the
- * whole app to the HDD track. Downloads only advance while this window is open,
- * which is what makes its 96 MB footprint a real decision.
+ * The app no longer asks the player to start a transfer and watch it finish. It
+ * asks a better question: which three files are worth a slot? Rare files pay
+ * more than popular ones, risky files pay more than safe ones, and big files
+ * charge the disk for the privilege. Income only accrues while this window is
+ * open, which is what keeps its 96 MB footprint a real decision.
  */
 
 const sizeText = (gb) => (gb < 1 ? `${Math.round(gb * 1024)} MB` : `${gb} GB`);
 
-/** Transfer speed as words, so the risk/reward trade is legible before clicking. */
-function speedLabel(total) {
-  if (total >= 1.5) return 'fast';
-  if (total >= 0.75) return 'steady';
-  if (total >= 0.15) return 'slow';
-  return 'crawling';
+/** Demand as words, so the reason a file pays well is legible before clicking. */
+function demandLabel(demand) {
+  if (demand >= 1.6) return 'rare';
+  if (demand >= 1) return 'wanted';
+  if (demand >= 0.7) return 'common';
+  return 'saturated';
 }
 
 export function mount(body, { game }) {
@@ -32,7 +35,8 @@ export function mount(body, { game }) {
   body.innerHTML = `
     <div class="lw__bar">
       <span class="lw__logo" aria-hidden="true">🍋</span>
-      <span class="lw__status" data-role="status">Connected to 1,204 peers</span>
+      <span class="lw__status" data-role="status">Connecting…</span>
+      <span class="lw__uprate" data-role="uprate"></span>
     </div>
 
     <div class="lw__disk">
@@ -43,19 +47,24 @@ export function mount(body, { game }) {
       <div class="lw__disk-trash" data-role="disk-trash" hidden></div>
     </div>
 
-    <div class="lw__quarantine" data-role="quarantine" hidden>
-      <strong>⚠ Infected — LemonWire is locked</strong>
+    <div class="lw__quarantine" data-role="infected" hidden>
+      <strong>⚠ Infected — sharing suspended</strong>
       <span>Run a Shield99 scan to clean the machine. Production is halved until you do.</span>
+    </div>
+
+    <h4 class="lw__heading">Seeding <small data-role="slot-count"></small></h4>
+    <ul class="lw__seeds" data-role="seeds"></ul>
+
+    <div class="lw__connection">
+      <div class="lw__connection-text">
+        <strong data-role="conn-label"></strong>
+        <span data-role="conn-note"></span>
+      </div>
+      <button type="button" class="lw__upgrade" data-role="conn-buy"></button>
     </div>
 
     <h4 class="lw__heading">Shared files</h4>
     <ul class="lw__results" data-role="results"></ul>
-
-    <h4 class="lw__heading">Transfers <small data-role="queue-count"></small></h4>
-    <ul class="lw__queue" data-role="queue"></ul>
-
-    <h4 class="lw__heading">Library <small data-role="library-count"></small></h4>
-    <ul class="lw__library" data-role="library"></ul>
 
     <h4 class="lw__heading" data-role="trash-heading" hidden>
       Recycle Bin <small data-role="trash-count"></small>
@@ -65,16 +74,15 @@ export function mount(body, { game }) {
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
   const resultsRoot = ref('results');
-  const queueRoot = ref('queue');
-  const libraryRoot = ref('library');
+  const seedsRoot = ref('seeds');
   const trashRoot = ref('trash');
   const rows = new Map();
 
-  /* -------------------------------------------------------------- results */
+  /* --------------------------------------------------------- shared files */
 
   for (const file of FILES) {
     const risk = riskLabel(file.risk);
-    const speed = speedLabel(speedModifiers(file.id).total);
+    const demand = demandLabel(seedWeight(file.id).demand);
     const button = el(
       'button',
       {
@@ -82,21 +90,24 @@ export function mount(body, { game }) {
         class: 'lw__result',
         dataset: { fileId: file.id },
         // The trade the app is built around, spelled out before the click.
-        title: `${file.name}\n${sizeText(file.sizeGB)} · ${speed} transfer · ${risk} risk${
-          file.risk >= 0.25 ? ' — dangerous files trickle in, and pay accordingly' : ''
+        title: `${file.name}\n${sizeText(file.sizeGB)} · ${demand} in the swarm · ${risk} risk${
+          file.risk >= 0.25 ? ' — risky shares attract threats for Shield99 to catch' : ''
         }`,
         onclick: () => {
-          const result = game.startDownload(file.id);
+          const result = game.startSeeding(file.id);
           if (!result.ok) {
             const messages = {
-              'no-space': [`Disk full`, `${file.name} needs ${sizeText(file.sizeGB)}. Delete something or buy a bigger HDD.`],
-              'queue-full': ['Too many transfers', 'Finish or cancel one first.'],
-              'already-downloading': ['Already downloading', 'Check your transfers.'],
-              'already-have-it': ['Already in your library', 'You downloaded this one.'],
-              'in-trash': ['Still in the Recycle Bin', 'Wait for the bin to empty before downloading it again.'],
-              infected: ['LemonWire is locked', 'Clean the infection with Shield99 first.'],
+              'no-space': [
+                'Disk full',
+                `${file.name} needs ${sizeText(file.sizeGB)}. Stop a seed or buy a bigger HDD.`,
+              ],
+              'no-slots': ['Every slot is busy', 'Stop seeding something first, or upgrade your HDD.'],
+              'already-seeding': ['Already sharing', 'It is in one of your slots.'],
+              'in-trash': ['Still in the Recycle Bin', 'Wait for the bin to empty before sharing it again.'],
+              infected: ['Sharing suspended', 'Clean the infection with Shield99 first.'],
+              'not-open': ['LemonWire is closed', 'Open it to share.'],
             };
-            const [title, bodyText] = messages[result.reason] ?? ['Cannot download', ''];
+            const [title, bodyText] = messages[result.reason] ?? ['Cannot share that', ''];
             game.notify(title, bodyText, 'warn');
           }
           update();
@@ -107,110 +118,121 @@ export function mount(body, { game }) {
         el('span', { class: 'lw__file-meta' }, [
           el('span', { text: sizeText(file.sizeGB) }),
           el('span', { text: `${file.seeders} seeders` }),
-          el('span', { class: `lw__speed is-${speed}`, text: speed }),
+          el('span', { class: `lw__demand is-${demand}`, text: demand }),
           el('span', { class: `lw__risk is-${risk}`, text: `${risk} risk` }),
         ]),
+        el('span', { class: 'lw__result-rate', dataset: { role: `rate-${file.id}` } }),
       ],
     );
     resultsRoot.appendChild(el('li', {}, button));
     rows.set(file.id, button);
   }
 
-  /* --------------------------------------------------------------- queue */
+  /* ------------------------------------------------------------ the slots */
 
-  let queueKey = null;
+  let seedKey = null;
 
-  function renderQueue() {
-    const jobs = game.state.lemonwire.queue;
-    const key = jobs.map((job) => job.id).join(',');
-    if (key !== queueKey) {
-      queueKey = key;
-      clear(queueRoot);
+  function renderSeeds() {
+    const s = game.state;
+    const seeds = s.lemonwire.activeSeeds;
+    const slots = game.econ.seedSlots(s);
+    const key = `${seeds.map((seed) => seed.id).join(',')}|${slots}`;
 
-      if (jobs.length === 0) {
-        queueRoot.appendChild(el('li', { class: 'lw__empty', text: 'No active transfers.' }));
-      }
-      for (const job of jobs) {
-        const meta = getFile(job.fileId);
-        queueRoot.appendChild(
-          el('li', { class: 'lw__job', dataset: { jobId: String(job.id) } }, [
-            el('div', { class: 'lw__job-top' }, [
+    if (key !== seedKey) {
+      seedKey = key;
+      clear(seedsRoot);
+
+      for (const seed of seeds) {
+        const meta = getFile(seed.fileId);
+        seedsRoot.appendChild(
+          el('li', { class: 'lw__seed', dataset: { seedId: String(seed.id) } }, [
+            el('div', { class: 'lw__seed-top' }, [
               el('span', { class: 'lw__file-name', text: meta.name }),
               el('button', {
                 type: 'button',
                 class: 'lw__cancel',
                 text: '✕',
-                'aria-label': `Cancel ${meta.name}`,
+                'aria-label': `Stop seeding ${meta.name}`,
+                title: 'Stop seeding — the file goes to the Recycle Bin and holds its space for a while.',
                 onclick: () => {
-                  game.cancelDownload(job.id);
+                  game.stopSeeding(seed.id);
                   update();
                 },
               }),
             ]),
+            // A seed has no end state, so the bar shows share of income rather
+            // than progress: which slot is actually carrying the app.
             el('div', { class: 'meter__track' }, el('div', { class: 'meter__fill' })),
-            el('div', { class: 'lw__job-meta' }, [
-              el('span', { dataset: { role: `pct-${job.id}` }, text: '0%' }),
-              el('span', { dataset: { role: `eta-${job.id}` }, text: '' }),
+            el('div', { class: 'lw__seed-meta' }, [
+              el('span', { class: 'is-rate', dataset: { role: `seed-rate-${seed.id}` } }),
+              el('span', { dataset: { role: `seed-up-${seed.id}` } }),
             ]),
+          ]),
+        );
+      }
+
+      // Empty slots are shown, not implied: the player should be able to see
+      // what an HDD upgrade just bought them.
+      for (let i = seeds.length; i < slots; i += 1) {
+        seedsRoot.appendChild(
+          el('li', { class: 'lw__seed is-empty' }, [
+            el('span', { class: 'lw__empty', text: 'Empty slot — pick something to share.' }),
           ]),
         );
       }
     }
 
-    // Progress updates every pass without rebuilding the rows.
-    for (const job of jobs) {
-      const row = queueRoot.querySelector(`[data-job-id="${job.id}"]`);
+    const now = Date.now();
+    const best = Math.max(1, ...seeds.map((seed) => game.econ.seedRate(s, seed.fileId, now)));
+    for (const seed of seeds) {
+      const row = seedsRoot.querySelector(`[data-seed-id="${seed.id}"]`);
       if (!row) continue;
-      const ratio = progressOf(job);
-      setBar(row.querySelector('.meter__fill'), ratio, { warn: 2, critical: 2 });
-      row.querySelector(`[data-role="pct-${job.id}"]`).textContent = `${Math.round(ratio * 100)}%`;
-      row.querySelector(`[data-role="eta-${job.id}"]`).textContent = `${formatDuration(
-        secondsLeft(game.state, job),
-      )} left`;
+      const rate = game.econ.seedRate(s, seed.fileId, now);
+      setBar(row.querySelector('.meter__fill'), rate / best, { warn: 2, critical: 2 });
+      row.querySelector(`[data-role="seed-rate-${seed.id}"]`).textContent =
+        `${formatNumber(rate * game.econ.globalMultiplier(s, now))} Buzz/s`;
+      row.querySelector(`[data-role="seed-up-${seed.id}"]`).textContent =
+        `↑ ${uploadKBps(seed.fileId, game.econ.totalBandwidth(s)).toFixed(1)} KB/s · ${formatNumber(
+          seed.uploadedMB,
+        )} MB shared`;
     }
   }
 
-  /* ------------------------------------------------------------- library */
+  /* ------------------------------------------------------- the connection */
 
-  let libraryKey = null;
+  function renderConnection() {
+    const s = game.state;
+    const current = connectionAt(s.lemonwire.connection);
+    const next = nextConnection(s.lemonwire.connection);
 
-  function renderLibrary() {
-    const library = game.state.lemonwire.library;
-    const key = library.join(',');
-    if (key === libraryKey) return;
-    libraryKey = key;
+    ref('conn-label').textContent = `${current.label} · ×${current.multiplier}`;
+    const buy = ref('conn-buy');
 
-    clear(libraryRoot);
-    if (library.length === 0) {
-      libraryRoot.appendChild(el('li', { class: 'lw__empty', text: 'Nothing downloaded yet.' }));
+    if (!next) {
+      ref('conn-note').textContent = 'Fastest line in the neighbourhood.';
+      buy.hidden = true;
       return;
     }
-    for (const fileId of library) {
-      const meta = getFile(fileId);
-      libraryRoot.appendChild(
-        el('li', { class: 'lw__owned' }, [
-          el('span', { class: 'lw__file-name', text: meta.name }),
-          el('span', { class: 'lw__file-size', text: sizeText(meta.sizeGB) }),
-          el('button', {
-            type: 'button',
-            class: 'lw__delete',
-            text: 'Move to Trash',
-            title: 'Deleted files keep their disk space until the Recycle Bin empties itself.',
-            onclick: () => {
-              game.deleteFile(fileId);
-              update();
-            },
-          }),
-        ]),
-      );
-    }
+
+    buy.hidden = false;
+    ref('conn-note').textContent = `${next.label} multiplies every slot by ${next.multiplier}.`;
+    buy.textContent = `Upgrade · ${formatNumber(next.cost)}`;
+    buy.disabled = s.buzz < next.cost;
   }
+
+  ref('conn-buy').addEventListener('click', () => {
+    const result = game.upgradeConnection();
+    if (!result.ok && result.reason === 'too-expensive') {
+      game.notify('Not enough Buzz', 'The phone company wants more than that.', 'warn');
+    }
+    update();
+  });
 
   /* --------------------------------------------------------------- trash */
 
   /**
-   * The Recycle Bin. Its whole job is to make "delete" cost something: the
-   * space is still gone, and the countdown says for how long.
+   * The Recycle Bin. Its whole job is to make "stop seeding" cost something:
+   * the space is still gone, and the countdown says for how long.
    */
   let trashKey = null;
 
@@ -248,6 +270,7 @@ export function mount(body, { game }) {
   const update = throttle(() => {
     const s = game.state;
     const { econ } = game;
+    const now = Date.now();
     const infected = s.security.infection !== null;
 
     const used = storageUsedGB(s);
@@ -260,22 +283,32 @@ export function mount(body, { game }) {
     ref('disk-trash').hidden = held === 0;
     ref('disk-trash').textContent = `🗑 ${sizeText(held)} in Trash — not free yet`;
 
-    ref('quarantine').hidden = !infected;
-    ref('status').textContent = infected
-      ? 'Quarantined'
-      : `${s.lemonwire.queue.length} transferring · ${s.lemonwire.completed} completed`;
+    ref('infected').hidden = !infected;
 
-    ref('queue-count').textContent = `(${s.lemonwire.queue.length})`;
-    ref('library-count').textContent = `(${s.lemonwire.library.length})`;
+    const seeding = s.lemonwire.activeSeeds.length;
+    ref('status').textContent = infected
+      ? 'Sharing suspended'
+      : seeding === 0
+        ? 'Connected to 1,204 peers'
+        : `Sharing ${seeding} ${seeding === 1 ? 'file' : 'files'}`;
+    ref('uprate').textContent =
+      seeding === 0
+        ? ''
+        : `+${formatNumber(econ.seedBuzzPerSecond(s, now) * econ.globalMultiplier(s, now))} Buzz/s`;
+
+    ref('slot-count').textContent = `(${seeding} / ${econ.seedSlots(s)} slots)`;
 
     for (const [fileId, button] of rows) {
-      const check = econ.canDownloadFile(s, fileId);
+      const check = econ.canSeedFile(s, fileId);
       button.disabled = !check.ok;
-      button.classList.toggle('is-owned', s.lemonwire.library.includes(fileId));
+      button.classList.toggle('is-seeding', check.reason === 'already-seeding');
+      button.querySelector(`[data-role="rate-${fileId}"]`).textContent = `${formatNumber(
+        econ.seedRate(s, fileId, now) * econ.globalMultiplier(s, now),
+      )} Buzz/s`;
     }
 
-    renderQueue();
-    renderLibrary();
+    renderSeeds();
+    renderConnection();
     renderTrash();
   }, 150);
 

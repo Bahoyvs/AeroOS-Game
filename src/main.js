@@ -193,8 +193,9 @@ async function boot() {
     [game.events.OUT_OF_MEMORY]: 'error',
     [game.events.HARDWARE_BOUGHT]: 'coin',
     [game.events.STATUS_CLAIMED]: 'coin',
-    [game.events.DOWNLOAD_STARTED]: 'hdd',
-    [game.events.DOWNLOAD_DONE]: 'coin',
+    [game.events.SEED_STARTED]: 'hdd',
+    [game.events.BANDWIDTH_UPGRADED]: 'buy',
+    [game.events.QUARANTINE_CLAIMED]: 'coin',
     [game.events.SCAN_DONE]: 'chime',
     [game.events.BURN_STARTED]: 'burn',
     [game.events.BURN_DONE]: 'chime',
@@ -316,16 +317,17 @@ async function boot() {
   });
 
   // LemonWire + Shield99 (AO-21/AO-22).
-  game.bus.on(game.events.DOWNLOAD_DONE, ({ file, payout }) => {
+  game.bus.on(game.events.BANDWIDTH_UPGRADED, ({ connection }) => {
     notify({
-      title: 'Download complete',
-      body: `${file.name} — +${formatNumber(payout)} Buzz.`,
+      title: `${connection.label} connected`,
+      body: `Every seed slot now pays ×${connection.multiplier}.`,
       tone: 'success',
     });
   });
 
-  // Deleting is not instant, and the player has to learn that the first time.
-  game.bus.on(game.events.FILE_DELETED, ({ file, secondsLeft }) => {
+  // Stopping a seed is not instant, and the player has to learn that the first
+  // time: the slot frees immediately, the disk does not.
+  game.bus.on(game.events.SEED_STOPPED, ({ file, secondsLeft }) => {
     notify({
       title: 'Moved to the Recycle Bin',
       body: `${file.name} still takes up its space for ${formatDuration(secondsLeft)}.`,
@@ -341,17 +343,46 @@ async function boot() {
     });
   });
 
-  game.bus.on(game.events.VIRUS, ({ file, outcome }) => {
+  /**
+   * The catch. This is the balloon the whole lootbox loop hangs off, so it says
+   * what was caught and where it went — a threat the player never notices is a
+   * reward they never open.
+   */
+  game.bus.on(game.events.THREAT_QUARANTINED, ({ threat }) => {
+    taskbar.flag('shield99', true);
+    notify({
+      title: 'Shield99: 1 threat moved to Quarantine',
+      body: `${threat.name} is sealed and waiting. Open Shield99 to extract it.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.QUARANTINE_CLAIMED, ({ threat, reward, viaAd }) => {
+    taskbar.flag('shield99', game.state.shield99.quarantine.length > 0);
+    const payout =
+      reward.kind === 'buzz'
+        ? `+${formatNumber(reward.buzz)} Buzz`
+        : reward.kind === 'buff'
+          ? `+${Math.round(reward.magnitude * 100)}% to everything for ${reward.durationSeconds / 60} minutes`
+          : `your render jumped ${Math.round(reward.renderFraction * 100)}%`;
+    notify({
+      title: `${threat.name} disinfected`,
+      body: viaAd ? `${payout}.` : `${payout} — the full payload needs the ad.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.VIRUS, ({ outcome }) => {
     const messages = {
-      blocked: ['Shield99 blocked a threat', `${file.name} was quarantined on arrival.`, 'success'],
+      blocked: ['Shield99 blocked a threat', 'Quarantine is full — clear it to keep collecting.', 'info'],
       rescued: [
         'Shield99 free trial saved you',
-        `${file.name} was infected. That was your one free rescue — install and open Shield99 to stay covered.`,
+        'A threat got through while nothing was watching. That was your one free rescue — install and open Shield99 to stay covered.',
         'warn',
       ],
       infected: [
         'Your machine is infected',
-        'Production is halved and LemonWire is locked. Run a Shield99 deep scan to clean it — nothing you have earned is lost.',
+        'Production is halved and sharing is suspended. Run a Shield99 deep scan to clean it — nothing you have earned is lost.',
         'error',
       ],
     };
@@ -361,7 +392,9 @@ async function boot() {
   });
 
   game.bus.on(game.events.SCAN_DONE, ({ cured }) => {
-    taskbar.flag('shield99', false);
+    // The flag belongs to whatever still needs attention: a cured machine with
+    // files in quarantine is still asking to be opened.
+    taskbar.flag('shield99', game.state.shield99.quarantine.length > 0);
     notify({
       title: cured ? 'Machine cleaned' : 'Scan complete',
       body: cured ? 'Production is back to normal.' : 'No threats found.',

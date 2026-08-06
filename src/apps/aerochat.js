@@ -202,6 +202,11 @@ export function mount(body, { game }) {
       ...(bd.bloat !== 1
         ? [el('span', { class: 'is-drag', text: `×${bd.bloat.toFixed(2)} bloat` })]
         : []),
+      // Seeding is a separate producer, so it adds rather than multiplies —
+      // showing it as a factor would misreport where the Buzz comes from.
+      ...(bd.seeds > 0
+        ? [el('span', { class: 'is-boost', text: `+ ${formatNumber(bd.seeds)} seeding` })]
+        : []),
       el('span', { class: 'is-total', text: `= ${formatNumber(bd.total)} / sec` }),
     ];
 

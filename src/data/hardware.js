@@ -87,8 +87,8 @@ export const HARDWARE = {
   hdd: {
     label: 'HDD',
     tiers: HDD_TIERS,
-    blurb: 'P2P capacity and offline earnings cap.',
-    affects: 'Offline Buzz · LemonWire downloads',
+    blurb: 'P2P capacity, seed slots and offline earnings cap.',
+    affects: 'Offline Buzz · LemonWire seed slots',
   },
 };
 

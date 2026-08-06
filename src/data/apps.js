@@ -39,8 +39,10 @@ export const APPS = [
     day: 5,
     ram: 96,
     install: { cost: 2000, unlockAt: 1200 },
-    window: { width: 420, height: 320 },
-    blurb: 'P2P downloads pay out big. Some of them bite.',
+    // Tall enough that the seed slots and the swarm are visible at once — the
+    // whole app is the comparison between the two.
+    window: { width: 430, height: 500 },
+    blurb: 'Seed files for passive Buzz. Some of them bite.',
   },
   {
     id: 'shield99',
@@ -49,8 +51,10 @@ export const APPS = [
     day: 5,
     ram: 48,
     install: { cost: 3000, unlockAt: 2500 },
-    window: { width: 320, height: 260 },
-    blurb: 'Antivirus. First virus of a run is rescued for free.',
+    // The quarantine list is the app now, so the window opens tall enough to
+    // show a catch without scrolling for it.
+    window: { width: 360, height: 520 },
+    blurb: 'Antivirus. Catches threats and seals them as loot.',
   },
   {
     id: 'aerostudio',

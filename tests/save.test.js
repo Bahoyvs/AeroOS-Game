@@ -11,7 +11,7 @@ import {
   serialize,
 } from '../src/core/save.js';
 import { SAVE_VERSION, createInitialState } from '../src/core/state.js';
-import { SAVE } from '../src/data/balance.js';
+import { LEMONWIRE, SAVE } from '../src/data/balance.js';
 
 describe('save round-trip', () => {
   it('restores currencies, hardware and bots', () => {
@@ -97,6 +97,67 @@ describe('resilience', () => {
     );
     // 'auto', not 'full': a save that never opted out should still follow the OS.
     expect(neverTouchedIt.settings.motion).toBe('auto');
+  });
+
+  it('turns a v2 download library into seed slots', () => {
+    // LemonWire stopped being a download manager: a file the player owned is a
+    // file they can share, so an old save arrives already seeding.
+    const loaded = deserialize(
+      JSON.stringify({
+        version: 2,
+        hardware: { cpu: 0, ram: 0, gpu: 0, hdd: 0 },
+        lemonwire: {
+          library: ['wallpapers', 'anime'],
+          queue: [{ id: 1, fileId: 'battlefront', downloadedGB: 2 }],
+          trash: [{ fileId: 'skins', secondsLeft: 120 }],
+          nextId: 2,
+          completed: 4,
+        },
+      }),
+      0,
+    );
+
+    expect(loaded.lemonwire.activeSeeds.map((seed) => seed.fileId)).toEqual([
+      'wallpapers',
+      'anime',
+      'battlefront',
+    ]);
+    expect(loaded.lemonwire.activeSeeds.every((seed) => seed.uploadedMB === 0)).toBe(true);
+    expect(loaded.lemonwire.connection).toBe(0);
+    // The bin means what it always meant, so it carries over untouched.
+    expect(loaded.lemonwire.trash).toEqual([{ fileId: 'skins', secondsLeft: 120 }]);
+    expect(loaded.lemonwire.library).toBeUndefined();
+    expect(loaded.lemonwire.queue).toBeUndefined();
+  });
+
+  it('never migrates a v2 save into more slots than the machine has', () => {
+    const loaded = deserialize(
+      JSON.stringify({
+        version: 2,
+        hardware: { cpu: 0, ram: 0, gpu: 0, hdd: 0 },
+        lemonwire: {
+          library: ['wallpapers', 'anime', 'skins', 'cam-movie', 'battlefront', 'gone-file'],
+          queue: [],
+          trash: [],
+        },
+      }),
+      0,
+    );
+
+    expect(loaded.lemonwire.activeSeeds).toHaveLength(LEMONWIRE.baseSeedSlots);
+    // A file the list no longer has cannot be seeded, and must not crash a load.
+    expect(loaded.lemonwire.activeSeeds.map((seed) => seed.fileId)).not.toContain('gone-file');
+  });
+
+  it('gives a v2 save the Shield99 fields it never had', () => {
+    const loaded = deserialize(JSON.stringify({ version: 2, buzz: 10 }), 0);
+    expect(loaded.shield99).toEqual({
+      quarantine: [],
+      nextThreatIn: 0,
+      adCooldownUntil: 0,
+      filesCleaned: 0,
+      nextId: 1,
+    });
   });
 
   it('stamps unknown future-less versions rather than dropping progress', () => {
