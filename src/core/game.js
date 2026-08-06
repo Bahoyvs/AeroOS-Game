@@ -1,4 +1,5 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99 } from '../data/balance.js';
+import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
@@ -118,15 +119,18 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const render = aerostudio.updateRender(state, dt);
     if (render?.done) {
       const payout = econ.buzzPerSecond(state, now) * AEROSTUDIO.payoutSeconds;
-      grantBuzz(payout, 'aerostudio');
+      // Store the reward for manual collection instead of granting immediately.
+      // finishRender() resets isRendering so updateRender stops returning done.
+      state.aerostudio.pendingReward = {
+        projectName: render.projectName,
+        payout,
+      };
+      aerostudio.finishRender(state);
       bus.emit(EVENTS.RENDER_DONE, { projectName: render.projectName, payout });
-      if (window.CrazyGames?.SDK?.game) {
-        window.CrazyGames.SDK.game.happytime();
-      }
-      bus.emit(EVENTS.NOTIFY, { 
-        title: "Render Complete!", 
-        body: `Your project "${render.projectName}" is exported and topped the charts!`, 
-        tone: "success" 
+      bus.emit(EVENTS.NOTIFY, {
+        title: 'Render Complete!',
+        body: `"${render.projectName}" is ready — collect your reward!`,
+        tone: 'success',
       });
       save();
     }
@@ -566,9 +570,32 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
   }
 
   function startRender(projectName) {
+    // Don't allow starting a new render while a reward is waiting to be claimed.
+    if (state.aerostudio.pendingReward) return { ok: false, reason: 'pending-reward' };
     const result = aerostudio.startRender(state, projectName);
     if (result.ok) bus.emit(EVENTS.RENDER_STARTED, { projectName });
     return result;
+  }
+
+  /** Claim the deferred render reward (the player clicks "Collect"). */
+  function claimRenderReward() {
+    const pending = state.aerostudio.pendingReward;
+    if (!pending) return { ok: false, reason: 'no-pending' };
+
+    grantBuzz(pending.payout, 'aerostudio');
+    state.aerostudio.pendingReward = null;
+
+    bus.emit(EVENTS.RENDER_CLAIMED, { projectName: pending.projectName, payout: pending.payout });
+    bus.emit(EVENTS.NOTIFY, {
+      title: 'Reward Collected!',
+      body: `+${formatNumber(pending.payout)} Buzz from "${pending.projectName}"`,
+      tone: 'success',
+    });
+    if (window.CrazyGames?.SDK?.game) {
+      window.CrazyGames.SDK.game.happytime();
+    }
+    save();
+    return { ok: true, projectName: pending.projectName, payout: pending.payout };
   }
 
   function cancelRender() {
@@ -663,6 +690,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     buyHardware,
     startRender,
     cancelRender,
+    claimRenderReward,
     buyAeroUpgrade,
     formatC,
     requestFormat,

@@ -62,6 +62,7 @@ export const EVENTS = {
   DISC_PLAYED: 'aeroburn:played', // { cd, buzz }
   RENDER_STARTED: 'aerostudio:started', // { projectName }
   RENDER_DONE: 'aerostudio:done', // { projectName, payout }
+  RENDER_CLAIMED: 'aerostudio:claimed', // { projectName, payout }
   AERO_UPGRADE_BOUGHT: 'aerostudio:upgraded', // { upgradeId, cost }
   SWEEPER_STARTED: 'sweeper:started', // { tokensLeft }
   SWEEPER_ENDED: 'sweeper:ended', // { tiles, combo, buzz, best }
