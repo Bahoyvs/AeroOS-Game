@@ -1,4 +1,4 @@
-import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99 } from '../data/balance.js';
+import { CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
@@ -296,9 +296,9 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         reason === 'burnt-out'
           ? playlist.durationSeconds
           : Math.min(
-              playlist.durationSeconds,
-              Math.max(0, (now - state.retroamp.startedAt) / 1000),
-            );
+            playlist.durationSeconds,
+            Math.max(0, (now - state.retroamp.startedAt) / 1000),
+          );
       const owed = playlist.cooldownSeconds * (used / playlist.durationSeconds);
       if (owed > 0) state.retroamp.cooldownUntil[id] = now + owed * 1000;
     }
