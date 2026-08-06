@@ -96,21 +96,30 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
 
       try {
         sdk.game?.gameplayStop?.();
-        sdk.ad.requestAd('rewarded', {
-          adStarted: () => {},
-          adFinished: () => finish(true),
-          adError: (err) => {
-            // Blocked, unfilled, or closed early. Say so once, plainly: the
-            // player pressed a button and is owed an explanation, not silence.
-            console.info(`[ads] rewarded ad for "${placement}" did not complete`, err);
-            notify({
-              title: 'No sponsor available',
-              body: 'The video could not be played, so nothing was charged or awarded. Try again in a bit.',
-              tone: 'warn',
-            });
-            finish(false);
-          },
+        // Basic Launch: Ad calls commented out to avoid rejection
+        // sdk.ad.requestAd('rewarded', {
+        //   adStarted: () => {},
+        //   adFinished: () => finish(true),
+        //   adError: (err) => {
+        //     // Blocked, unfilled, or closed early. Say so once, plainly: the
+        //     // player pressed a button and is owed an explanation, not silence.
+        //     console.info(`[ads] rewarded ad for "${placement}" did not complete`, err);
+        //     notify({
+        //       title: 'No sponsor available',
+        //       body: 'The video could not be played, so nothing was charged or awarded. Try again in a bit.',
+        //       tone: 'warn',
+        //     });
+        //     finish(false);
+        //   },
+        // });
+        
+        // Fails gracefully for Basic Launch
+        notify({
+          title: 'Ad disabled',
+          body: 'Ads are temporarily disabled during this launch phase.',
+          tone: 'warn',
         });
+        finish(false);
       } catch (err) {
         console.warn('[ads] rewarded request threw', err);
         finish(false);
@@ -218,14 +227,17 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
         };
 
         sdk.game?.gameplayStop?.();
-        sdk.ad.requestAd('midgame', {
-          adStarted: () => {},
-          adFinished: () => finish(true),
-          // Unfilled or too soon by the portal's own pacing. Silent by design:
-          // the player did not ask for this, so they are not owed a balloon
-          // about an ad that never played.
-          adError: () => finish(false),
-        });
+        // Basic Launch: Ad calls commented out
+        // sdk.ad.requestAd('midgame', {
+        //   adStarted: () => {},
+        //   adFinished: () => finish(true),
+        //   // Unfilled or too soon by the portal's own pacing. Silent by design:
+        //   // the player did not ask for this, so they are not owed a balloon
+        //   // about an ad that never played.
+        //   adError: () => finish(false),
+        // });
+        
+        finish(false);
       });
     } catch (err) {
       console.warn(`[ads] midgame request for "${reason}" threw`, err);
@@ -249,7 +261,9 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
    */
   function banner(container, { width = ADS.banner.minWidth, height = ADS.banner.minHeight } = {}) {
     const empty = { ok: false, clear() {} };
-    if (!available() || !sdk.banner || !container) return empty;
+    // Basic Launch: Ad calls commented out (returns empty to hide banner UI slots)
+    return empty;
+    // if (!available() || !sdk.banner || !container) return empty;
 
     const now = Date.now();
     if (now - lastBannerAt < ADS.banner.refreshSeconds * 1000) return empty;
@@ -260,13 +274,14 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
     container.id = id;
 
     try {
+      // Basic Launch: Ad calls commented out
       // Responsive first: it picks a size that fits the container, which is the
       // only thing that works across a phone sheet and a wide desktop window.
-      if (typeof sdk.banner.requestResponsiveBanner === 'function') {
-        sdk.banner.requestResponsiveBanner([id]);
-      } else {
-        sdk.banner.requestBanner({ id, width, height });
-      }
+      // if (typeof sdk.banner.requestResponsiveBanner === 'function') {
+      //   sdk.banner.requestResponsiveBanner([id]);
+      // } else {
+      //   sdk.banner.requestBanner({ id, width, height });
+      // }
     } catch (err) {
       console.info('[ads] banner request failed', err);
       return empty;
@@ -276,7 +291,8 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
       ok: true,
       clear() {
         try {
-          sdk.banner.clearBanner?.(id);
+          // Basic Launch: Ad calls commented out
+          // sdk.banner.clearBanner?.(id);
         } catch {
           /* the slot went away with the window */
         }
