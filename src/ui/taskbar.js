@@ -38,13 +38,11 @@ export function createTaskbar({ root, game, wm, launch }) {
 
   function renderStartMenu() {
     clear(menu);
-    menu.append(
-      el('div', { class: 'start-menu__header' }, [
-        el('span', { class: 'start-menu__user', text: game.state.username || 'Guest' }),
-        el('span', { class: 'start-menu__status', text: 'Online' }),
-      ]),
-    );
 
+    const inner = el('div', { class: 'start-menu__inner' });
+
+    // --- Left Pane (Apps) ---
+    const leftPane = el('div', { class: 'start-menu__left' });
     const list = el('ul', { class: 'start-menu__list' });
     for (const app of ALL_APPS) {
       const entry = game.state.apps[app.id];
@@ -89,7 +87,41 @@ export function createTaskbar({ root, game, wm, launch }) {
       );
       list.appendChild(item);
     }
-    menu.appendChild(list);
+    leftPane.appendChild(list);
+
+    // --- Right Pane (System Links) ---
+    const rightPane = el('div', { class: 'start-menu__right' });
+
+    const sysList = el('ul', { class: 'start-menu__sys-list' });
+    const sysLinks = [
+      { label: game.state.username || 'Danielp', bold: true, divider: true },
+      { label: 'Documents' },
+      { label: 'Pictures' },
+      { label: 'Music' },
+      { label: 'Games', divider: true },
+      { label: 'Computer' },
+      { label: 'Control Panel', divider: true },
+      { label: 'Devices and Printers' },
+      { label: 'Default Programs' },
+      { label: 'Help and Support' },
+    ];
+
+    for (const link of sysLinks) {
+      const liClass = `start-menu__sys-item${link.divider ? ' has-divider' : ''}${
+        link.bold ? ' is-bold' : ''
+      }`;
+      const li = el('li', { class: liClass }, [
+        el('button', { type: 'button', class: 'start-menu__sys-btn' }, link.label),
+      ]);
+      sysList.appendChild(li);
+    }
+
+    rightPane.appendChild(sysList);
+
+    inner.appendChild(leftPane);
+    inner.appendChild(rightPane);
+
+    menu.appendChild(inner);
   }
 
   function toggleMenu(force) {

@@ -21,26 +21,36 @@ export function createNotifier(root, { timeout = 4500, max = 3 } = {}) {
    * default 4.5s, hence `duration`.
    */
   return function notify({ title, body, tone = 'info', action = null, duration = timeout }) {
+    let iconName = 'MsMpRes_151.png';
+    if (tone === 'success') iconName = 'MsMpRes_334.png';
+    else if (tone === 'warn') iconName = 'MsMpRes_134.png';
+    else if (tone === 'error') iconName = 'MsMpRes_132.png';
+
     const node = el('div', { class: `balloon balloon--${tone}`, role: 'status' }, [
-      el('div', { class: 'balloon__title', text: title }),
-      body ? el('div', { class: 'balloon__body', text: body }) : null,
-      action
-        ? el('button', {
-            type: 'button',
-            class: 'balloon__action',
-            text: action.label,
-            onclick: () => {
-              action.onClick();
-              dismiss(node);
-            },
-          })
-        : null,
-      el('button', {
-        class: 'balloon__close',
-        'aria-label': 'Dismiss',
-        text: '×',
-        onclick: () => dismiss(node),
-      }),
+      el('img', { class: 'balloon__icon', src: `/icons/${iconName}`, alt: tone }),
+      el('div', { class: 'balloon__content' }, [
+        el('div', { class: 'balloon__title', text: title }),
+        body ? el('div', { class: 'balloon__body', text: body }) : null,
+        action
+          ? el('button', {
+              type: 'button',
+              class: 'balloon__action',
+              text: action.label,
+              onclick: () => {
+                action.onClick();
+                dismiss(node);
+              },
+            })
+          : null,
+      ]),
+      el('div', { class: 'balloon__controls' }, [
+        el('button', {
+          class: 'balloon__close',
+          'aria-label': 'Dismiss',
+          text: '×',
+          onclick: () => dismiss(node),
+        }),
+      ]),
     ]);
 
     root.appendChild(node);

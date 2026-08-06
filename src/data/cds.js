@@ -32,6 +32,16 @@ export const CD_TYPES = [
     burnSeconds: 35,
     color: '#ffd9a3',
   },
+  {
+    id: 'gold-master',
+    name: 'Gold Master',
+    label: 'GOLD',
+    blurb: 'High-density archival disc. Stash a massive fortune before a total Format C:.',
+    cost: 1000000,
+    recovery: 0.8,
+    burnSeconds: 120,
+    color: '#ffd700',
+  },
 ];
 
 const BY_ID = new Map(CD_TYPES.map((cd) => [cd.id, cd]));

@@ -45,6 +45,22 @@ export const PLAYLISTS = [
       'PapaRoach_LastResort_LimeWire',
     ],
   },
+  {
+    id: 'y2k-trance',
+    name: 'Y2K TRANCE',
+    genre: 'eurodance / trance',
+    blurb: 'Extreme boost for a short time. Melts your RAM.',
+    multiplier: 5.0,
+    ram: 256,
+    durationSeconds: 120,
+    cooldownSeconds: 1200,
+    tracks: [
+      'Darude_Sandstorm_HQ.mp3',
+      'Alice_Dejay_Better_Off_Alone.mp3',
+      'PPK_ResuRection_Space.mp3',
+      'Kernkraft400_ZombieNation.mp3',
+    ],
+  },
 ];
 
 const BY_ID = new Map(PLAYLISTS.map((playlist) => [playlist.id, playlist]));

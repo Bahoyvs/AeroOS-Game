@@ -27,8 +27,39 @@
   color: var(--text);
 }
 
-.chat__avatar {
-  font-size: 26px;
+.buddy-icon {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  background-image: url('/icons/areochat_icons.png');
+  background-size: 300% 400%;
+  background-repeat: no-repeat;
+  border-radius: 50%;
+}
+
+/* --- 1. SATIR --- */
+.icon-coffee { background-position: 0% 0%; }
+.icon-user-clock { background-position: 50% 0%; }
+.icon-clock { background-position: 100% 0%; }
+
+/* --- 2. SATIR --- */
+.icon-user-earth { background-position: 0% 33.33%; }
+.icon-user-red { background-position: 50% 33.33%; }
+.icon-butterfly { background-position: 100% 33.33%;}
+
+/* --- 3. SATIR --- */
+.icon-user-green { background-position: 0% 66.66%; }
+.icon-earth { background-position: 50% 66.66%; }
+.icon-user-arrow { background-position: 100% 66.66%;}
+
+/* --- 4. SATIR --- */
+.icon-users-group { background-position: 0% 100%; }
+.icon-user-orange { background-position: 50% 100%; }
+.icon-user-blue { background-position: 100% 100%; }
+
+.chat__me .buddy-icon {
+  width: 26px;
+  height: 26px;
 }
 
 .chat__me-text small {
@@ -166,9 +197,10 @@
   opacity: 0.55;
 }
 
-.chat__avatar-sm {
-  font-size: 13px;
-  line-height: 1;
+.chat__buddy .buddy-icon, .chat__hot .buddy-icon {
+  width: 14px;
+  height: 14px;
+  align-self: center;
 }
 
 .chat__nick {

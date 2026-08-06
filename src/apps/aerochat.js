@@ -19,7 +19,7 @@ export function mount(body, { game }) {
   body.classList.add('app-aerochat');
   body.innerHTML = `
     <div class="chat__me glass">
-      <span class="chat__avatar" aria-hidden="true">🙂</span>
+      <span class="buddy-icon icon-user-green" aria-hidden="true"></span>
       <div class="chat__me-text">
         <strong>${game.state.username || 'Guest'}</strong>
         <small data-role="me-status">is building a social network</small>
@@ -84,7 +84,7 @@ export function mount(body, { game }) {
     const buddy = buddyAt(index);
     const away = isAway(index, epoch);
     return el('li', { class: `chat__buddy${away ? ' is-away' : ''}` }, [
-      el('span', { class: 'chat__avatar-sm', 'aria-hidden': 'true', text: buddy.avatar }),
+      el('span', { class: `buddy-icon ${buddy.avatar}`, 'aria-hidden': 'true' }),
       el('span', { class: 'chat__nick', text: buddy.name }),
       el('span', { class: 'chat__status', text: ambientStatus(index, epoch) }),
     ]);
@@ -109,7 +109,7 @@ export function mount(body, { game }) {
           },
         },
         [
-          el('span', { class: 'chat__avatar-sm', 'aria-hidden': 'true', text: buddy.avatar }),
+          el('span', { class: `buddy-icon ${buddy.avatar}`, 'aria-hidden': 'true' }),
           el('span', { class: 'chat__hot-text' }, [
             el('strong', { text: buddy.name }),
             el('em', { text: bonus.status }),

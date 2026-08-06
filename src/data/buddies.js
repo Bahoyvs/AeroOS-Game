@@ -36,7 +36,20 @@ const NICKS = [
 
 const SUFFIXES = ['', '_', '99', 'xX', '_2007', '.tr', '09'];
 
-const AVATARS = ['🙂', '😎', '👾', '🎮', '🛹', '🎸', '🌸', '🖤', '🎧', '💾', '💿', '🦋', '🐬', '🧊'];
+const AVATARS = [
+  'icon-coffee',
+  'icon-user-clock',
+  'icon-clock',
+  'icon-user-earth',
+  'icon-user-red',
+  'icon-butterfly',
+  'icon-user-green',
+  'icon-earth',
+  'icon-user-arrow',
+  'icon-users-group',
+  'icon-user-orange',
+  'icon-user-blue'
+];
 
 /** Ordinary flavour statuses — no mechanical effect (see STATUS_BONUSES). */
 const AMBIENT_STATUSES = [
