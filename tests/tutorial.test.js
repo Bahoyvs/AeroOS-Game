@@ -13,6 +13,7 @@ import {
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
 import { botCost } from '../src/core/economy.js';
 import { getApp } from '../src/data/apps.js';
+import { PLAYLISTS, getPlaylist } from '../src/data/playlists.js';
 import { TUTORIAL } from '../src/data/balance.js';
 
 const fresh = () => createInitialState(0);
@@ -26,11 +27,38 @@ function progressTo(state, id) {
     'install-retroamp': () => (state.apps.retroamp.installed = true),
     'load-playlist': () => (state.retroamp.playlist = 'soft-signals'),
     bottleneck: () => (state.tutorial.hardwareRevealed = true),
+    'my-computer': () => (state.apps.system.open = true),
   };
   for (let i = 0; i < target; i += 1) doIt[TUTORIAL_STEPS[i].id]();
   advanceTutorial(state);
   return state;
 }
+
+describe('the copy', () => {
+  /**
+   * The playlists have been renamed once already — "IRON OVERDRIVE" is "P2P
+   * DOWNLOADER" now — and the tutorial went on telling players to click a name
+   * that appears nowhere on screen. Nothing here may hardcode one.
+   */
+  it('names playlists from the data, not from memory', () => {
+    const script = TUTORIAL_STEPS.map((s) => `${s.hint} ${s.cta}`).join(' ');
+    for (const playlist of PLAYLISTS) {
+      if (!script.includes(playlist.id) && !script.includes(playlist.name)) continue;
+      expect(script).toContain(playlist.name);
+    }
+    expect(script).toContain(getPlaylist('soft-signals').name);
+    expect(script).toContain(getPlaylist('iron-overdrive').name);
+  });
+
+  it('gives every step something to say and something to point at', () => {
+    for (const step of TUTORIAL_STEPS) {
+      expect(step.title.length).toBeGreaterThan(0);
+      expect(step.hint.length).toBeGreaterThan(0);
+      // The cue is read in about a second; anything longer is skipped past.
+      expect(step.cta.split(' ').length).toBeLessThanOrEqual(6);
+    }
+  });
+});
 
 describe('a fresh desktop', () => {
   it('starts on the first step with hardware hidden', () => {
@@ -40,13 +68,14 @@ describe('a fresh desktop', () => {
     expect(stepNumber(s)).toBe(1);
   });
 
-  it('follows the GDD order: AeroChat, then RetroAmp, then the bottleneck', () => {
+  it('follows the GDD order: AeroChat, RetroAmp, the bottleneck, the hardware', () => {
     expect(TUTORIAL_STEPS.map((s) => s.id)).toEqual([
       'nudge',
       'first-buddy',
       'install-retroamp',
       'load-playlist',
       'bottleneck',
+      'my-computer',
     ]);
   });
 });
@@ -93,7 +122,7 @@ describe('affordability gates', () => {
   });
 
   it('leaves the steps that cost nothing alone', () => {
-    for (const id of ['load-playlist', 'bottleneck']) {
+    for (const id of ['load-playlist', 'bottleneck', 'my-computer']) {
       const s = progressTo(fresh(), id);
       s.buzz = 0;
       expect(stepGate(s)).toBeNull();
@@ -154,11 +183,24 @@ describe('advancing', () => {
   });
 
   it('finishes after the last step', () => {
-    const s = progressTo(fresh(), 'bottleneck');
-    s.tutorial.hardwareRevealed = true;
+    const s = progressTo(fresh(), 'my-computer');
+    s.apps.system.open = true;
     advanceTutorial(s);
     expect(s.tutorial.done).toBe(true);
     expect(currentStep(s)).toBeNull();
+  });
+
+  /**
+   * The tour used to end on the bottleneck, which revealed the hardware and
+   * then said nothing about it — leaving the player looking at a memory bar
+   * they had just been told was the problem, with no idea that hardware is
+   * something you buy, or where.
+   */
+  it('ends by opening My Computer, not on the bottleneck', () => {
+    const s = progressTo(fresh(), 'my-computer');
+    expect(s.tutorial.done).toBe(false);
+    expect(currentStep(s).id).toBe('my-computer');
+    expect(s.tutorial.hardwareRevealed).toBe(true);
   });
 
   it('is inert once done', () => {
