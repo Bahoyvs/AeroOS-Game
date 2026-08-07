@@ -73,52 +73,76 @@ export function createSpotlight({ root = document.body } = {}) {
     hole.style.width = `${Math.round(width)}px`;
     hole.style.height = `${Math.round(height)}px`;
 
-    /**
-     * The cue goes under the target when there is room, and above it when there
-     * is not. Below is the better default: on a phone the Nudge dock and the
-     * taskbar are at the bottom, so a cue that always sat above would spend the
-     * whole tutorial covering the window the player is being sent to.
-     */
-    const below = rect.bottom + CUE_SPACE < window.innerHeight;
-    cue.dataset.side = below ? 'below' : 'above';
-
     const cueWidth = cue.offsetWidth || 200;
     const cueHeight = cue.offsetHeight || 48;
-    const centre = rect.left + rect.width / 2;
-    let x = Math.max(EDGE, Math.min(centre - cueWidth / 2, window.innerWidth - cueWidth - EDGE));
-    const y = Math.max(EDGE, below ? rect.bottom + PADDING : rect.top - PADDING - cueHeight);
+    const spot = choosePlacement(rect, cueWidth, cueHeight);
 
-    const dodged = dodge(x, y, cueWidth, cueHeight);
+    cue.dataset.side = spot.below ? 'below' : 'above';
     // An arrow that had to slide sideways is no longer over its target, and an
     // arrow pointing at bare desktop is worse than no arrow. The ring is still
     // on the control; the label just stands beside it.
-    cue.dataset.dodged = dodged === x ? 'no' : 'yes';
-    cue.style.transform = `translate(${Math.round(dodged)}px, ${Math.round(y)}px)`;
+    cue.dataset.dodged = spot.dodged ? 'yes' : 'no';
+    cue.style.transform = `translate(${Math.round(spot.x)}px, ${Math.round(spot.y)}px)`;
   }
 
   /**
-   * Slide the cue sideways if it has landed on the coach.
+   * Where the label goes so that it does not land on the coach.
    *
    * These two collide constantly and not by accident: the coach is pinned to
-   * the bottom-left, and so are the Start button and (on a phone) the Nudge
-   * dock — two of the five objectives. Covering the coach would bury both the
-   * long-form hint and the "Skip the tour" button, and burying an escape hatch
-   * is the one thing this layer is not allowed to do. The ring is the precise
-   * pointer; the label only has to be legible and nearby.
+   * the bottom-left, and so are the Start button and — on a phone — the whole
+   * Nudge dock and the foot of every full-screen sheet. Covering the coach
+   * buries both the long-form hint and the "Skip the tour" button, and burying
+   * an escape hatch is the one thing this layer is not allowed to do.
+   *
+   * Three placements are tried in order of how well the arrow still reads:
+   * under the target (the default — on a phone the dock and taskbar are at the
+   * bottom, so a cue that always sat above would spend the tour covering the
+   * window the player is being sent to), then above it, then shoved sideways
+   * with the arrow dropped. On a 390px-wide phone sideways is usually not
+   * available at all, which is why flipping had to come first.
    */
-  function dodge(x, y, width, height) {
+  function choosePlacement(rect, width, height) {
+    const centre = rect.left + rect.width / 2;
+    const x = Math.max(EDGE, Math.min(centre - width / 2, window.innerWidth - width - EDGE));
+    const preferBelow = rect.bottom + CUE_SPACE < window.innerHeight;
+
+    const sideY = (below) => (below ? rect.bottom + PADDING : rect.top - PADDING - height);
+    const fits = (below) => {
+      const y = sideY(below);
+      return y >= EDGE && y + height <= window.innerHeight - EDGE;
+    };
+
+    for (const below of [preferBelow, !preferBelow]) {
+      if (!fits(below)) continue;
+      const y = sideY(below);
+      if (!hitsCoach(x, y, width, height)) return { x, y, below, dodged: false };
+    }
+
+    // Neither side is clear. Keep the preferred side and step aside instead.
+    const below = fits(preferBelow) ? preferBelow : !preferBelow;
+    const y = Math.max(EDGE, sideY(below));
+    const box = coachBox();
+    if (box) {
+      const toRight = box.right + 8;
+      if (toRight + width + EDGE <= window.innerWidth) return { x: toRight, y, below, dodged: true };
+      const toLeft = box.left - 8 - width;
+      if (toLeft >= EDGE) return { x: toLeft, y, below, dodged: true };
+    }
+    // Nowhere to go on a narrow screen. The label wins on z-order and contrast;
+    // the coach is clamped short enough that its title survives underneath.
+    return { x, y, below, dodged: false };
+  }
+
+  function coachBox() {
     const coach = document.querySelector('.coach');
-    if (!coach || coach.hidden) return x;
+    if (!coach || coach.hidden) return null;
+    return coach.getBoundingClientRect();
+  }
 
-    const box = coach.getBoundingClientRect();
-    const overlaps =
-      x < box.right && x + width > box.left && y < box.bottom && y + height > box.top;
-    if (!overlaps) return x;
-
-    const toRight = box.right + 8;
-    if (toRight + width + EDGE <= window.innerWidth) return toRight;
-    const toLeft = box.left - 8 - width;
-    return toLeft >= EDGE ? toLeft : x;
+  function hitsCoach(x, y, width, height) {
+    const box = coachBox();
+    if (!box) return false;
+    return x < box.right && x + width > box.left && y < box.bottom && y + height > box.top;
   }
 
   /** Recompute against the target's current position. Safe to call often. */

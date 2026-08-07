@@ -21,29 +21,88 @@ import { setBar, throttle } from './dom.js';
  */
 
 /**
+ * Is this element actually on screen where the player could touch it?
+ *
+ * Existing in the DOM is not enough, and on a phone it is barely a hint. PDA
+ * mode makes every window a full-screen sheet, so a desktop icon, a background
+ * window's controls and a minimised app all keep perfectly good rects while
+ * being completely buried — and a ring drawn around a buried control points at
+ * whatever happens to be on top of it, which is how a tutorial ends up
+ * apparently telling the player to press the coach panel.
+ *
+ * `elementFromPoint` answers the real question: what would a tap here hit? It
+ * ignores `pointer-events: none`, so the spotlight's own layer never shows up
+ * as the answer.
+ */
+function reachable(node) {
+  if (!node?.isConnected) return null;
+  const rect = node.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  if (rect.bottom < 0 || rect.top > window.innerHeight) return null;
+
+  const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  if (!hit) return null;
+  // Either direction counts: the hit may be a label inside the button, or the
+  // button inside a wrapper we were handed.
+  return node.contains(hit) || hit.contains(node) ? node : null;
+}
+
+const q = (selector) => () => document.querySelector(selector);
+
+/** First candidate the player could actually press, or null. */
+const firstReachable =
+  (...candidates) =>
+  () => {
+    for (const candidate of candidates) {
+      const found = reachable(candidate());
+      if (found) return found;
+    }
+    return null;
+  };
+
+/**
  * Where the spotlight points for each scripted step.
  *
- * Resolvers, not selectors, because two of the steps have a fallback: the
- * player is sent to the Start menu, and where the arrow belongs depends on
- * whether the menu is currently open. Returning `null` hides the spotlight,
- * which is the right answer when the window it wants has been closed.
+ * Resolvers, not selectors, because most steps have a fallback: the player is
+ * sent to the Start menu, and where the arrow belongs depends on whether the
+ * menu is open, whether the app's window is in front, and — on a phone —
+ * whether the desktop is visible at all. Returning `null` hides the spotlight,
+ * which is the right answer when nothing it wants is on screen.
  */
 const TARGETS = {
-  nudge: () => document.querySelector('.nudge-button'),
+  nudge: q('.nudge-button'),
 
-  'first-buddy': () => document.querySelector('.window[data-app-id="aerochat"] [data-buy="1"]'),
+  'first-buddy': firstReachable(
+    q('.window[data-app-id="aerochat"] [data-buy="1"]'),
+    q('.desktop-icon[data-app-id="aerochat"]'),
+  ),
 
-  'install-retroamp': () =>
-    document.querySelector('.start-menu:not([hidden]) .start-menu__item[data-app-id="retroamp"]') ??
-    document.querySelector('.start-button'),
+  'install-retroamp': firstReachable(
+    q('.start-menu:not([hidden]) .start-menu__item[data-app-id="retroamp"]'),
+    q('.start-button'),
+  ),
 
-  'load-playlist': () =>
-    document.querySelector('.window[data-app-id="retroamp"] [data-playlist-id="soft-signals"]') ??
-    document.querySelector('.desktop-icon[data-app-id="retroamp"]'),
+  'load-playlist': firstReachable(
+    q('.window[data-app-id="retroamp"] [data-playlist-id="soft-signals"]'),
+    q('.desktop-icon[data-app-id="retroamp"]'),
+    q('.task[data-app-id="retroamp"]'),
+  ),
 
-  bottleneck: () =>
-    document.querySelector('.window[data-app-id="retroamp"] [data-playlist-id="iron-overdrive"]') ??
-    document.querySelector('.desktop-icon[data-app-id="retroamp"]'),
+  bottleneck: firstReachable(
+    q('.window[data-app-id="retroamp"] [data-playlist-id="iron-overdrive"]'),
+    q('.desktop-icon[data-app-id="retroamp"]'),
+    q('.task[data-app-id="retroamp"]'),
+  ),
+
+  // The desktop icon first, then the Start menu's own My Computer row, then
+  // the "Computer" system link, then Start itself — which is the chain a phone
+  // actually walks, since a full-screen sheet is sitting on the icon.
+  'my-computer': firstReachable(
+    q('.desktop-icon[data-app-id="system"]'),
+    q('.start-menu:not([hidden]) .start-menu__item[data-app-id="system"]'),
+    q('.start-menu:not([hidden]) .start-menu__sys-btn[data-app-id="system"]'),
+    q('.start-button'),
+  ),
 };
 
 export function createTutorialCoach({ root, game }) {
@@ -67,6 +126,31 @@ export function createTutorialCoach({ root, game }) {
 
   const ref = (role) => panel.querySelector(`[data-role="${role}"]`);
   const spotlight = createSpotlight({ root: document.body });
+
+  /**
+   * Publish the panel's measured height, the same way the gadget publishes its
+   * own (`ui/desktop.js`).
+   *
+   * In PDA mode this is not decoration. A window is a full-screen sheet, the
+   * coach is pinned to the bottom of the screen, and the coach used to be drawn
+   * straight over the sheet's last hundred pixels — which is where AeroChat
+   * keeps its buy row and AeroSweeper its cash-out button. The tutorial was
+   * covering the very control it was pointing at. The stylesheet reserves this
+   * height instead of overlaying it, so it has to be the real number and not a
+   * guess: the panel's height changes with the objective, with the meter
+   * appearing and disappearing, and with how the hint wraps.
+   */
+  function publishHeight() {
+    const height = panel.hidden ? 0 : Math.ceil(panel.getBoundingClientRect().height);
+    document.documentElement.style.setProperty('--coach-height', `${height}px`);
+  }
+
+  if (globalThis.ResizeObserver) {
+    new ResizeObserver(publishHeight).observe(panel);
+  } else {
+    window.addEventListener('resize', publishHeight);
+  }
+  requestAnimationFrame(publishHeight);
 
   ref('skip').addEventListener('click', () => {
     game.skipOnboarding();
@@ -145,10 +229,21 @@ export function createTutorialCoach({ root, game }) {
     setBar(ref('bar'), goal.progress, { warn: 2, critical: 2 });
   }
 
+  /**
+   * Showing and hiding has to republish the height: a `display: none` panel
+   * does not reliably produce a ResizeObserver entry, and the reserved strip
+   * would stay behind as a dead margin at the bottom of every window.
+   */
+  function setHidden(hidden) {
+    if (panel.hidden === hidden) return;
+    panel.hidden = hidden;
+    publishHeight();
+  }
+
   const update = throttle(() => {
     const step = currentStep(game.state);
     if (step) {
-      panel.hidden = false;
+      setHidden(false);
       renderStep(step);
       return;
     }
@@ -157,11 +252,11 @@ export function createTutorialCoach({ root, game }) {
     if (!goal) {
       // Everything on the list is done. Nothing left to point at, and a coach
       // repeating its last objective forever is worse than a quiet desktop.
-      panel.hidden = true;
+      setHidden(true);
       spotlight.clear();
       return;
     }
-    panel.hidden = false;
+    setHidden(false);
     renderGoal(goal);
   }, 200);
 

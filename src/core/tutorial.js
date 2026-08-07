@@ -1,6 +1,14 @@
 import { TUTORIAL } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
+import { getPlaylist } from '../data/playlists.js';
 import { botCost } from './economy.js';
+
+// Read the playlist names rather than repeating them. They have been renamed
+// once already — "IRON OVERDRIVE" is "P2P DOWNLOADER" now — and a tutorial
+// telling the player to click something that is not on screen anywhere is a
+// worse failure than a slightly indirect constant.
+const STARTER = getPlaylist('soft-signals');
+const HEAVY = getPlaylist('iron-overdrive');
 
 /**
  * Hard-scripted onboarding for the first minute (AO-12, GDD 7).
@@ -54,16 +62,33 @@ export const TUTORIAL_STEPS = [
   {
     id: 'load-playlist',
     title: 'Load a playlist',
-    hint: 'Open RetroAmp and play AERO AMBIENCE for a permanent boost.',
-    cta: 'Play AERO AMBIENCE',
+    hint: `Open RetroAmp and play ${STARTER.name} for a permanent boost.`,
+    cta: `Play ${STARTER.name}`,
     isDone: (state) => state.retroamp.playlist !== null,
   },
   {
     id: 'bottleneck',
     title: 'Find the ceiling',
-    hint: 'Now try IRON OVERDRIVE. Heavy playlists need serious memory.',
-    cta: 'Try IRON OVERDRIVE',
+    hint: `Now try ${HEAVY.name}. Heavy playlists need serious memory.`,
+    cta: `Try ${HEAVY.name}`,
     isDone: (state) => state.tutorial.hardwareRevealed === true,
+  },
+  /**
+   * The step the tour was missing.
+   *
+   * The bottleneck reveals the hardware and then the tutorial simply stopped,
+   * leaving the player looking at a memory bar they have just been told is the
+   * problem, with no idea that CPU, RAM and disk are things you *buy*, that
+   * they are bought with Dollars rather than Buzz, or that Dollars come from
+   * Format C:. All three of those live behind one icon, and the tour now ends
+   * by opening it. Free, immediate, and it is the door to the whole meta-game.
+   */
+  {
+    id: 'my-computer',
+    title: 'Meet your hardware',
+    hint: 'My Computer is where CPU, RAM and disk are bought — and where Format C: lives.',
+    cta: 'Open My Computer',
+    isDone: (state) => state.apps.system?.open === true,
   },
 ];
 
