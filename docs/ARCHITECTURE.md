@@ -230,10 +230,23 @@ properties are load-bearing rather than cosmetic:
   not stored coordinates, so dragging a window or rotating a phone keeps the
   ring in the right place, and a target that goes away hides the layer instead
   of pointing at bare desktop.
+- **It only points at things that are actually on top.** Existing in the DOM is
+  not enough — in PDA mode a desktop icon, a background window's controls and a
+  minimised app all keep perfectly good rects while being completely buried, so
+  targets are checked with `elementFromPoint` and each step falls through a
+  chain of candidates. That is why the last step finds the desktop icon on a
+  desktop and the Start menu's My Computer row on a phone.
 - **It gets out of the coach's way.** The coach, the Start button and the PDA
-  Nudge dock all live in the bottom-left, so the cue slides sideways when it
-  would land on the coach — burying "Skip the tour" is the one thing an
-  onboarding layer must never do.
+  Nudge dock all live in the bottom-left, so the cue flips to the other side of
+  its target when it would land on the coach, and only slides sideways (losing
+  its arrow) when neither side is clear. Burying "Skip the tour" is the one
+  thing an onboarding layer must never do.
+
+The coach also **publishes its measured height** as `--coach-height`, exactly
+as the gadget publishes `--gadget-height`, and PDA-mode windows reserve it in
+their bottom inset. This is not cosmetic: a full-screen sheet running under the
+coach put it straight over AeroChat's buy row and AeroSweeper's cash-out — so
+the tutorial was covering the very control it was pointing at.
 
 A brand-new save also opens on a **bare** desktop: `main.js` holds AeroChat back
 until the first Nudge, so the first screen is one lit button, and the window
