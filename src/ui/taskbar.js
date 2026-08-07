@@ -61,6 +61,9 @@ export function createTaskbar({ root, game, wm, launch }) {
           {
             type: 'button',
             class: `start-menu__item${entry.installed ? '' : ' is-purchase'}`,
+            // The onboarding spotlight points at this row by id once the menu
+            // is open (src/ui/tutorial.js).
+            dataset: { appId: app.id },
             disabled: entry.installed || affordable ? null : 'disabled',
             onclick: () => {
               if (entry.installed) launch(app.id);

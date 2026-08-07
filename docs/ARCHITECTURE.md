@@ -19,6 +19,7 @@ index.html
     │   ├── ads.js            rewarded-ad pacing: daily allowances, cooldowns, reward sizing
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
+    │   ├── goals.js          the objective after the tour — derived, never stored
     │   ├── save.js           storage backends, migrations, offline elapsed time
     │   ├── events.js         tiny event bus
     │   └── format.js         number/time formatting
@@ -35,7 +36,8 @@ index.html
     │   ├── desktop.js        icons + Aero gadget (Buzz, meters, Nudge)
     │   ├── taskbar.js        Start menu, task buttons with RAM bars, tray
     │   ├── notify.js         balloon notifications
-    │   ├── tutorial.js       the onboarding coach panel
+    │   ├── tutorial.js       the coach panel: the tour, then the goal tracker
+    │   ├── spotlight.js      dim + ring + arrow on the control the step is about
     │   ├── bsod.js           Format C: stop screen, POST wipe, confirm dialog
     │   ├── audio.js          synthesised SFX + BGM, heat distortion, portal mute
     │   ├── ads.js            the only module that calls the portal ad SDK
@@ -154,6 +156,12 @@ button that calls `ads.claim(id)`.
 
 Rules the whole thing depends on:
 
+- **`ADS.enabled` is the master switch, and it is checked in one place.**
+  `ui/ads.js`'s `available()` folds it in, so switching the system off cannot
+  leave a stray button behind — and `game.extractQuarantine()` reads the same
+  flag to pay Shield99's loot in full, because "nothing is gated behind an ad"
+  has to survive the ads being turned off. It is `false` for the basic-launch
+  build.
 - **A reward is granted on `adFinished` and nowhere else.** `ads.rewarded()` resolves
   `false` on `adError`, and `claim()` re-checks `game.adOffer()` *after* the video —
   a minute passed, and the render the player was boosting may have finished.
@@ -192,6 +200,40 @@ machine in `HARDWARE_BASE`. Two things fall out of this:
   measured one.
 - Saves are unaffected by rebalancing: `state.hardware.<track>` is still a tier index,
   so the tables can be retuned without a migration.
+
+## Onboarding: the tour, then the tracker
+
+Two modules, one panel, and a hard line between what is scripted and what is
+derived:
+
+- **`core/tutorial.js`** is the five-step script. Each step completes on
+  something the player *did*, never on a timer, and its `cta` is the four-word
+  imperative the spotlight puts on screen.
+- **`core/goals.js`** takes over when the script runs out. A goal is a predicate
+  plus a progress fraction over ordinary state — nothing about it is persisted,
+  so there is no migration, no goal that can get stuck completed, and no second
+  definition of "is LemonWire unlocked" to drift away from `data/apps.js`.
+- **`ui/tutorial.js`** renders whichever of the two is live, and **`ui/spotlight.js`**
+  is only ever attached to the scripted half.
+
+The spotlight is a dim layer with a ring, an arrow and a label, and three of its
+properties are load-bearing rather than cosmetic:
+
+- **It cannot block input.** The whole layer is `pointer-events: none` and the
+  "hole" is a `box-shadow` spread, not a real cut-out — there is nothing in it
+  that can swallow the click it is asking for.
+- **It resolves targets every update.** They are functions returning elements,
+  not stored coordinates, so dragging a window or rotating a phone keeps the
+  ring in the right place, and a target that goes away hides the layer instead
+  of pointing at bare desktop.
+- **It gets out of the coach's way.** The coach, the Start button and the PDA
+  Nudge dock all live in the bottom-left, so the cue slides sideways when it
+  would land on the coach — burying "Skip the tour" is the one thing an
+  onboarding layer must never do.
+
+A brand-new save also opens on a **bare** desktop: `main.js` holds AeroChat back
+until the first Nudge, so the first screen is one lit button, and the window
+arrives as the payoff for pressing it.
 
 ## Long UI sequences
 

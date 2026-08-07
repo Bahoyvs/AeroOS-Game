@@ -224,6 +224,17 @@
     width: auto;
   }
 
+  /**
+   * While the spotlight is up, the cue's own label already carries the
+   * objective in four words — and on a phone the coach, the cue and the Nudge
+   * dock are all fighting for the same strip above the taskbar. Drop the
+   * coach's long-form hint for the duration and keep the title, the step
+   * counter and the way out.
+   */
+  :root[data-spotlight='on'] .coach__hint {
+    display: none;
+  }
+
   .tray__buzz {
     display: none;
   }

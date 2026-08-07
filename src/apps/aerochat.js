@@ -21,7 +21,10 @@ export function mount(body, { game }) {
     <div class="chat__me glass">
       <span class="buddy-icon icon-user-green" aria-hidden="true"></span>
       <div class="chat__me-text">
-        <strong>${game.state.username || 'Guest'}</strong>
+        <!-- Re-read on every pass rather than baked in: the portal's username
+             is fetched in the background so it cannot hold up the desktop, and
+             it may land after this window is already open. -->
+        <strong data-role="me-name">${game.state.username || 'Guest'}</strong>
         <small data-role="me-status">is building a social network</small>
       </div>
       <span class="chat__rate" data-role="rate">0 / sec</span>
@@ -247,6 +250,9 @@ export function mount(body, { game }) {
     const s = game.state;
     const { econ } = game;
     const now = Date.now();
+
+    const name = s.username || 'Guest';
+    if (ref('me-name').textContent !== name) ref('me-name').textContent = name;
 
     ref('rate').textContent = `${formatNumber(econ.buzzPerSecond(s, now))} / sec`;
     ref('bot-count').textContent = `${s.chat.bots} ${s.chat.bots === 1 ? 'buddy' : 'buddies'}`;

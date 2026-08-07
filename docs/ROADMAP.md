@@ -333,6 +333,40 @@ end-game ceiling.
 
 ---
 
+## Post-launch — the funnel pass
+
+The first day of portal analytics said the game converts badly and rates
+brilliantly (9.1 from 11 votes against a 25% gameplay conversion), which is a
+threshold problem rather than a quality one. [`docs/GROWTH.md`](GROWTH.md) is
+the full diagnosis and plan; what shipped:
+
+- [x] **Boot is no longer three blocking round-trips.** The SDK handshake is
+      bounded by a timeout, and the username and ad-blocker probe were moved off
+      the critical path. The desktop is interactive without waiting on any of
+      them.
+- [x] **The portal lifecycle is reported in order.** `loadingStop()` now
+      precedes `gameplayStart()`, and both go through one idempotent controller
+      instead of four call sites.
+- [x] **The licence gate stopped blanking the page.** Anchored host matching
+      plus ancestor-origin checks for framed contexts, and a readable card
+      instead of `document.body.innerHTML = '…'`.
+- [x] **Spotlight onboarding** (`src/ui/spotlight.js`) — dim, ring, arrow and a
+      four-word instruction on the control each scripted step is about. A fresh
+      save now opens on a bare desktop with one lit button; AeroChat arrives as
+      the reward for the first Nudge.
+- [x] **The coach outlives the tour** (`src/core/goals.js`) — thirteen derived
+      objectives with a progress bar, so there is always a bar filling.
+- [x] **The Nudge streak** (`CLICK.streak`) — clicking fast finally looks
+      different from clicking slowly.
+- [x] **No dead ad buttons** — `ADS.enabled` gates the whole system in one
+      place, and the quarantine pays in full while it is off.
+- [x] **A thumbnail built for a 250px grid cell** — `art/thumbnail.svg`,
+      rendered with `npm run thumbnail`.
+
+**Still open:** re-enable ads (`ADS.enabled` plus the commented SDK calls in
+`src/ui/ads.js`) once the basic launch is approved, and read the metrics again
+after 3–7 days per GROWTH.md §5.
+
 ## Backlog (post-week)
 
 Cloud saves, achievements, buddy-list events with named characters, seasonal wallpapers,

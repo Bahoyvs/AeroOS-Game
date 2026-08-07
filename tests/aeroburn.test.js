@@ -21,12 +21,25 @@ function burning(buzz = 1e6) {
 }
 
 describe('the disc table (AO-29)', () => {
-  it('offers one that stores value and one that stores time', () => {
-    expect(CD_TYPES).toHaveLength(2);
+  it('offers discs that store value and discs that store time', () => {
+    // The count is deliberately not pinned — the shelf can grow — but both
+    // kinds have to exist, or AeroBurn is a savings account rather than a
+    // choice about what to carry across the wipe.
+    expect(CD_TYPES.some((cd) => cd.recovery > 0)).toBe(true);
+    expect(CD_TYPES.some((cd) => cd.buff)).toBe(true);
+
     expect(MIX.recovery).toBeGreaterThan(0);
     expect(MIX.recovery).toBeLessThan(1); // burning always costs something
     expect(OC.buff.durationSeconds).toBeGreaterThan(0);
     expect(OC.cost).toBeGreaterThan(MIX.cost);
+  });
+
+  it('never gives a disc back more than was burned onto it', () => {
+    for (const cd of CD_TYPES) {
+      expect(cd.cost).toBeGreaterThan(0);
+      expect(cd.burnSeconds).toBeGreaterThan(0);
+      if (cd.recovery !== undefined) expect(cd.recovery).toBeLessThan(1);
+    }
   });
 });
 

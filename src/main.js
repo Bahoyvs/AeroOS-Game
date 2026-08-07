@@ -21,6 +21,17 @@ import { showWelcomeBack } from './ui/welcomeBack.js';
 import { createWindowManager } from './ui/windowManager.js';
 import { mountDevPanel } from './ui/devPanel.js';
 
+/** Resolve `promise`, or `fallback` if it takes longer than `ms`. */
+function withTimeout(promise, ms, fallback = null) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => clearTimeout(timer)),
+    new Promise((resolve) => {
+      timer = setTimeout(() => resolve(fallback), ms);
+    }),
+  ]);
+}
+
 /**
  * Resolve the CrazyGames SDK before anything reads a setting from it. Save
  * storage and the portal's audio mute both come from it, and `SDK.data` does
@@ -29,6 +40,11 @@ import { mountDevPanel } from './ui/devPanel.js';
  *
  * Best-effort by design: off-portal the script is absent or init rejects, and
  * the game carries on with localStorage and its own audio settings.
+ *
+ * It is also the *only* thing boot is allowed to block on, and even then not
+ * indefinitely. A portal handshake that never settles used to mean a desktop
+ * that never appeared — indistinguishable, from the player's side, from a game
+ * that does not work, and one of the ways a load ends without any gameplay.
  */
 async function initPortalSdk() {
   const sdk = globalThis.CrazyGames?.SDK;
@@ -36,50 +52,154 @@ async function initPortalSdk() {
     console.info('[aeroos] CrazyGames SDK not present; running standalone');
     return null;
   }
-  try {
-    await sdk.init();
-    return sdk;
-  } catch (err) {
+  const ready = await withTimeout(
+    sdk.init().then(() => true),
+    SDK_INIT_TIMEOUT_MS,
+    false,
+  ).catch((err) => {
     console.warn('[aeroos] CrazyGames SDK init failed; running standalone', err);
+    return false;
+  });
+  if (!ready) {
+    console.warn('[aeroos] CrazyGames SDK did not initialise in time; booting anyway');
     return null;
   }
+  return sdk;
+}
+
+/** How long the portal handshake may hold the desktop back. */
+const SDK_INIT_TIMEOUT_MS = 3000;
+/** ...and the ad-blocker probe, which nothing on the first screen needs. */
+const ADS_INIT_TIMEOUT_MS = 1500;
+
+/**
+ * Where this build is licensed to run.
+ *
+ * The old check was a substring test against `location.hostname` that replaced
+ * the whole document with one line of plain text on any miss. Three things
+ * missed that should not have: an empty hostname (what a `srcdoc` or blob
+ * iframe reports), a portal domain outside `.com`, and any context where the
+ * game is framed by the portal from a different host. Each of those is a load
+ * that reaches the player as a blank page and is counted as a session with no
+ * gameplay in it.
+ *
+ * So the test is anchored rather than substring-based (`evilcrazygames.com.co`
+ * no longer passes), and it looks at who framed us as well as where we are
+ * served from.
+ */
+const PORTAL_HOST = /(^|\.)(crazygames|poki)\.[a-z]{2,}(\.[a-z]{2,})?$/i;
+const LOCAL_HOST = /^(localhost|127\.0\.0\.1|\[::1\]|.*\.local)$/i;
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function isLicensedHost() {
+  const host = window.location.hostname;
+
+  // An empty hostname means a srcdoc/blob/about: document — i.e. we are already
+  // inside somebody's frame, and the ancestor check below is the real question.
+  if (host && (LOCAL_HOST.test(host) || PORTAL_HOST.test(host))) return true;
+
+  const ancestors = window.location.ancestorOrigins;
+  if (ancestors) {
+    for (const origin of ancestors) {
+      if (PORTAL_HOST.test(hostOf(origin))) return true;
+    }
+  }
+  if (!host && document.referrer && PORTAL_HOST.test(hostOf(document.referrer))) return true;
+
+  return false;
+}
+
+/** A refusal the player can read, rather than a wiped document. */
+function showUnlicensed() {
+  document.body.innerHTML = `
+    <div class="unlicensed">
+      <h1>AeroOS</h1>
+      <p>This build is licensed to play on CrazyGames.</p>
+      <p><a href="https://www.crazygames.com/" rel="noopener">Play it there →</a></p>
+    </div>
+  `;
 }
 
 /** Boot the OS: wire the simulation to the shell and start the clock. */
 async function boot() {
-  const hostname = window.location.hostname;
-  if (
-    hostname !== 'localhost' &&
-    hostname !== '127.0.0.1' &&
-    !hostname.includes('crazygames.') &&
-    !hostname.includes('poki.')
-  ) {
-    document.body.innerHTML = 'This game is only licensed to play on CrazyGames.com';
+  if (!isLicensedHost()) {
+    showUnlicensed();
     return;
   }
 
   const sdk = await initPortalSdk();
-  if (sdk) sdk.game.loadingStart();
+
+  /**
+   * The portal's gameplay lifecycle, in one place and idempotent.
+   *
+   * These calls are how CrazyGames measures whether a load turned into a
+   * session, and they were previously made from four call sites with no shared
+   * idea of the current state — so a tab that was hidden during a Format C:
+   * could send two `gameplayStart()`s and no `gameplayStop()`, or the reverse.
+   * Tracking the state here means every path reports the truth, and reporting
+   * the same thing twice costs nothing.
+   */
+  const gameplay = (() => {
+    let playing = false;
+    let loadingDone = false;
+    const call = (name) => {
+      try {
+        sdk?.game?.[name]?.();
+      } catch (err) {
+        console.warn(`[aeroos] portal ${name}() failed`, err);
+      }
+    };
+    return {
+      loading() {
+        call('loadingStart');
+      },
+      loaded() {
+        if (loadingDone) return;
+        loadingDone = true;
+        call('loadingStop');
+      },
+      start() {
+        // Gameplay cannot begin before loading has been reported as finished:
+        // the portal reads these as a sequence, not as two independent flags.
+        if (!loadingDone || playing) return;
+        playing = true;
+        call('gameplayStart');
+      },
+      stop() {
+        if (!playing) return;
+        playing = false;
+        call('gameplayStop');
+      },
+    };
+  })();
+
+  gameplay.loading();
 
   const game = createGame();
   const loaded = game.load();
 
+  /**
+   * A name to put at the top of the buddy list. The portal's copy is nicer, but
+   * it is a *label* — nothing about the first minute depends on it, and it used
+   * to be a second blocking round-trip in front of the desktop. Boot with the
+   * guest name and swap it in if and when the portal answers.
+   */
   if (!game.state.username) {
-    let username = null;
+    game.setUsername(buddyAt(Math.floor(Math.random() * 500)).name);
     if (sdk) {
-      try {
-        const user = await sdk.user.getUser();
-        if (user && user.username) {
-          username = user.username;
-        }
-      } catch (err) {
-        console.warn('[aeroos] CrazyGames user fetch failed', err);
-      }
+      withTimeout(sdk.user.getUser(), SDK_INIT_TIMEOUT_MS)
+        .then((user) => {
+          if (user?.username) game.setUsername(user.username);
+        })
+        .catch((err) => console.warn('[aeroos] CrazyGames user fetch failed', err));
     }
-    if (!username) {
-      username = buddyAt(Math.floor(Math.random() * 500)).name;
-    }
-    game.setUsername(username);
   }
 
   // Whether the desktop animates at all. Stamped on <html> before the first
@@ -108,7 +228,11 @@ async function boot() {
    * blocked player is shown a game with no dead buttons in it.
    */
   const ads = createAds({ sdk, game, notify });
-  await ads.init();
+  // Bounded, and off the critical path either way: nothing on the first screen
+  // is an ad, and the offer row re-reads `ads.available` on its own timer.
+  withTimeout(ads.init(), ADS_INIT_TIMEOUT_MS).catch((err) =>
+    console.warn('[aeroos] ad init failed; assuming ads are available', err),
+  );
 
   /** Opening an app = a state change plus a window. Both, or neither. */
   function launch(id) {
@@ -179,7 +303,7 @@ async function boot() {
           }
         : null,
       onConfirm: async () => {
-        if (sdk) sdk.game.gameplayStop();
+        gameplay.stop();
         const summary = await formatSequence.run(async () => {
           // The interstitial goes *inside* the sequence, behind the stop
           // screen: the machine is visibly dead, so the break costs the player
@@ -194,7 +318,7 @@ async function boot() {
             ramMB: game.econ.ramCapacity(game.state),
           };
         });
-        if (sdk) sdk.game.gameplayStart();
+        gameplay.start();
         notify({
           title: 'Format complete',
           body: `Banked $${(summary.dollars + summary.bonus).toFixed(2)}${
@@ -538,16 +662,41 @@ async function boot() {
     });
   });
 
-  // Restore whatever was open last session. A fresh save starts on AeroChat
-  // alone — the clean desktop the scripted tutorial (AO-12) opens on.
+  // Restore whatever was open last session.
   const previouslyOpen = Object.entries(game.state.apps)
     .filter(([, entry]) => entry.open)
     .map(([id]) => id);
   for (const entry of Object.values(game.state.apps)) entry.open = false;
+
+  /**
+   * The first screen of a brand-new save has exactly one thing on it.
+   *
+   * AeroChat used to be opened for them, so the very first frame a new player
+   * saw was an icon column, a taskbar, a gadget and a 340×420 buddy-list window
+   * — four surfaces, and no indication which of them was the game. Now the
+   * desktop opens bare, the spotlight rings the Nudge button, and AeroChat
+   * arrives *as the payoff for the first click*: the first thing the player
+   * does causes a visible thing to happen, which is the entire job of the
+   * opening ten seconds.
+   *
+   * Only for a genuinely untouched save. Anything else — a reload, a returning
+   * player, a finished tour — restores as before.
+   */
+  const firstRun =
+    !loaded.loaded &&
+    !game.state.tutorial.done &&
+    game.state.tutorial.step === 0 &&
+    game.state.stats.nudges === 0;
+
   if (previouslyOpen.length > 0) previouslyOpen.forEach(launch);
-  else launch('aerochat');
-  
-  if (sdk) sdk.game.gameplayStart();
+  else if (!firstRun) launch('aerochat');
+  else {
+    const stop = game.bus.on(game.events.BUZZ_GAINED, ({ source }) => {
+      if (source !== 'nudge') return;
+      stop();
+      launch('aerochat');
+    });
+  }
 
   // Offline earnings get a dialog rather than a balloon (AO-28): a report that
   // fades in four seconds is a poor way to explain an HDD cap.
@@ -592,6 +741,9 @@ async function boot() {
       desktop.update();
       taskbar.update();
       coach.update();
+      // The coach itself is throttled to 200 ms, but the ring it draws is
+      // attached to a window the player may be dragging right now.
+      coach.refreshSpotlight();
       audio.update();
       maybeHitch();
     },
@@ -638,9 +790,9 @@ async function boot() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       game.save();
-      if (sdk) sdk.game.gameplayStop();
+      gameplay.stop();
     } else {
-      if (sdk) sdk.game.gameplayStart();
+      gameplay.start();
     }
   });
   window.addEventListener('pagehide', () => game.save());
@@ -654,7 +806,17 @@ async function boot() {
     bootScreen.addEventListener('transitionend', () => bootScreen.remove(), { once: true });
     setTimeout(() => bootScreen.remove(), 1000);
   }
-  if (sdk) sdk.game.loadingStop();
+
+  /**
+   * The portal's funnel is built out of these four calls, and the order matters
+   * as much as the fact of making them: loading has to *stop* before gameplay
+   * can *start*. This used to announce gameplay a hundred lines before it
+   * reported the load as finished, which is not a sequence the portal can make
+   * sense of — a game that never cleanly starts gameplay is a game whose
+   * conversion is undercounted no matter how good the first minute is.
+   */
+  gameplay.loaded();
+  gameplay.start();
 
   // Handy during development; harmless in production.
   globalThis.AeroOS = { game, wm, launch, audio, motion, sdk, ads };

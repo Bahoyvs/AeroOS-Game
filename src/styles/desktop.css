@@ -252,6 +252,53 @@
   opacity: 0.75;
 }
 
+/**
+ * The click streak (CLICK.streak). A thin meter across the foot of the button
+ * showing how much of the cap has been banked — and, by draining, that it is
+ * about to be lost. It is inside the button so the feedback is on the thing
+ * being pressed rather than in a widget the player is not looking at.
+ *
+ * The fill's transition is 90 ms because the gadget re-runs `setBar` every
+ * 100 ms; anything longer is cancelled and restarted forever and reads as a bar
+ * that stutters instead of one that moves (see ARCHITECTURE.md).
+ */
+.nudge-button__streak {
+  height: 4px;
+  margin: 2px -4px -4px;
+  overflow: hidden;
+  background: rgb(4 48 79 / 18%);
+  border-radius: 999px;
+  box-shadow: var(--emboss-well);
+}
+
+.nudge-button__streak[hidden] {
+  display: none;
+}
+
+.nudge-button__streak-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #7fe4ff, #ffd76a);
+  border-radius: inherit;
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  transition: transform 90ms linear;
+}
+
+/**
+ * Streaking is deliberately quieter than a sweeper combo: it is a small bonus
+ * the player earns several times a minute, and if it shouted as loudly as the
+ * combo does the combo would stop meaning anything.
+ */
+.nudge-button.is-streaking {
+  background: linear-gradient(180deg, #ffffff 0%, #d7f3ff 45%, #7fd0ff 46%, #e3f8ff 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 95%),
+    inset 0 -2px 3px rgb(4 48 79 / 22%),
+    0 6px 14px rgb(3 30 60 / 45%),
+    0 0 14px rgb(127 228 255 / 55%);
+}
+
 @keyframes nudge-shake {
   25% {
     transform: translate(-3px, 2px);
@@ -611,6 +658,29 @@
   display: none;
 }
 
+/**
+ * The coach has to stay readable *through* the spotlight's dim: it carries the
+ * long-form version of the cue's four words, and it carries "Skip the tour". A
+ * greyed-out escape hatch reads as a tutorial that will not let go, which is
+ * exactly the impression this whole layer exists to avoid.
+ *
+ * Raising its `z-index` above the dim does not work and is worth knowing why:
+ * `.desktop` is `position: fixed`, which makes it a stacking context whatever
+ * its z-index, so every z-index inside it — the coach's included — is sealed
+ * below the layer `.spotlight` occupies on `<body>`. What *does* work is
+ * winning on contrast instead of on order.
+ */
+:root[data-spotlight='on'] .coach {
+  color: #ffffff;
+  background: linear-gradient(180deg, rgb(18 74 122 / 96%), rgb(8 38 68 / 96%));
+  box-shadow: 0 10px 30px rgb(2 12 26 / 60%);
+}
+
+:root[data-spotlight='on'] .coach__head,
+:root[data-spotlight='on'] .coach__hint {
+  opacity: 1;
+}
+
 .coach.is-new {
   animation: coach-pop 320ms var(--ease-aero);
 }
@@ -653,6 +723,162 @@
   background: none;
   border: none;
   text-shadow: inherit;
+}
+
+.coach__skip[hidden] {
+  display: none;
+}
+
+/* The goal tracker's bar — the coach's second life, after the tour. */
+.coach__meter {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.coach__meter[hidden] {
+  display: none;
+}
+
+.coach__detail {
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  opacity: 0.8;
+}
+
+/* ----------------------------------------------------------- the spotlight */
+
+/**
+ * The onboarding spotlight (src/ui/spotlight.js).
+ *
+ * The whole layer is `pointer-events: none`, including the ring: the dim is a
+ * `box-shadow` spread around a transparent box rather than a real cut-out, so
+ * there is nothing here that can swallow the click it is asking for. A
+ * tutorial that can trap the player is worse than no tutorial.
+ */
+.spotlight {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  /* The dim is a 100vmax shadow spread; without this it overflows the viewport
+     and the document grows scrollbars around a full-screen desktop. */
+  overflow: hidden;
+}
+
+.spotlight[hidden] {
+  display: none;
+}
+
+.spotlight__hole {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2px var(--aero-cyan),
+    0 0 18px 2px rgb(127 228 255 / 70%),
+    0 0 0 100vmax rgb(2 12 26 / 62%);
+  animation: spot-breathe 1600ms var(--ease-aero) infinite;
+}
+
+@keyframes spot-breathe {
+  50% {
+    box-shadow:
+      0 0 0 3px #ffffff,
+      0 0 26px 6px rgb(127 228 255 / 90%),
+      0 0 0 100vmax rgb(2 12 26 / 62%);
+  }
+}
+
+.spotlight__cue {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  max-width: min(260px, calc(100vw - 24px));
+}
+
+/* Below the target: the arrow is on top, pointing up at it. Above: reversed. */
+.spotlight__cue[data-side='above'] {
+  flex-direction: column-reverse;
+}
+
+.spotlight__cue[data-dodged='yes'] .spotlight__arrow {
+  display: none;
+}
+
+.spotlight__arrow {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--aero-cyan);
+  text-shadow: 0 0 10px rgb(127 228 255 / 90%);
+  animation: spot-bounce 900ms var(--ease-aero) infinite;
+}
+
+.spotlight__arrow::before {
+  content: '▲';
+}
+
+.spotlight__cue[data-side='above'] .spotlight__arrow::before {
+  content: '▼';
+}
+
+@keyframes spot-bounce {
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+.spotlight__cue[data-side='above'] .spotlight__arrow {
+  animation-name: spot-bounce-up;
+}
+
+@keyframes spot-bounce-up {
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.spotlight__label {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #04304f;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff, #cfeeff);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgb(2 12 26 / 55%);
+}
+
+.spotlight__label[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------ unlicensed host */
+
+.unlicensed {
+  display: grid;
+  gap: 8px;
+  place-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  font-family: var(--font-ui, system-ui, sans-serif);
+  color: #eaf7ff;
+  text-align: center;
+  background: linear-gradient(180deg, #0b3d6b, #041c33);
+}
+
+.unlicensed h1 {
+  font-size: 2rem;
+  letter-spacing: 0.2em;
+}
+
+.unlicensed a {
+  color: var(--aero-cyan);
 }
 
 /* --------------------------------------------------------------- balloons */

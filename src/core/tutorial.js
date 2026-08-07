@@ -9,36 +9,46 @@ import { TUTORIAL } from '../data/balance.js';
  * first system bottleneck — which is what the heavy playlist is for.
  *
  * Pure: steps are predicates over state, and advancing returns what changed.
+ *
+ * `cta` is the imperative the spotlight puts next to its arrow (`ui/spotlight.js`).
+ * It is deliberately shorter than `hint` — a label attached to a bouncing arrow
+ * is read in about a second, and anything that does not fit in four or five
+ * words is a sentence the player will skip past on the way to clicking.
  */
 export const TUTORIAL_STEPS = [
   {
     id: 'nudge',
     title: 'Say something',
     hint: 'Hit NUDGE to earn your first Buzz.',
+    cta: 'Click NUDGE',
     isDone: (state) => state.stats.nudges >= 1,
   },
   {
     id: 'first-buddy',
     title: 'Get someone online',
     hint: 'Add a buddy in AeroChat. Buddies keep chatting while you idle.',
+    cta: 'Add your first buddy',
     isDone: (state) => state.chat.bots >= 1,
   },
   {
     id: 'install-retroamp',
     title: 'Put music on',
     hint: 'RetroAmp is in the Start menu now. Install it.',
+    cta: 'Open Start → install RetroAmp',
     isDone: (state) => state.apps.retroamp.installed === true,
   },
   {
     id: 'load-playlist',
     title: 'Load a playlist',
-    hint: 'Open RetroAmp and play SOFT SIGNALS for a permanent boost.',
+    hint: 'Open RetroAmp and play AERO AMBIENCE for a permanent boost.',
+    cta: 'Play AERO AMBIENCE',
     isDone: (state) => state.retroamp.playlist !== null,
   },
   {
     id: 'bottleneck',
     title: 'Find the ceiling',
     hint: 'Now try IRON OVERDRIVE. Heavy playlists need serious memory.',
+    cta: 'Try IRON OVERDRIVE',
     isDone: (state) => state.tutorial.hardwareRevealed === true,
   },
 ];

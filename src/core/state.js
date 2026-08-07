@@ -126,6 +126,14 @@ export function createInitialState(now = Date.now()) {
       formatBoost: false,
     },
 
+    /**
+     * The Nudge streak (see CLICK.streak). Persisted so it is not silently
+     * reset by an autosave reload mid-session, but it expires on the wall clock
+     * like every other real-time timer — a save reloaded tomorrow reads as a
+     * streak of zero without anything having to run while the tab was closed.
+     */
+    click: { count: 0, lastAt: 0 },
+
     // Timed bonuses from status events and rewarded ads. Playlist multipliers
     // are NOT buffs: they are derived from `retroamp` so they survive a reload.
     buffs: [],
