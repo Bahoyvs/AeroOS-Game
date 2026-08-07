@@ -7,9 +7,12 @@ import {
   revealHardware,
   shouldRevealHardware,
   skipTutorial,
+  stepGate,
   stepNumber,
 } from '../src/core/tutorial.js';
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
+import { botCost } from '../src/core/economy.js';
+import { getApp } from '../src/data/apps.js';
 import { TUTORIAL } from '../src/data/balance.js';
 
 const fresh = () => createInitialState(0);
@@ -45,6 +48,84 @@ describe('a fresh desktop', () => {
       'load-playlist',
       'bottleneck',
     ]);
+  });
+});
+
+/**
+ * The dead end this fixes: the script advanced off a single Nudge — one click,
+ * one Buzz — and then asked for a buddy costing ten, and later a RetroAmp
+ * costing fifty. The arrow pointed at a button the player could not press,
+ * twice, with nothing on screen saying why.
+ */
+describe('affordability gates', () => {
+  it('does not gate the opening step — nudging is free', () => {
+    expect(stepGate(fresh())).toBeNull();
+  });
+
+  it('reports the shortfall on a buddy the player cannot afford', () => {
+    const s = progressTo(fresh(), 'first-buddy');
+    s.buzz = 1;
+
+    const gate = stepGate(s);
+    expect(gate.stepId).toBe('first-buddy');
+    expect(gate.needed).toBe(botCost(0));
+    expect(gate.have).toBe(1);
+    expect(gate.short).toBe(botCost(0) - 1);
+    expect(gate.progress).toBeCloseTo(1 / botCost(0));
+  });
+
+  it('lifts once the Buzz is there', () => {
+    const s = progressTo(fresh(), 'first-buddy');
+    s.buzz = botCost(0);
+    expect(stepGate(s)).toBeNull();
+  });
+
+  it('gates RetroAmp on its install price too', () => {
+    const s = progressTo(fresh(), 'install-retroamp');
+    s.buzz = 0;
+
+    const gate = stepGate(s);
+    expect(gate.stepId).toBe('install-retroamp');
+    expect(gate.needed).toBe(getApp('retroamp').install.cost);
+
+    s.buzz = gate.needed;
+    expect(stepGate(s)).toBeNull();
+  });
+
+  it('leaves the steps that cost nothing alone', () => {
+    for (const id of ['load-playlist', 'bottleneck']) {
+      const s = progressTo(fresh(), id);
+      s.buzz = 0;
+      expect(stepGate(s)).toBeNull();
+    }
+  });
+
+  /** A gate delays what the coach *points at*, never the script itself. */
+  it('never blocks a step from completing', () => {
+    const s = progressTo(fresh(), 'first-buddy');
+    s.buzz = 0;
+    expect(stepGate(s)).not.toBeNull();
+
+    s.chat.bots = 1; // bought with Buzz that has since been spent
+    advanceTutorial(s);
+    expect(currentStep(s).id).toBe('install-retroamp');
+  });
+
+  it('has nothing to gate once the tour is over', () => {
+    const s = fresh();
+    skipTutorial(s);
+    expect(stepGate(s)).toBeNull();
+  });
+
+  it('prices the gate off the live cost, not a constant', () => {
+    const s = progressTo(fresh(), 'first-buddy');
+    s.chat.bots = 0;
+    s.buzz = 0;
+    const first = stepGate(s).needed;
+
+    // A player who bought and lost buddies faces the curve, not the sticker.
+    s.chat.bots = 5;
+    expect(stepGate(s).needed).toBeGreaterThan(first);
   });
 });
 

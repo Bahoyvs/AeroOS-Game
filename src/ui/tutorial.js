@@ -1,4 +1,4 @@
-import { TUTORIAL_STEP_COUNT, currentStep, stepNumber } from '../core/tutorial.js';
+import { TUTORIAL_STEP_COUNT, currentStep, stepGate, stepNumber } from '../core/tutorial.js';
 import { GOAL_COUNT, goalStatus, goalsCompleted } from '../core/goals.js';
 import { formatNumber } from '../core/format.js';
 import { createSpotlight } from './spotlight.js';
@@ -76,20 +76,40 @@ export function createTutorialCoach({ root, game }) {
 
   let shownKey = null;
 
-  /** The scripted tour: coach copy plus an arrow on the thing to click. */
+  /**
+   * The scripted tour: coach copy plus an arrow on the thing to click.
+   *
+   * Unless the player cannot afford the thing yet, in which case the objective
+   * is replaced by the shortfall that is blocking it. Pointing an arrow at a
+   * button somebody has 1 Buzz for, and calling that a tutorial step, is how
+   * the first minute used to dead-end — so the arrow goes back to the Nudge
+   * button, which is the answer to every version of this question, and the
+   * meter shows how much further there is to go.
+   */
   function renderStep(step) {
+    const gate = stepGate(game.state);
     ref('label').textContent = 'Getting started';
     ref('skip').hidden = false;
-    ref('meter').hidden = true;
+    ref('meter').hidden = gate === null;
+    ref('progress').textContent = `${stepNumber(game.state)} / ${TUTORIAL_STEP_COUNT}`;
 
-    if (step.id !== shownKey) {
-      shownKey = step.id;
+    // Keyed on the gate as well as the step, so crossing the threshold replays
+    // the attention animation on what is now a genuinely new instruction.
+    const key = `${step.id}:${gate ? 'gated' : 'open'}`;
+    if (key !== shownKey) {
+      shownKey = key;
       ref('title').textContent = step.title;
-      ref('hint').textContent = step.hint;
-      ref('progress').textContent = `${stepNumber(game.state)} / ${TUTORIAL_STEP_COUNT}`;
+      ref('hint').textContent = gate ? gate.hint : step.hint;
       panel.classList.remove('is-new');
       void panel.offsetWidth;
       panel.classList.add('is-new');
+    }
+
+    if (gate) {
+      ref('detail').textContent = `${formatNumber(gate.have)} / ${formatNumber(gate.needed)} Buzz`;
+      setBar(ref('bar'), gate.progress, { warn: 2, critical: 2 });
+      spotlight.point(TARGETS.nudge(), `${formatNumber(gate.short)} Buzz to go`);
+      return;
     }
 
     spotlight.point(TARGETS[step.id]?.() ?? null, step.cta ?? '');
@@ -107,8 +127,10 @@ export function createTutorialCoach({ root, game }) {
     ref('skip').hidden = true;
     ref('meter').hidden = false;
 
-    if (goal.id !== shownKey) {
-      shownKey = goal.id;
+    // Namespaced: the tour keys on `${stepId}:gated|open`, and the two share
+    // this one slot.
+    if (`goal:${goal.id}` !== shownKey) {
+      shownKey = `goal:${goal.id}`;
       ref('title').textContent = goal.title;
       ref('hint').textContent = goal.hint;
       panel.classList.remove('is-new');

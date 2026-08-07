@@ -113,6 +113,14 @@ Design rules it follows, all of which are load-bearing:
   the first Nudge, which is also the game's first "something happened" beat.
 - **It stops when the tour does.** Skipping the tour, or finishing it, removes
   the layer permanently for that save.
+- **It never points at a button the player cannot press.** Two steps ask them
+  to spend — a buddy is 10 Buzz, RetroAmp is 50 — and the script advanced off a
+  single Nudge, which pays 1. So the arrow used to land on "Add buddy" while
+  the player held one Buzz, and again on the Start menu while they held eight,
+  with nothing on screen explaining either. `stepGate()` turns an unaffordable
+  objective into a goal with a bar: what it costs, what is banked, and the
+  arrow back on the Nudge button reading "9 Buzz to go". The step itself is
+  unchanged and nothing is skipped — only what the coach points at.
 
 ## 3. Retention: three additions
 

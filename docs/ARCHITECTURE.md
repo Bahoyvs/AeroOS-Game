@@ -208,7 +208,11 @@ derived:
 
 - **`core/tutorial.js`** is the five-step script. Each step completes on
   something the player *did*, never on a timer, and its `cta` is the four-word
-  imperative the spotlight puts on screen.
+  imperative the spotlight puts on screen. A step that costs Buzz also declares
+  `cost`, and `stepGate()` reports the shortfall: an objective the player cannot
+  afford is shown as a goal with a bar and the arrow goes back to the Nudge
+  button, rather than pointing at a control that will not respond. The gate
+  changes what is *pointed at*, never what completes the step.
 - **`core/goals.js`** takes over when the script runs out. A goal is a predicate
   plus a progress fraction over ordinary state — nothing about it is persisted,
   so there is no migration, no goal that can get stuck completed, and no second
