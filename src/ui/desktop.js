@@ -78,6 +78,9 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     <button type="button" class="nudge-button" data-role="nudge">
       <span class="nudge-button__label">NUDGE</span>
       <span class="nudge-button__hint" data-role="nudge-power">+1</span>
+      <span class="nudge-button__streak" data-role="streak" hidden>
+        <span class="nudge-button__streak-fill" data-role="streak-bar"></span>
+      </span>
     </button>
     <p class="gadget__dollars" data-role="dollars">$0.00</p>
   `;
@@ -93,6 +96,8 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     bloatText: ref('bloat-text'),
     nudge: ref('nudge'),
     nudgePower: ref('nudge-power'),
+    streak: ref('streak'),
+    streakBar: ref('streak-bar'),
     dollars: ref('dollars'),
     prestigeBadge: ref('prestige-badge'),
     meterRam: ref('meter-ram'),
@@ -264,10 +269,25 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
      * down (Day 7). Everything else about it is an ordinary click buff.
      */
     const combo = econ.sweeperCombo(s);
+    /**
+     * The streak (CLICK.streak) is the button's own feedback loop: it exists so
+     * that clicking *fast* looks different from clicking slowly, which it did
+     * not for the whole of the opening minute. It is already inside
+     * `clickPower()`, so the "+N" beside it climbs on its own — the meter is
+     * there to show how much of it is left to lose.
+     */
+    const streak = econ.clickStreak(s);
     nodes.nudge.classList.toggle('is-combo', combo.active);
+    nodes.nudge.classList.toggle('is-streaking', streak.active);
+    nodes.streak.hidden = !streak.active;
+    if (streak.active) setBar(nodes.streakBar, streak.ratio, { warn: 2, critical: 2 });
+
+    const power = `+${formatNumber(econ.clickPower(s))}`;
     nodes.nudgePower.textContent = combo.active
-      ? `+${formatNumber(econ.clickPower(s))} · ×${combo.multiplier.toFixed(1)} for ${Math.ceil(combo.secondsLeft)}s`
-      : `+${formatNumber(econ.clickPower(s))}`;
+      ? `${power} · ×${combo.multiplier.toFixed(1)} for ${Math.ceil(combo.secondsLeft)}s`
+      : streak.active
+        ? `${power} · ×${streak.multiplier.toFixed(2)} streak`
+        : power;
 
     const used = econ.ramUsed(s);
     const cap = econ.ramCapacity(s);

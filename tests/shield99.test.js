@@ -5,7 +5,7 @@ import * as econ from '../src/core/economy.js';
 import { createGame } from '../src/core/game.js';
 import { createMemoryStorage } from '../src/core/save.js';
 import { createInitialState } from '../src/core/state.js';
-import { SECURITY, SHIELD99 } from '../src/data/balance.js';
+import { ADS, SECURITY, SHIELD99 } from '../src/data/balance.js';
 
 /** Seeding, with Shield99 in whatever state the test needs. */
 function seeding({ shield: installed = false, open = false, fileId = 'speed-boost' } = {}) {
@@ -275,6 +275,31 @@ describe('through the game', () => {
     expect(game.extractQuarantine(second.id, { viaAd: true }).reason).toBe('cooling-down');
     // ...but the manual path is always open.
     expect(game.extractQuarantine(second.id, { viaAd: false }).ok).toBe(true);
+  });
+
+  /**
+   * "Nothing is gated behind an ad" has to survive the ads being switched off.
+   * While `ADS.enabled` is false there is no video to watch, so the no-ad
+   * fraction stops being a trade and becomes a permanent tax on the mechanic —
+   * the lootbox pays in full instead.
+   */
+  it('pays the manual path in full while the ad system is off', () => {
+    const game = playing();
+    const item = { id: 1, threatId: 'adware', at: 0 };
+    game.state.shield99.quarantine.push(item);
+
+    const manual = game.extractQuarantine(item.id, { viaAd: false });
+    expect(manual.ok).toBe(true);
+
+    const second = { id: 2, threatId: 'adware', at: 0 };
+    game.state.shield99.quarantine.push(second);
+    const viaAd = game.extractQuarantine(second.id, { viaAd: true });
+
+    if (ADS.enabled) {
+      expect(manual.reward.buzz).toBeCloseTo(viaAd.reward.buzz * SHIELD99.manualRewardFraction);
+    } else {
+      expect(manual.reward.buzz).toBeCloseTo(viaAd.reward.buzz);
+    }
   });
 
   it('shoves the Aero Studio render along when that is what it rolled', () => {

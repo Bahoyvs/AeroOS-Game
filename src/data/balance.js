@@ -89,6 +89,29 @@ export const STATUS_BONUSES = [
 
 export const CLICK = {
   baseBuzz: 1, // Nudge button payout before CPU click power
+
+  /**
+   * The Nudge streak.
+   *
+   * An idle game's first thirty seconds are spent on one button, and until this
+   * existed clicking it fast felt exactly like clicking it slowly — the only
+   * *active* verb in the game had no feedback of its own. Consecutive clicks
+   * inside `windowSeconds` build a streak worth `perClick` each, capped at
+   * `maxBonus`, and the streak drops the moment the player stops.
+   *
+   * It is deliberately small and free to ignore: it is a reason to keep
+   * clicking through the first minute, not a skill gate. The bonus starts on
+   * the *second* click of a streak, so a single considered press pays exactly
+   * what the button says it does.
+   *
+   * Wall clock, not simulation time — it measures the cadence of a real hand.
+   */
+  streak: {
+    windowSeconds: 1.6,
+    perClick: 0.05,
+    maxBonus: 1, // +100% at 21 clicks in a row
+    maxCount: 40, // rail: the counter cannot grow unbounded in a save
+  },
 };
 
 export const PRESTIGE = {
@@ -363,6 +386,24 @@ export const SAVE = {
  *    the portal cannot know: whether this player has learned the game yet.
  */
 export const ADS = {
+  /**
+   * The master switch for the whole ad system.
+   *
+   * It is `false` for the basic-launch submission, where the SDK's ad calls are
+   * commented out in `src/ui/ads.js`. That is a business decision, but it has a
+   * design consequence that must not be left to each call site: while ads
+   * cannot run, **no rewarded button may render anywhere**. Two offers on the
+   * gadget that answer every press with "ads are disabled" is worse than no
+   * offers at all, and it is the first thing a new player touches.
+   *
+   * The same flag is what keeps "nothing is gated behind an ad" true: with ads
+   * off, `extractQuarantine` pays Shield99's loot in full rather than at
+   * `SHIELD99.manualRewardFraction`, because the full path is not merely
+   * inconvenient — it does not exist. Setting this back to `true` (alongside
+   * uncommenting the SDK calls) restores both behaviours with no other edits.
+   */
+  enabled: false,
+
   midgame: {
     /**
      * Day 1 retention protection. The first minutes decide whether anybody

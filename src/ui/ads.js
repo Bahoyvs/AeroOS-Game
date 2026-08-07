@@ -50,7 +50,7 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
    * where ads would have played is the more expensive mistake.
    */
   async function init() {
-    if (!sdk?.ad) return { available: false, adblocked: false };
+    if (!ADS.enabled || !sdk?.ad) return { available: false, adblocked: false };
     try {
       adblocked = (await sdk.ad.hasAdblock?.()) === true;
     } catch (err) {
@@ -60,9 +60,16 @@ export function createAds({ sdk = null, game, notify = () => {}, root = document
     return { available: available(), adblocked };
   }
 
-  /** True when an ad could actually play. Every ad button checks this first. */
+  /**
+   * True when an ad could actually play. Every ad button checks this first.
+   *
+   * `ADS.enabled` is folded in here rather than at the call sites so that
+   * switching the system off cannot leave a single button behind: a placement
+   * that renders a control it cannot honour teaches the player that the offers
+   * in this game are decoration.
+   */
   function available() {
-    return Boolean(sdk?.ad) && !adblocked;
+    return ADS.enabled && Boolean(sdk?.ad) && !adblocked;
   }
 
   /* --------------------------------------------------------------- rewarded */

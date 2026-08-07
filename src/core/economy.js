@@ -351,13 +351,38 @@ export function rateBreakdown(state, now = Date.now()) {
   };
 }
 
+/**
+ * The live Nudge streak. Read-only: `game.nudge()` is what advances it, and a
+ * streak whose window has lapsed reports zero without anything having to clear
+ * it — which is what lets it expire while the tab is closed.
+ */
+export function clickStreak(state, now = Date.now()) {
+  const { windowSeconds, perClick, maxBonus } = CLICK.streak;
+  const streak = state.click ?? { count: 0, lastAt: 0 };
+  const alive = streak.count > 0 && now - streak.lastAt <= windowSeconds * 1000;
+  const count = alive ? streak.count : 0;
+  // The bonus starts on the second click, so one considered press pays exactly
+  // what the button advertises.
+  const bonus = Math.min(Math.max(count - 1, 0) * perClick, maxBonus);
+  return {
+    count,
+    active: bonus > 0,
+    multiplier: 1 + bonus,
+    /** How far along the cap the streak is — the meter on the button. */
+    ratio: maxBonus === 0 ? 0 : bonus / maxBonus,
+    /** How long is left to land the next click before it drops. */
+    secondsLeft: alive ? Math.max(0, windowSeconds - (now - streak.lastAt) / 1000) : 0,
+  };
+}
+
 /** Buzz granted by one press of the Nudge button. */
 export function clickPower(state, now = Date.now()) {
   return (
     CLICK.baseBuzz *
     hardwareEffects(state).click *
     bloatPenalty(state) *
-    buffMultiplier(state, 'click', now)
+    buffMultiplier(state, 'click', now) *
+    clickStreak(state, now).multiplier
   );
 }
 

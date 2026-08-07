@@ -15,18 +15,30 @@
        under the one control the player presses hundreds of times a minute. */
     --nudge-dock-height: 76px;
     --nudge-dock-gap: 10px;
+
+    /* Fallback only, and 0 is the right one: src/ui/tutorial.js measures the
+       coach and overwrites this on :root, including writing 0 when the panel
+       is hidden. A guess here would reserve a strip at the bottom of every
+       window for a panel that may not be on screen at all. */
+    --coach-height: 0px;
   }
 
   .aero-window {
     /**
      * The containing .desktop already stops above the taskbar, so the bottom
-     * inset is only the Nudge dock. It has to be reserved rather than overlaid:
-     * a docked button floating over the last 80px of every window would sit on
-     * top of whatever control an app happens to put at its own bottom edge —
-     * AeroChat's buy row, AeroSweeper's cash-out — and those are not decoration.
+     * inset is the Nudge dock plus the coach. Both have to be reserved rather
+     * than overlaid: a docked button floating over the last 80px of every
+     * window would sit on top of whatever control an app happens to put at its
+     * own bottom edge — AeroChat's buy row, AeroSweeper's cash-out — and those
+     * are not decoration.
+     *
+     * The coach is the same problem and it was live: pinned to the bottom of
+     * the screen, drawn over the sheet, it covered AeroChat's buy row while
+     * the spotlight was pointing at it. A tutorial cannot be allowed to hide
+     * the control it is teaching.
      */
     inset: calc(var(--gadget-height) + env(safe-area-inset-top)) 0
-      calc(var(--nudge-dock-height) + var(--nudge-dock-gap)) 0 !important;
+      calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + var(--coach-height) + 8px) 0 !important;
     width: auto !important;
     height: auto !important;
     max-width: none;
@@ -207,15 +219,18 @@
   }
 
   /* Both of these used to sit at the bottom edge, which is now the dock. */
+  /* Balloons stack above the coach, not on it. */
   .toasts {
     right: 8px;
-    bottom: calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + 8px);
+    bottom: calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + var(--coach-height) + 14px);
     left: 8px;
     width: auto;
   }
 
   /* The coach sits above full-screen app modals in PDA mode, or the player
-     cannot read the objective they are being asked to complete. */
+     cannot read the objective they are being asked to complete. The sheet
+     above it reserves this height rather than running underneath it — see
+     `.aero-window`. */
   .coach {
     right: 8px;
     bottom: calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + 8px);
@@ -224,7 +239,63 @@
     width: auto;
   }
 
+  /**
+   * ...and it stays compact, because every pixel it takes is a pixel taken off
+   * the app above it. Two lines of hint is enough to explain an objective; the
+   * third and fourth are where a phone starts losing the buddy list.
+   */
+  .coach {
+    gap: 2px;
+    padding: 8px 10px;
+  }
+
+  .coach__hint {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  /**
+   * While the spotlight is up, the cue's own label already carries the
+   * objective in four words — and on a phone the coach, the cue and the Nudge
+   * dock are all fighting for the same strip above the taskbar. Drop the
+   * coach's long-form hint for the duration and keep the title, the step
+   * counter and the way out.
+   */
+  :root[data-spotlight='on'] .coach__hint {
+    display: none;
+  }
+
+  /**
+   * The Start menu is a fixed 420×380 panel, which is wider and taller than a
+   * phone has to give it — the system-links column was being clipped straight
+   * off the right edge of the screen. The onboarding tour sends the player in
+   * here twice (install RetroAmp, open My Computer), so it has to fit.
+   */
+  .start-menu {
+    left: 6px;
+    width: min(420px, calc(100vw - 12px));
+  }
+
+  .start-menu__inner {
+    height: min(380px, 55vh);
+  }
+
   .tray__buzz {
+    display: none;
+  }
+}
+
+/**
+ * Narrower still, and the two panes cannot both have their say. The right-hand
+ * column is period set dressing — Documents, Pictures, Control Panel — and the
+ * one entry in it that opens a real window, Computer, is also the first row of
+ * the app list on the left. So the app list gets the whole menu.
+ */
+@media (max-width: 460px) {
+  .start-menu__right {
     display: none;
   }
 }

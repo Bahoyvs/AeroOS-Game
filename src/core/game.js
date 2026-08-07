@@ -1,4 +1,4 @@
-import { ADS, CHAT_BOT, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { ADS, CHAT_BOT, CLICK, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
@@ -166,9 +166,20 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
   /* -------------------------------------------------------------- actions */
 
-  /** Manual click on the Nudge button (GDD 4). */
-  function nudge() {
-    const amount = econ.clickPower(state);
+  /**
+   * Manual click on the Nudge button (GDD 4).
+   *
+   * The streak is advanced *before* the payout is priced, so the click that
+   * extends a streak is the click that is paid for it — a bonus applied on the
+   * next press instead would read as the button paying out at random.
+   */
+  function nudge(at = Date.now()) {
+    const streak = state.click;
+    const alive = streak.count > 0 && at - streak.lastAt <= CLICK.streak.windowSeconds * 1000;
+    streak.count = alive ? Math.min(streak.count + 1, CLICK.streak.maxCount) : 1;
+    streak.lastAt = at;
+
+    const amount = econ.clickPower(state, at);
     state.stats.nudges += 1;
     grantBuzz(amount, 'nudge');
     return amount;
@@ -354,6 +365,11 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
    * not touch it — so this is called *after* `adFinished` with `viaAd: true`.
    * The manual path is always available at a fraction of the reward, because a
    * player with an ad blocker must never be locked out of a mechanic.
+   *
+   * When the ad system is switched off entirely (`ADS.enabled`), that fraction
+   * would stop being a trade and become a permanent tax: there is no ad to
+   * watch, so 25% is simply what the lootbox is worth now. It pays in full
+   * instead — "nothing is gated behind an ad" has to survive the ads being off.
    */
   function extractQuarantine(itemId, { viaAd = false } = {}) {
     const now = Date.now();
@@ -362,7 +378,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
     const threat = shield.getThreat(check.item.threatId);
     const reward = shield.rewardFor(threat, {
-      fraction: viaAd ? 1 : SHIELD99.manualRewardFraction,
+      fraction: viaAd || !ADS.enabled ? 1 : SHIELD99.manualRewardFraction,
       buzzPerSecond: econ.buzzPerSecond(state, now),
       isRendering: state.aerostudio.isRendering,
     });

@@ -61,6 +61,9 @@ export function createTaskbar({ root, game, wm, launch }) {
           {
             type: 'button',
             class: `start-menu__item${entry.installed ? '' : ' is-purchase'}`,
+            // The onboarding spotlight points at this row by id once the menu
+            // is open (src/ui/tutorial.js).
+            dataset: { appId: app.id },
             disabled: entry.installed || affordable ? null : 'disabled',
             onclick: () => {
               if (entry.installed) launch(app.id);
@@ -99,7 +102,11 @@ export function createTaskbar({ root, game, wm, launch }) {
       { label: 'Pictures' },
       { label: 'Music' },
       { label: 'Games', divider: true },
-      { label: 'Computer' },
+      // The one link in this pane that names a window the game actually has.
+      // The rest are period set dressing; this one is the route to My Computer
+      // when a full-screen PDA sheet is covering the desktop icon, and the
+      // onboarding tour points at it.
+      { label: 'Computer', appId: 'system' },
       { label: 'Control Panel', divider: true },
       { label: 'Devices and Printers' },
       { label: 'Default Programs' },
@@ -111,7 +118,21 @@ export function createTaskbar({ root, game, wm, launch }) {
         link.bold ? ' is-bold' : ''
       }`;
       const li = el('li', { class: liClass }, [
-        el('button', { type: 'button', class: 'start-menu__sys-btn' }, link.label),
+        el(
+          'button',
+          {
+            type: 'button',
+            class: 'start-menu__sys-btn',
+            dataset: link.appId ? { appId: link.appId } : {},
+            onclick: link.appId
+              ? () => {
+                  launch(link.appId);
+                  toggleMenu(false);
+                }
+              : null,
+          },
+          link.label,
+        ),
       ]);
       sysList.appendChild(li);
     }
