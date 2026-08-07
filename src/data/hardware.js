@@ -21,6 +21,7 @@ export const HARDWARE_BASE = {
   ramMB: 128,
   storageGB: 20,
   offlineHours: 2,
+  payout: 1,
 };
 
 /** Cooldowns can never be reduced to nothing, however deep the GPU tree goes. */
@@ -65,6 +66,32 @@ export const HDD_TIERS = [
   { name: '1 TB SATA', cost: 16000, storage: 25, offline: 6 },
 ];
 
+/**
+ * The Mainboard track — the one upgrade that pays in Dollars rather than Buzz.
+ *
+ * Everything else on this page makes a run produce faster. This makes a run
+ * *worth more*: `payout` is a flat percentage on the Dollars a Format C: banks,
+ * and `econ.prestigeDivisor()` turns it back into the divisor the sqrt curve
+ * actually uses (divisor / payout², because Dollars go as the square root).
+ *
+ * Stating it as the payout rather than as the divisor is the whole point. The
+ * shop row can say "+20% Format C: payout" and that is literally the number
+ * applied — the same contract every other track keeps (AO-19) — where "divisor:
+ * 600" is a figure no player can price. For the record the tiers below land on
+ * divisors of 1000, 826, 592 and 309.
+ *
+ * The gain is retroactive by construction: `lifetimeDollarValue` re-prices
+ * *all* lifetime Buzz, so buying a tier makes a pending payout jump on the
+ * spot. That is deliberate. It is the moment the mid-game wall comes down, and
+ * it cannot run away with the economy because the track is four tiers long.
+ */
+export const MOBO_TIERS = [
+  { name: 'OEM Board (no jumpers)', cost: 0, payout: 0 },
+  { name: 'Pentagon Overclock Kit', cost: 2.5, payout: 0.1 },
+  { name: 'Dual-Core Bus Architecture', cost: 10, payout: 0.2 },
+  { name: 'Quantum Interconnect 500', cost: 50, payout: 0.5 },
+];
+
 export const HARDWARE = {
   cpu: {
     label: 'CPU',
@@ -89,6 +116,14 @@ export const HARDWARE = {
     tiers: HDD_TIERS,
     blurb: 'P2P capacity, seed slots and offline earnings cap.',
     affects: 'Offline Buzz · LemonWire seed slots',
+  },
+  // Last on the shop page because it is the one row that does nothing for the
+  // run in front of you — it is priced in the next one.
+  mobo: {
+    label: 'Mainboard',
+    tiers: MOBO_TIERS,
+    blurb: 'Turns the same lifetime Buzz into more Dollars.',
+    affects: 'Format C: payout',
   },
 };
 

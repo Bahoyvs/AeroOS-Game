@@ -44,6 +44,9 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
 
   /* --------------------------------------------------------------- gadget */
 
+  /** How many cells the defrag animation draws. Cosmetic; see the note below. */
+  const DEFRAG_BLOCKS = 32;
+
   const gadget = el('div', { class: 'gadget glass', role: 'complementary' }, []);
   gadget.innerHTML = `
     <div class="gadget__header">
@@ -65,6 +68,22 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     <div class="meter" data-role="meter-bloat" hidden>
       <div class="meter__label"><span>System bloat</span><span data-role="bloat-text">0%</span></div>
       <div class="meter__track"><div class="meter__fill meter__fill--bloat" data-role="bloat-bar"></div></div>
+    </div>
+
+    <!--
+      Auto-Defrag, while a pass is running. It is the one system in the game
+      that quietly *takes* production, so it has to be visible while it does —
+      a rate that dips 5% with nothing on screen to explain it is a bug report.
+      The block grid is the old disk defragmenter, and it is decoration: the
+      real progress is the bar under it.
+    -->
+    <div class="defrag" data-role="defrag" hidden>
+      <div class="defrag__top">
+        <span>Auto-Defrag</span>
+        <span data-role="defrag-percent">0%</span>
+      </div>
+      <div class="defrag__blocks" aria-hidden="true"></div>
+      <div class="meter__track"><div class="meter__fill defrag__fill" data-role="defrag-bar"></div></div>
     </div>
 
     <div class="heat" data-role="heat" hidden>
@@ -102,10 +121,26 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     prestigeBadge: ref('prestige-badge'),
     meterRam: ref('meter-ram'),
     meterBloat: ref('meter-bloat'),
+    defrag: ref('defrag'),
+    defragBar: ref('defrag-bar'),
+    defragPercent: ref('defrag-percent'),
     heat: ref('heat'),
     heatValue: ref('heat-value'),
     heatBar: ref('heat-bar'),
   };
+
+  /**
+   * The block grid, built once and animated entirely in CSS: the cells are
+   * identical and only their animation delay differs, so a pass costs the main
+   * thread nothing per frame. Reduced motion switches it off through the
+   * ordinary `data-motion` rule in tokens.css — the bar underneath still moves.
+   */
+  const blocksRoot = gadget.querySelector('.defrag__blocks');
+  for (let i = 0; i < DEFRAG_BLOCKS; i += 1) {
+    const block = el('i', { class: 'defrag__block' });
+    block.style.setProperty('--i', String(i));
+    blocksRoot.appendChild(block);
+  }
 
   /**
    * PDA mode pins the gadget above the window stack and offsets windows by
@@ -301,6 +336,17 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     nodes.meterRam.hidden = !revealed;
     nodes.meterBloat.hidden = !revealed;
     nodes.dollars.hidden = !revealed;
+
+    // Only while a pass is actually running: an idle scheduler has nothing to
+    // report, and a permanent strip in the gadget would cost the phone layout
+    // a row of height for a system that fires once an hour.
+    const defragging = econ.isDefragging(s);
+    nodes.defrag.hidden = !defragging;
+    if (defragging) {
+      const progress = econ.defragProgress(s);
+      nodes.defragPercent.textContent = `${Math.round(progress * 100)}%`;
+      setBar(nodes.defragBar, progress, { warn: 2, critical: 2 });
+    }
 
     // Heat is the escalation the player actually feels (AO-27).
     const heatLevel = econ.heatLevel(s);

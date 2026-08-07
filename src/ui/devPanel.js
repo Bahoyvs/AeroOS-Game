@@ -10,13 +10,22 @@ export function mountDevPanel({ game }) {
   const header = document.createElement('div');
   header.className = 'aero-dev-header';
   header.textContent = '🛠 Dev Menu';
-  
+
   const content = document.createElement('div');
   content.className = 'aero-dev-content';
 
   const buttons = [
     { label: '+10k Buzz', action: () => game.dev.addBuzz(10000) },
     { label: '+1M Buzz', action: () => game.dev.addBuzz(1000000) },
+    { label: '+1B Buzz', action: () => game.dev.addBuzz(1000000000) },
+    { label: '+1T Buzz', action: () => game.dev.addBuzz(1000000000000) },
+    { label: '+1Q Buzz', action: () => game.dev.addBuzz(1000000000000000) },
+    { label: '+1Qi Buzz', action: () => game.dev.addBuzz(1000000000000000000) },
+    { label: '+1Sx Buzz', action: () => game.dev.addBuzz(1000000000000000000000) },
+    { label: '+1Sp Buzz', action: () => game.dev.addBuzz(1000000000000000000000000) },
+    { label: '+1Oc Buzz', action: () => game.dev.addBuzz(1000000000000000000000000000) },
+    { label: '+1No Buzz', action: () => game.dev.addBuzz(1000000000000000000000000000000) },
+    { label: '+1De Buzz', action: () => game.dev.addBuzz(1000000000000000000000000000000000) },
     { label: '+$1,000', action: () => game.dev.addMoney(1000) },
     { label: 'Skip 1 Hour', action: () => game.dev.skipTime(3600) },
     { label: 'Skip 1 Day', action: () => game.dev.skipTime(86400) },

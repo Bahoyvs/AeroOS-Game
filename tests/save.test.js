@@ -77,7 +77,12 @@ describe('resilience', () => {
     expect(loaded.apps.aerostudio.installed).toBe(false);
     expect(loaded.chat.bots).toBe(0);
     expect(loaded.settings.sfx).toBe(true);
-    expect(loaded.hardware).toEqual({ cpu: 0, ram: 0, gpu: 0, hdd: 0 });
+    // Including tracks and whole slices added since — a new hardware track and
+    // a new utility must cost the player nothing but a default.
+    expect(loaded.hardware).toEqual({ cpu: 0, ram: 0, gpu: 0, hdd: 0, mobo: 0 });
+    expect(loaded.defrag).toEqual({ owned: false, active: false, startedFrom: 0, passes: 0 });
+    expect(loaded.cosmetics.tint).toBe('aqua');
+    expect(loaded.dollarsSpentTotal).toBe(0);
   });
 
   it('carries a v1 reducedMotion flag over to the three-state motion setting', () => {

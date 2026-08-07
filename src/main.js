@@ -16,6 +16,7 @@ import { createDesktop } from './ui/desktop.js';
 import { createMotionPreference } from './ui/motion.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
+import { createTheme } from './ui/theme.js';
 import { createTutorialCoach } from './ui/tutorial.js';
 import { showWelcomeBack } from './ui/welcomeBack.js';
 import { createWindowManager } from './ui/windowManager.js';
@@ -206,6 +207,10 @@ async function boot() {
   // window opens, so nothing plays a transition the player has switched off.
   const motion = createMotionPreference({ game });
 
+  // ...and what it looks like. Same shape, same reason: one writer, one
+  // attribute, and the stylesheet never reads game state.
+  const theme = createTheme({ game });
+
   // Audio (AO-26). Synthesised, so there is nothing to preload; the context
   // only starts on the first real gesture, per the autoplay policy.
   const audio = createAudio({
@@ -354,6 +359,9 @@ async function boot() {
     [game.events.DISC_PLAYED]: 'coin',
     [game.events.PLAYLIST_LOADED]: 'click',
     [game.events.SWEEPER_TOKEN]: 'chime',
+    [game.events.DEFRAG_INSTALLED]: 'hdd',
+    [game.events.DEFRAG_STARTED]: 'hdd',
+    [game.events.DEFRAG_DONE]: 'chime',
   };
   for (const [event, sound] of Object.entries(SOUNDS)) {
     game.bus.on(event, () => audio.play(sound));
@@ -654,6 +662,46 @@ async function boot() {
     audio.play('coin');
   });
 
+  /**
+   * Auto-Defrag. Two balloons, both of them load-bearing: the machine has
+   * started taking 5% of production without being asked, and the player is
+   * owed the sentence that says why — and then the one that says it is over
+   * and the bloat they were watching climb is gone.
+   */
+  game.bus.on(game.events.DEFRAG_STARTED, ({ from }) => {
+    notify({
+      title: 'Auto-Defrag started',
+      body: `System bloat hit ${Math.round(from * 100)}%. Sweeping it back to zero — production is down 5% until it finishes.`,
+      tone: 'info',
+    });
+  });
+
+  game.bus.on(game.events.DEFRAG_DONE, () => {
+    notify({
+      title: 'Defrag complete',
+      body: 'The disk is contiguous and the machine is quiet again.',
+      tone: 'success',
+    });
+  });
+
+  /**
+   * A cosmetic unlock is a reward with no mechanical payload, so the balloon is
+   * the entire reward — and it carries the one click that spends it, because
+   * "something is available in a settings panel" is not something anybody acts
+   * on later.
+   */
+  game.bus.on(game.events.COSMETIC_UNLOCKED, ({ item }) => {
+    notify({
+      title: `${item.label} unlocked`,
+      body: item.blurb,
+      tone: 'success',
+      action: {
+        label: 'Use it',
+        onClick: () => game.setCosmetic(item.kind, item.id),
+      },
+    });
+  });
+
   game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
     notify({
       title: `${at} buddies online`,
@@ -819,7 +867,7 @@ async function boot() {
   gameplay.start();
 
   // Handy during development; harmless in production.
-  globalThis.AeroOS = { game, wm, launch, audio, motion, sdk, ads };
+  globalThis.AeroOS = { game, wm, launch, audio, motion, theme, sdk, ads };
   mountDevPanel({ game });
 }
 

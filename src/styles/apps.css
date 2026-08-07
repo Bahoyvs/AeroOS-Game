@@ -461,7 +461,122 @@
   opacity: 0.45;
 }
 
+/* -------------------------------------------------------------- utilities */
+
+.sys__utility {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 9px 10px;
+  color: var(--text);
+}
+
+.sys__utility-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sys__utility-name {
+  font-size: 0.78rem;
+}
+
+.sys__utility-state {
+  font-size: 0.7rem;
+  color: var(--aero-blue-deep);
+}
+
+.sys__utility-blurb {
+  font-size: 0.64rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.sys__utility-owned {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
+/* The pass bar spans both columns, under the card it belongs to. */
+.sys__utility-bar {
+  grid-column: 1 / -1;
+  height: 6px;
+  background: rgb(13 36 55 / 18%);
+  box-shadow: var(--emboss-well-light);
+}
+
+/* A pass is the one moment this card is worth looking at, so it says so. */
+.sys__utility.is-running .sys__utility-state {
+  font-weight: 700;
+  color: #2f7a2f;
+}
+
 /* ---------------------------------------------------------------- display */
+
+/**
+ * The tint / wallpaper pickers.
+ *
+ * Locked entries keep their place in the grid: a cosmetic nobody knows exists
+ * is not a goal, and the requirement in the chip's tooltip is the reason to
+ * open this panel before there is anything to change.
+ */
+/* 120px is what the longest name ("Crimson Dunes") needs beside its chip.
+   Below that the grid takes a third column and every label ends in an
+   ellipsis, which is the one thing a name-the-picture panel must not do. */
+.sys__swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 6px;
+}
+
+.swatch {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 5px;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 6px;
+  font-size: 0.66rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.swatch__chip {
+  width: 18px;
+  height: 14px;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft), 0 0 0 1px rgb(13 36 55 / 25%);
+}
+
+.swatch__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.swatch__lock {
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+
+.swatch.is-selected {
+  font-weight: 700;
+  background: linear-gradient(180deg, #ffffff 45%, #d9f0ff 0, #b6e2ff);
+  border-color: #6ba9d8;
+}
+
+/* Greyed, not hidden — and the chip keeps its colour so the player can see
+   what they are working toward. */
+.swatch.is-locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.swatch.is-locked .swatch__label {
+  color: var(--text-muted);
+}
 
 .sys__display {
   display: grid;

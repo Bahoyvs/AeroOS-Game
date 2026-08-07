@@ -10,6 +10,11 @@
   --aero-cyan: #7fe4ff;
   --aero-ink: #0d2437;
 
+  /* The taskbar/Start slab, as two stops so a window tint can retint it
+     (styles/themes.css) without restating the lit sheet drawn over it. */
+  --chrome-lit: rgb(28 96 160 / 88%);
+  --chrome-deep: rgb(6 40 76 / 94%);
+
   --glass-bg: linear-gradient(180deg, rgb(255 255 255 / 42%) 0%, rgb(255 255 255 / 12%) 48%, rgb(255 255 255 / 24%) 100%);
   --glass-border: rgb(255 255 255 / 55%);
   --glass-shadow: 0 10px 30px rgb(4 26 48 / 35%), inset 0 1px 0 rgb(255 255 255 / 70%);

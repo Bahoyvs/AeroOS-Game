@@ -17,6 +17,8 @@ index.html
     │   ├── sweeper.js        the minefield, plus tokens and the combo
     │   ├── shield99.js       threat spawns, quarantine loot, virus safety net, scans
     │   ├── ads.js            rewarded-ad pacing: daily allowances, cooldowns, reward sizing
+    │   ├── defrag.js         Auto-Defrag: the online pass, and the offline bloat ceiling
+    │   ├── cosmetics.js      tint/wallpaper selection; unlocks are derived, never stored
     │   ├── aeroburn.js       CD burning; the discs that outlive a prestige
     │   ├── tutorial.js       scripted onboarding steps + the hardware reveal
     │   ├── goals.js          the objective after the tour — derived, never stored
@@ -30,9 +32,12 @@ index.html
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
     │   ├── files.js          LemonWire's shared files (size, risk, seeders)
     │   ├── cds.js            AeroBurn disc types
-    │   └── hardware.js       CPU/RAM/GPU/HDD tier tables
+    │   ├── cosmetics.js      window tints, wallpapers, and what unlocks each
+    │   └── hardware.js       CPU/RAM/GPU/HDD/Mainboard tier tables
+    ├── assets/               the only shipped art: built by art/optimize-wallpapers.mjs
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
+    │   ├── theme.js          stamps data-tint / data-wallpaper on <html>
     │   ├── desktop.js        icons + Aero gadget (Buzz, meters, Nudge)
     │   ├── taskbar.js        Start menu, task buttons with RAM bars, tray
     │   ├── notify.js         balloon notifications
@@ -87,7 +92,8 @@ Timed systems pick their clock according to what should happen while the player 
   and a throttled tab must not silently miss bonuses. Shield99's threat spawns are here for
   the same reason: a lootbox that arrived while nobody was looking is not a reward. So is
   LemonWire's Recycle Bin — the cost of freeing a slot is time spent *at the machine*, and
-  a bin that emptied itself overnight would cost nothing.
+  a bin that emptied itself overnight would cost nothing. And so is Auto-Defrag's pass: it
+  is a job on a machine somebody is watching, taxing production they can see.
 - **Wall clock** (`Date.now()` timestamps) — buffs in `core/buffs.js`, autosave, offline
   earnings, and every ad timer (Shield99's cooldown, and the allowances and cooldowns in
   `core/ads.js`). A 60-second buff should be over when you come back an hour later, and so
@@ -200,6 +206,103 @@ machine in `HARDWARE_BASE`. Two things fall out of this:
   measured one.
 - Saves are unaffected by rebalancing: `state.hardware.<track>` is still a tier index,
   so the tables can be retuned without a migration.
+
+### The Mainboard is a fifth track, not a special case
+
+Every other track makes a run produce faster. The Mainboard makes a run *worth more*:
+it divides `PRESTIGE.divisor` down, so the same lifetime Buzz banks more Dollars. It is
+the answer to the mid-game wall the square root creates — past a point every doubling of
+the payout costs four times the Buzz, and no amount of production outruns that.
+
+It is written in **payout percentages, not divisors**, and that is the load-bearing part.
+Dollars go as the square root of Buzz, so `prestigeDivisor()` is `divisor / payout²`; a
+row that advertised "divisor: 600" would be a number no player can price, where "+20%
+Format C: payout" is exactly what lands. It keeps the same contract as every other track.
+
+Two consequences:
+
+- **The gain is retroactive.** `lifetimeDollarValue()` re-prices the whole history, so
+  buying a tier makes the pending payout jump on the spot rather than starting to pay
+  from the next Buzz onward. That is the moment the purchase is *for*. It cannot run away
+  with the economy — the track is four tiers long, and `pendingPrestigeDollars` is still
+  the gap between value and what has been paid, so nothing is ever paid twice.
+- **`buzzForDollars` takes a divisor, not a state.** It stays a piece of maths; callers
+  that have a machine pass `prestigeDivisor(state)`, and the progress bar keeps filling.
+
+## Auto-Defrag: one system, two clocks
+
+Bloat is the pressure loop, and it only works on a player who is *present*. An overnight
+absence used to guarantee a desktop found at 100%, so the first move of a session was a
+Format C: whether or not the run was ready for one. `core/defrag.js` is the purchasable
+fix, and it is deliberately a scheduler rather than a stat — it does nothing until bloat
+is already bad, and it costs production while it works.
+
+It splits along the same seam as everything else timed here:
+
+- **Online**, `updateDefrag(state, dt)` is a simulation-time job: it engages at
+  `DEFRAG.startAt`, drains bloat, and disengages at zero. Wall clock would let a
+  backgrounded tab defragment a machine nobody is using.
+- **Offline**, there is no pass to watch and no production to tax, so `offlineBloat()` is
+  a *ceiling* on what the absence may accrue — `max(current, offlineCap)`, never a flat
+  `offlineCap`. It limits what being away can add; it cannot hand back bloat the player
+  had already run up before they closed the tab, or parking a filthy machine overnight
+  would be a free defrag.
+
+It is bought with Dollars, so it carries through `resetForPrestige` like hardware does —
+a bloat fix that has to be re-earned every run is another chore, not a fix. The live pass
+does not carry through: there is no disk left to defragment.
+
+## Cosmetics: chosen state, derived unlocks
+
+Display Properties stores exactly one id per kind (`state.cosmetics.tint` /
+`.wallpaper`) and nothing else. **Which cosmetics are unlocked is derived every time it is
+asked**, from `lifetimeBuzz`, `prestigeCount` and `dollarsSpentTotal` — the same argument
+`core/goals.js` makes: no unlock list to migrate, no cosmetic that can get stuck locked,
+and re-tuning a threshold takes effect on the next frame.
+
+That is only safe because **every counter it reads survives a Format C:**. An unlock can
+therefore never be revoked, which is what lets the choice be stored while the permission
+is not. `selectedCosmetic()` still falls back to the default for an id it cannot honour
+(a retired cosmetic, a hand-edited save) — the desktop has to be drawable from any state.
+
+`ui/theme.js` is the only writer of `data-tint` / `data-wallpaper` on `<html>`, exactly as
+`ui/motion.js` is the only writer of `data-motion`, and `styles/themes.css` is the only
+reader. A tint overrides *tokens* rather than components, which is why themes.css is
+imported straight after tokens.css — see the cascade note on `.glass`. Two things it has
+to reach beyond `.glass`: `--wallpaper`, which `body` paints, and `--chrome-lit` /
+`--chrome-deep`, the taskbar slab — without those, picking Toxic Green tints every window
+and leaves a blue taskbar under them.
+
+### The wallpapers are the only real art in the build
+
+Tints are still pure CSS. Wallpapers are photographs, and that costs bytes on the one
+asset that blocks the first frame — so three things are deliberate:
+
+- **They are built, not committed as shot.** `art/wallpapers-src/` holds the originals;
+  `node art/optimize-wallpapers.mjs` fits them to 1920×1200, re-encodes at q0.82 and
+  emits a 192px thumbnail beside each. That is 8.1 MB of source down to 1.2 MB shipped.
+  It drives whatever Chromium is on the machine rather than adding an image toolchain,
+  the same argument `art/render-thumbnail.mjs` already makes.
+- **The thumbnail is not a nicety.** Display Properties shows every wallpaper at once, so
+  without it, opening My Computer downloads the full set — more bytes than the rest of
+  the game together, to fill four chips eighteen pixels wide. They come in under Vite's
+  `assetsInlineLimit`, so they end up inlined in the CSS and cost no requests at all.
+- **They live in `src/assets/`, not `public/`.** `vite.config.js` sets `base: './'` so the
+  build can be dropped into a portal subdirectory; an asset Vite processes gets a hashed,
+  correctly-relative URL, where a `public/` file has to be referenced by an absolute path.
+
+Naming a wallpaper happens in exactly two places, and `tests/cosmetics.test.js` asserts
+they agree: the id in `data/cosmetics.js` (which is the file stem) and the
+`--wall-<id>` / `--thumb-<id>` pair in `themes.css`.
+
+Two things the photographs broke that the gradient had been quietly guaranteeing, both
+fixed in `desktop.css`: **desktop icons** now carry a three-layer halo rather than one
+soft shadow (two wallpapers put near-white cloud directly under the icon column, where
+the gradient never passed ~55% luminance), and the **gadget** now paints the taskbar's
+`--chrome-lit`/`--chrome-deep` slab instead of plain `.glass`. It is the other piece of
+chrome sitting *directly* on the wallpaper — every window has 7.css's opaque frame behind
+its text and the gadget does not — so near-white text on a sheet of translucent white
+stopped working the moment a wallpaper was brighter than the glass.
 
 ## Onboarding: the tour, then the tracker
 

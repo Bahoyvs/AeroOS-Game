@@ -39,6 +39,7 @@ export function showWelcomeBack({
         </dl>
 
         <p class="welcome__cap" data-role="cap" hidden></p>
+        <p class="welcome__cap welcome__defrag" data-role="defrag" hidden></p>
         <div class="welcome__actions" data-role="actions">
           <button type="button" data-role="ok">Back to work</button>
         </div>
@@ -56,6 +57,17 @@ export function showWelcomeBack({
     const cap = ref('cap');
     cap.hidden = false;
     cap.textContent = `Your HDD only banks ${hoursCap} hours of Buzz — the rest of the time was not counted. A bigger drive stores more.`;
+  }
+
+  /**
+   * The one place Auto-Defrag's offline half is visible. It works by *not*
+   * happening — the machine simply is not at 100% bloat — and a benefit nobody
+   * can see is a purchase nobody repeats, so the dialog says it out loud.
+   */
+  if (offline.bloatCapped) {
+    const line = ref('defrag');
+    line.hidden = false;
+    line.textContent = `Auto-Defrag held system bloat down while you were gone, so the machine is ready to work instead of crawling.`;
   }
 
   /**

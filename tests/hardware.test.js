@@ -59,9 +59,13 @@ describe('the flat-percentage model (AO-19)', () => {
       let previous = null;
       for (let i = 0; i < HARDWARE[track].tiers.length; i += 1) {
         const e = econ.hardwareEffects(at({ [track]: i }));
-        const value = { cpu: e.production, ram: e.ramMB, gpu: -e.cooldown, hdd: e.offlineHours }[
-          track
-        ];
+        const value = {
+          cpu: e.production,
+          ram: e.ramMB,
+          gpu: -e.cooldown,
+          hdd: e.offlineHours,
+          mobo: e.payout,
+        }[track];
         if (previous !== null) expect(value).toBeGreaterThanOrEqual(previous);
         previous = value;
       }

@@ -72,6 +72,11 @@ export const EVENTS = {
   TUTORIAL_STEP: 'tutorial:step', // { completed, next, done }
   HARDWARE_REVEALED: 'tutorial:hardware', // {}
   HARDWARE_BOUGHT: 'hardware:bought', // { track, tier }
+  DEFRAG_INSTALLED: 'defrag:installed', // { cost }
+  DEFRAG_STARTED: 'defrag:started', // { from } — bloat the pass engaged at
+  DEFRAG_DONE: 'defrag:done', // { from, passes }
+  COSMETIC_CHANGED: 'cosmetics:changed', // { kind, item }
+  COSMETIC_UNLOCKED: 'cosmetics:unlocked', // { item }
   FORMAT_REQUESTED: 'prestige:requested', // { dollars } — UI runs the sequence
   PRESTIGE: 'prestige', // { dollars, bonus }
   AD_REWARD: 'ads:rewarded', // { id, reward } — a rewarded ad has been paid out

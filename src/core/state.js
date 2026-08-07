@@ -1,5 +1,6 @@
 import { ALL_APPS } from '../data/apps.js';
 import { LEMONWIRE, SWEEPER } from '../data/balance.js';
+import { DEFAULT_COSMETICS } from '../data/cosmetics.js';
 import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
@@ -31,10 +32,14 @@ export function createInitialState(now = Date.now()) {
     runBuzz: 0, // reset on prestige; drives unlocks within a run
     dollars: 0,
     dollarsEarnedTotal: 0, // never reset; prestige pays out the difference
+    // ...and never reset either: what has been *spent* on hardware and
+    // utilities, which is what the pricier cosmetics unlock against. Earnings
+    // are not a good proxy for it — a hoarder is not a customer.
+    dollarsSpentTotal: 0,
 
     // Progression
+    hardware: { cpu: 0, ram: 0, gpu: 0, hdd: 0, mobo: 0 },
     prestigeCount: 0,
-    hardware: { cpu: 0, ram: 0, gpu: 0, hdd: 0 },
 
     // Software
     apps,
@@ -141,6 +146,22 @@ export function createInitialState(now = Date.now()) {
     // Pressure loop (GDD 7)
     bloat: 0,
 
+    /**
+     * Auto-Defrag. A Dollar-priced utility, so it outlives the wipe like
+     * hardware does — `active` does not, because a pass is a thing happening on
+     * a machine that is about to be formatted. `startedFrom` is only the
+     * denominator of the progress bar; see core/defrag.js.
+     */
+    defrag: { owned: false, active: false, startedFrom: 0, passes: 0 },
+
+    /**
+     * Personalisation. One id per kind and nothing else: which cosmetics are
+     * *unlocked* is derived from lifetime counters every time it is asked
+     * (core/cosmetics.js), so there is no unlock list to migrate. `seen` exists
+     * only so a newly available cosmetic can be announced exactly once.
+     */
+    cosmetics: { ...DEFAULT_COSMETICS, seen: [] },
+
     // Session bookkeeping
     stats: {
       nudges: 0,
@@ -207,7 +228,16 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
     ...fresh,
     dollars: state.dollars + dollarsEarned + bonusDollars,
     dollarsEarnedTotal: state.dollarsEarnedTotal + dollarsEarned,
+    dollarsSpentTotal: state.dollarsSpentTotal,
     username: state.username,
+    /**
+     * Both of these are bought with Dollars, so both survive the wipe for the
+     * same reason hardware does: they were paid for out of the meta-currency,
+     * not out of the run. Auto-Defrag drops its live pass on the way through —
+     * there is no disk left to defragment.
+     */
+    defrag: { ...state.defrag, active: false, startedFrom: 0 },
+    cosmetics: { ...state.cosmetics },
     /**
      * Daily ad allowances survive the wipe. They are a real-world budget, not
      * a run's progress — and a cap a player can clear by pressing Format C:

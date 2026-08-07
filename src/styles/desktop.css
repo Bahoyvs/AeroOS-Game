@@ -30,7 +30,20 @@
   border-radius: var(--radius-sm);
   color: var(--text-invert);
   cursor: pointer;
-  text-shadow: 0 1px 3px rgb(0 20 40 / 80%);
+  /**
+   * A halo, not a drop shadow.
+   *
+   * A single soft shadow was enough while the wallpaper was a gradient that
+   * never got brighter than about 55% luminance. The wallpapers are
+   * photographs now, and two of them put near-white cloud directly under this
+   * column — white label, white sky, and one blurred shadow underneath it is
+   * not something anyone can read. Three stacked shadows spread the dark far
+   * enough around each glyph to hold on both a cloud and a night dune.
+   */
+  text-shadow:
+    0 1px 2px rgb(0 20 40 / 95%),
+    0 0 6px rgb(0 20 40 / 80%),
+    0 0 12px rgb(0 20 40 / 55%);
 }
 
 .desktop-icon:hover,
@@ -44,7 +57,9 @@
   width: 32px;
   height: 32px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 4px rgb(0 30 60 / 55%));
+  /* Same argument as the label above: the icons have light edges of their own,
+     and they need to stay separated from a bright sky behind them. */
+  filter: drop-shadow(0 2px 4px rgb(0 30 60 / 70%)) drop-shadow(0 0 6px rgb(0 20 40 / 45%));
 }
 
 .desktop-icon__label {
@@ -74,6 +89,20 @@
   padding: 12px;
   color: var(--text-invert);
   border: none;
+  /**
+   * The taskbar's slab, on the taskbar's argument.
+   *
+   * The gadget is the other piece of chrome that sits *directly* on the
+   * wallpaper — every window has 7.css's own opaque frame behind its text, and
+   * this does not. Plain `.glass` is a sheet of translucent white, which held
+   * up perfectly while the wallpaper was a dark gradient and stopped the moment
+   * one of them put a white cloud behind near-white text. Reusing
+   * `--chrome-lit` / `--chrome-deep` also means it retints with the window
+   * colour, exactly as the taskbar under it does.
+   */
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 30%) 0%, rgb(255 255 255 / 6%) 55%, rgb(255 255 255 / 14%) 100%),
+    linear-gradient(180deg, var(--chrome-lit), var(--chrome-deep));
   box-shadow: var(--emboss), 0 8px 22px rgb(4 26 48 / 35%);
   text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
 }
@@ -188,6 +217,64 @@
 
 .meter__fill.is-critical {
   background: linear-gradient(180deg, #ffb3a3, var(--error));
+}
+
+/* ------------------------------------------------------- Auto-Defrag (pass) */
+
+.defrag {
+  display: grid;
+  gap: 4px;
+}
+
+.defrag__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
+/**
+ * The old disk-defragmenter grid. Every cell is identical and only its
+ * `--i` (its animation delay) differs, so the sweep is one CSS animation
+ * played 32 times out of phase — the main thread does no work per frame, and
+ * `data-motion='reduced'` collapses it to a static grid without the bar
+ * underneath losing any meaning.
+ */
+.defrag__blocks {
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
+  padding: 2px;
+  background: rgb(0 20 40 / 45%);
+  border-radius: 3px;
+  box-shadow: var(--emboss-well);
+}
+
+.defrag__block {
+  height: 5px;
+  background: rgb(255 255 255 / 22%);
+  border-radius: 1px;
+  animation: defrag-sweep 1.6s linear infinite;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes defrag-sweep {
+  0%,
+  70% {
+    background: rgb(255 255 255 / 22%);
+  }
+  12% {
+    background: var(--aero-cyan);
+  }
+  30% {
+    background: var(--aero-green);
+  }
+}
+
+/* Green, like the defragmenter's "contiguous" legend — and unmistakably not
+   the bloat bar it is undoing two rows above. */
+.defrag__fill {
+  background: linear-gradient(180deg, #d6ffb8, var(--aero-green));
 }
 
 /* ------------------------------------------------------------------ nudge */
@@ -330,9 +417,12 @@
   padding: 4px 6px;
   border: none;
   border-radius: 0;
+  /* The lit sheet on top is the same for every theme; the slab underneath is
+     the one thing a window tint has to reach, or picking Toxic Green paints
+     every window and leaves a blue taskbar under them. */
   background:
     linear-gradient(180deg, rgb(255 255 255 / 34%) 0%, rgb(255 255 255 / 8%) 55%, rgb(255 255 255 / 16%) 100%),
-    linear-gradient(180deg, rgb(28 96 160 / 88%), rgb(6 40 76 / 94%));
+    linear-gradient(180deg, var(--chrome-lit), var(--chrome-deep));
   box-shadow: var(--emboss), 0 -2px 6px rgb(0 20 40 / 35%);
   padding-bottom: max(4px, env(safe-area-inset-bottom));
   height: calc(var(--taskbar-height) + env(safe-area-inset-bottom));

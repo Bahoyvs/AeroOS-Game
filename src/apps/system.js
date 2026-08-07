@@ -1,4 +1,5 @@
 import { formatBytesMB, formatDuration, formatNumber } from '../core/format.js';
+import { DEFRAG } from '../data/balance.js';
 import { HARDWARE } from '../data/hardware.js';
 import { MOTION_LABELS, MOTION_MODES, systemPrefersReducedMotion } from './../ui/motion.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
@@ -37,8 +38,23 @@ export function mount(body, { game, ads = null }) {
       <div class="ad-banner__slot" data-role="banner-slot"></div>
     </div>
 
-    <h4 class="sys__heading">Display</h4>
+    <h4 class="sys__heading">Utilities</h4>
+    <div class="sys__utility glass" data-role="defrag"></div>
+
+    <h4 class="sys__heading">Display properties</h4>
     <div class="sys__display glass">
+      <div class="sys__display-top">
+        <span>Window colour</span>
+        <small data-role="tint-note"></small>
+      </div>
+      <div class="sys__swatches" role="group" aria-label="Window colour" data-role="tints"></div>
+
+      <div class="sys__display-top">
+        <span>Wallpaper</span>
+        <small data-role="wallpaper-note"></small>
+      </div>
+      <div class="sys__swatches" role="group" aria-label="Wallpaper" data-role="wallpapers"></div>
+
       <div class="sys__display-top">
         <span>Desktop animations</span>
         <small data-role="motion-note"></small>
@@ -88,6 +104,10 @@ export function mount(body, { game, ads = null }) {
           else if (result.reason === 'too-expensive') {
             game.notify('Not enough Dollars', 'Format C: to earn more.', 'warn');
           }
+          // Dollars spent is an unlock counter, so a purchase can hand the
+          // player a cosmetic two panels down the same window.
+          renderCosmetics();
+          renderDefrag();
           update();
         },
       }),
@@ -120,8 +140,143 @@ export function mount(body, { game, ads = null }) {
         return `−${Math.round((1 - effects.cooldown) * 100)}% cooldowns`;
       case 'hdd':
         return `${effects.storageGB} GB · ${effects.offlineHours}h offline`;
+      case 'mobo':
+        return `+${Math.round((effects.payout - 1) * 100)}% on every Format C:`;
       default:
         return '';
+    }
+  }
+
+  /* ------------------------------------------------------------ utilities */
+
+  /**
+   * Auto-Defrag. One card with three states — for sale, installed and idle,
+   * installed and running — because the middle one is the one that has to
+   * explain itself: a utility that does nothing visible until the machine is
+   * already choking reads as a broken purchase otherwise.
+   */
+  const defragRoot = ref('defrag');
+
+  function renderDefrag() {
+    const s = game.state;
+    const { econ } = game;
+    clear(defragRoot);
+
+    const running = econ.isDefragging(s);
+    defragRoot.classList.toggle('is-running', running);
+
+    const info = el('div', { class: 'sys__utility-info' }, [
+      el('strong', { class: 'sys__utility-name', text: 'Auto-Defrag' }),
+      el('span', {
+        class: 'sys__utility-state',
+        text: !s.defrag.owned
+          ? 'Not installed'
+          : running
+            ? `Defragmenting — ${Math.round(econ.defragProgress(s) * 100)}%`
+            : `Idle · arms at ${Math.round(DEFRAG.startAt * 100)}% bloat`,
+      }),
+      el('small', {
+        class: 'sys__utility-blurb',
+        text: s.defrag.owned
+          ? `Sweeps bloat back to zero at ${Math.round(DEFRAG.productionTax * 100)}% production while it runs, and holds bloat under ${Math.round(DEFRAG.offlineCap * 100)}% while the machine is off.`
+          : `A scheduled sweep that catches the machine before it seizes: it clears bloat from ${Math.round(DEFRAG.startAt * 100)}% back to zero, and caps what an overnight absence can build up at ${Math.round(DEFRAG.offlineCap * 100)}%.`,
+      }),
+    ]);
+
+    const action = s.defrag.owned
+      ? el('span', { class: 'sys__utility-owned', text: 'Installed' })
+      : el('button', {
+          type: 'button',
+          class: 'hw-row__buy',
+          text: `$${DEFRAG.cost.toFixed(2)}`,
+          onclick: () => {
+            const result = game.buyDefrag();
+            if (result.ok) {
+              game.notify('Auto-Defrag installed', 'It arms itself when the disk gets bad.', 'success');
+            } else if (result.reason === 'too-expensive') {
+              game.notify('Not enough Dollars', 'Format C: to earn more.', 'warn');
+            }
+            renderDefrag();
+            update();
+          },
+        })
+      ;
+
+    if (!s.defrag.owned) {
+      action.classList.toggle('is-affordable', s.dollars >= DEFRAG.cost);
+      action.disabled = s.dollars < DEFRAG.cost;
+    }
+
+    defragRoot.append(info, action);
+
+    if (running) {
+      const track = el('div', { class: 'meter__track sys__utility-bar' }, [
+        el('div', { class: 'meter__fill', dataset: { role: 'defrag-bar' } }),
+      ]);
+      defragRoot.appendChild(track);
+      setBar(track.firstChild, econ.defragProgress(s), { warn: 2, critical: 2 });
+    }
+  }
+
+  /* --------------------------------------------------------- personalisation */
+
+  /**
+   * The tint and wallpaper pickers. Locked entries are *shown*, not hidden:
+   * a cosmetic nobody knows exists is not a goal, and the requirement under the
+   * chip is the entire reason the panel is worth opening early. The rules
+   * themselves live in `core/cosmetics.js` — this only draws the answer.
+   */
+  const pickers = [
+    { kind: 'tint', root: ref('tints'), note: ref('tint-note') },
+    { kind: 'wallpaper', root: ref('wallpapers'), note: ref('wallpaper-note') },
+  ];
+
+  function renderCosmetics() {
+    const summary = game.cosmetics();
+
+    for (const picker of pickers) {
+      clear(picker.root);
+      const rows = summary[picker.kind];
+
+      for (const row of rows) {
+        const chip = el(
+          'button',
+          {
+            type: 'button',
+            class: `swatch${row.selected ? ' is-selected' : ''}${row.unlocked ? '' : ' is-locked'}`,
+            'aria-pressed': String(row.selected),
+            disabled: row.unlocked ? null : 'disabled',
+            title: row.unlocked ? row.blurb : `Unlocks at ${row.requirement}`,
+            onclick: () => {
+              game.setCosmetic(picker.kind, row.id);
+              renderCosmetics();
+            },
+          },
+          [
+            el('span', { class: 'swatch__chip', 'aria-hidden': 'true' }),
+            el('span', { class: 'swatch__label', text: row.label }),
+            row.unlocked ? null : el('span', { class: 'swatch__lock', text: '🔒' }),
+          ],
+        );
+
+        /**
+         * Two kinds of chip, one element. A tint carries its own potted
+         * gradient in the data; a wallpaper is a photograph, so the chip only
+         * names itself and `styles/themes.css` supplies the thumbnail — the
+         * file is then referenced in exactly one place in the whole codebase.
+         */
+        const swatch = chip.querySelector('.swatch__chip');
+        if (row.swatch) swatch.style.background = row.swatch;
+        else swatch.dataset.wallpaper = row.id;
+
+        picker.root.appendChild(chip);
+      }
+
+      const selected = rows.find((row) => row.selected);
+      const nextLocked = rows.find((row) => !row.unlocked);
+      picker.note.textContent = nextLocked
+        ? `${selected?.blurb ?? ''} Next: ${nextLocked.label} at ${nextLocked.requirement}.`
+        : (selected?.blurb ?? '');
     }
   }
 
@@ -167,8 +322,17 @@ export function mount(body, { game, ads = null }) {
   }
 
   renderMotion();
+  renderCosmetics();
+  renderDefrag();
 
   /* ---------------------------------------------------------------- update */
+
+  /**
+   * The defrag card rebuilds its own subtree, so it is refreshed on its own
+   * slower beat: a pass takes 85 seconds and the percentage on it does not need
+   * five updates a second to be legible.
+   */
+  const refreshDefrag = throttle(renderDefrag, 500);
 
   const update = throttle(() => {
     const s = game.state;
@@ -190,10 +354,14 @@ export function mount(body, { game, ads = null }) {
       node.current.textContent = `${row.current.name} — ${currentText(row.track, effects)}`;
       node.gain.textContent = row.maxed ? 'Fully upgraded' : row.gains.join(' · ');
       node.gain.classList.toggle('is-maxed', row.maxed);
-      node.buy.textContent = row.maxed ? 'Maxed out' : `$${row.next.cost}`;
+      // Two decimals throughout: the Mainboard track is priced in cents, and a
+      // "$2.5" next to a "$12" reads as a rendering bug rather than a price.
+      node.buy.textContent = row.maxed ? 'Maxed out' : `$${row.next.cost.toFixed(2)}`;
       node.buy.classList.toggle('is-affordable', row.affordable);
       node.buy.disabled = row.maxed || !row.affordable;
     }
+
+    refreshDefrag();
 
     // Format C: panel — AO-16's payout made legible.
     const progress = econ.dollarProgress(s);
@@ -205,10 +373,14 @@ export function mount(body, { game, ads = null }) {
     )} more Buzz`;
     setBar(ref('dollar-bar'), progress.ratio, { warn: 2, critical: 2 });
 
+    // The Mainboard multiplier is stated here as well as in its shop row: this
+    // is the panel where it is actually being spent, and "worth $X" with no
+    // explanation of why X moved is the thing that makes an upgrade invisible.
+    const payout = effects.payout > 1 ? ` Mainboard is paying ×${effects.payout.toFixed(2)}.` : '';
     ref('prestige-copy').textContent =
       progress.pending > 0
-        ? `${formatNumber(s.lifetimeBuzz)} lifetime Buzz is worth $${progress.earned.toFixed(2)}; $${s.dollarsEarnedTotal.toFixed(2)} already banked.`
-        : `Dollars come from lifetime Buzz, and lifetime Buzz never resets. Keep producing.`;
+        ? `${formatNumber(s.lifetimeBuzz)} lifetime Buzz is worth $${progress.earned.toFixed(2)}; $${s.dollarsEarnedTotal.toFixed(2)} already banked.${payout}`
+        : `Dollars come from lifetime Buzz, and lifetime Buzz never resets. Keep producing.${payout}`;
     ref('format').disabled = progress.pending <= 0;
     ref('format').classList.toggle('is-ready', progress.pending > 0);
   }, 200);
@@ -243,6 +415,7 @@ export function mount(body, { game, ads = null }) {
     slot?.clear();
     bannerFrame.hidden = true;
     clear(hardwareRoot);
+    clear(defragRoot);
     body.classList.remove('app-system');
   };
 }

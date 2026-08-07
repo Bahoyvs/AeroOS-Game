@@ -12,6 +12,7 @@ import {
 import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
 import { canBurn } from './aeroburn.js';
+import { defragPenalty, defragProgress, isDefragging, offlineBloat } from './defrag.js';
 import { canSeed, connectionAt, seedWeight, storageUsedGB } from './lemonwire.js';
 import { infectionPenalty } from './shield99.js';
 
@@ -37,6 +38,7 @@ export function hardwareEffects(state) {
     ramMB: Math.round(HARDWARE_BASE.ramMB * (1 + sumBonus('ram', h.ram, 'capacity'))),
     storageGB: Math.round(HARDWARE_BASE.storageGB * (1 + sumBonus('hdd', h.hdd, 'storage'))),
     offlineHours: HARDWARE_BASE.offlineHours * (1 + sumBonus('hdd', h.hdd, 'offline')),
+    payout: HARDWARE_BASE.payout * (1 + sumBonus('mobo', h.mobo, 'payout')),
   };
 }
 
@@ -173,6 +175,12 @@ export function bloatGain(state, seconds) {
     openApps * BLOAT.perOpenAppPerMinute + state.chat.bots * BLOAT.perBotPerMinute;
   return (perMinute * seconds) / 60;
 }
+
+/**
+ * Auto-Defrag, re-exported so the UI never imports the mechanic directly — the
+ * same wrapping `canBurnDisc` does for the burner.
+ */
+export { defragPenalty, defragProgress, isDefragging, offlineBloat };
 
 /** Multiplier applied to all production: 1.0 clean -> 0.5 fully bloated. */
 export function bloatPenalty(state) {
@@ -313,6 +321,9 @@ export function globalMultiplier(state, now = Date.now()) {
     infectionPenalty(state) *
     retroampMultiplier(state, now) *
     buffMultiplier(state, 'global', now) *
+    // A defrag pass is disk-bound and the machine knows it. Small, and only
+    // while it runs — the bloat it is clearing costs far more.
+    defragPenalty(state) *
     renderPenalty
   );
 }
@@ -345,6 +356,7 @@ export function rateBreakdown(state, now = Date.now()) {
     virus: infectionPenalty(state),
     cpu: hardwareEffects(state).production,
     bloat: bloatPenalty(state),
+    defrag: defragPenalty(state),
     render: renderPenalty,
     open: state.apps.aerochat?.open === true,
     total: buzzPerSecond(state, now),
@@ -451,13 +463,31 @@ export function offlineEarnings(state, elapsedSeconds, now = Date.now()) {
 /* ---------------------------------------------------------------- prestige */
 
 /**
+ * The divisor under the sqrt, for this machine.
+ *
+ * `PRESTIGE.divisor` is the stock board; the Mainboard track divides it down.
+ * The track is written in *payout* percentages because that is the number a
+ * shop row can honestly advertise, and Dollars go as the square root of Buzz —
+ * so a +20% payout is a divisor of 1/1.2², not of 1/1.2.
+ */
+export function prestigeDivisor(state) {
+  return PRESTIGE.divisor / hardwareEffects(state).payout ** 2;
+}
+
+/**
  * Total Dollars the player's lifetime Buzz has ever been worth. Payout is the
  * difference between this and everything already paid out, so a player who
  * prestiges often is never behind one who hoards a single long run.
+ *
+ * Note that this re-prices the whole history, not just Buzz earned since the
+ * last upgrade: buying a Mainboard tier makes the pending payout jump on the
+ * spot. That is the intended shape of the purchase — see data/hardware.js.
  */
 export function lifetimeDollarValue(state) {
   if (state.lifetimeBuzz < PRESTIGE.minLifetimeBuzz) return 0;
-  return Math.floor(PRESTIGE.scale * Math.sqrt(state.lifetimeBuzz / PRESTIGE.divisor) * 100) / 100;
+  return (
+    Math.floor(PRESTIGE.scale * Math.sqrt(state.lifetimeBuzz / prestigeDivisor(state)) * 100) / 100
+  );
 }
 
 /** Dollars the player would actually receive from a Format C: right now. */
@@ -471,19 +501,30 @@ export function canPrestige(state) {
 }
 
 /**
- * What the very first Format C: pays. The payout floor is a Buzz threshold, not
- * a Dollar amount, so the first payout is whatever that threshold is worth.
+ * What the very first Format C: pays on a stock board. The payout floor is a
+ * Buzz threshold, not a Dollar amount, so the first payout is whatever that
+ * threshold is worth — and nobody owns a Mainboard tier before their first
+ * wipe, which is why this can stay a constant.
  */
 export const FIRST_PAYOUT =
   Math.floor(PRESTIGE.scale * Math.sqrt(PRESTIGE.minLifetimeBuzz / PRESTIGE.divisor) * 100) / 100;
 
-/** Inverse of the payout curve: lifetime Buzz needed to be worth `dollars`. */
-export function buzzForDollars(dollars) {
-  if (dollars <= 0) return 0;
-  return Math.max(
-    PRESTIGE.minLifetimeBuzz,
-    (dollars / PRESTIGE.scale) ** 2 * PRESTIGE.divisor,
+/** The same figure for a machine that has since been upgraded. */
+export function firstPayout(state) {
+  return (
+    Math.floor(PRESTIGE.scale * Math.sqrt(PRESTIGE.minLifetimeBuzz / prestigeDivisor(state)) * 100) /
+    100
   );
+}
+
+/**
+ * Inverse of the payout curve: lifetime Buzz needed to be worth `dollars`.
+ * Takes the divisor rather than the state so it stays a plain piece of maths;
+ * callers that have a machine pass `prestigeDivisor(state)`.
+ */
+export function buzzForDollars(dollars, divisor = PRESTIGE.divisor) {
+  if (dollars <= 0) return 0;
+  return Math.max(PRESTIGE.minLifetimeBuzz, (dollars / PRESTIGE.scale) ** 2 * divisor);
 }
 
 /**
@@ -494,6 +535,7 @@ export function buzzForDollars(dollars) {
 export function dollarProgress(state) {
   const earned = lifetimeDollarValue(state);
   const pending = pendingPrestigeDollars(state);
+  const divisor = prestigeDivisor(state);
 
   // The payout floor is already worth more than $1, so before the first one the
   // goal is that floor — promising "$1" would be a number they never receive.
@@ -503,15 +545,15 @@ export function dollarProgress(state) {
       earned: 0,
       pending,
       first: true,
-      nextDollar: FIRST_PAYOUT,
+      nextDollar: firstPayout(state),
       buzzNeeded: Math.max(0, at - state.lifetimeBuzz),
       ratio: Math.min(1, Math.max(0, state.lifetimeBuzz / at)),
     };
   }
 
   const nextDollar = Math.floor(earned) + 1;
-  const at = buzzForDollars(nextDollar);
-  const from = buzzForDollars(Math.floor(earned));
+  const at = buzzForDollars(nextDollar, divisor);
+  const from = buzzForDollars(Math.floor(earned), divisor);
   const span = at - from;
 
   return {
@@ -585,6 +627,8 @@ function trackGains(track, next) {
       return [`−${Math.round(next.cooldown * 100)}% cooldowns`];
     case 'hdd':
       return [`${pct(next.offline)} offline cap`, `${pct(next.storage)} storage`];
+    case 'mobo':
+      return [`${pct(next.payout)} Format C: payout`];
     default:
       return [];
   }

@@ -115,7 +115,16 @@ export const CLICK = {
 };
 
 export const PRESTIGE = {
-  // Dollars awarded on Format C: = scale * sqrt(lifetimeBuzz / divisor)
+  /**
+   * Dollars awarded on Format C: = scale * sqrt(lifetimeBuzz / divisor)
+   *
+   * `divisor` is the *stock* machine's divisor, not a constant of the game. The
+   * Mainboard track (src/data/hardware.js) divides it down as the player buys
+   * into it — see `econ.prestigeDivisor()` — which is what unsticks the
+   * mid-game: the square root means every doubling of the payout costs four
+   * times the Buzz, so at some point the only way to move is to make the same
+   * lifetime Buzz worth more.
+   */
   scale: 1,
   divisor: 1000,
   minLifetimeBuzz: 5000, // below this, Format C: is refused
@@ -135,6 +144,44 @@ export const OFFLINE = {
   // Offline Buzz is deliberately worth less than being at the keyboard.
   efficiency: 0.5,
   minSeconds: 60, // ignore alt-tabs shorter than this
+};
+
+/**
+ * Auto-Defrag (see src/core/defrag.js for the why).
+ *
+ * A scheduled job, not a stat. It idles until bloat is genuinely bad, then runs
+ * a visible pass that costs production while it works — the point is to stop a
+ * machine seizing up, not to delete the pressure loop that makes Format C: feel
+ * earned. Bought with Dollars, so it is meta-progression and outlives the wipe.
+ */
+export const DEFRAG = {
+  cost: 25, // Dollars. Between the second and third Mainboard tier.
+
+  /**
+   * It engages at BLOAT.criticalAt on purpose: the player has already seen the
+   * meter turn red, the desktop desaturate and the fans come up. Defragging
+   * before that would mean they never learn what bloat is.
+   */
+  startAt: 0.85,
+  stopAt: 0,
+
+  /**
+   * 0.85 -> 0 in about 85 seconds, which is roughly two orders of magnitude
+   * faster than bloat accrues (a busy desktop gains ~0.0004/s), so a pass
+   * always finishes rather than fighting the machine to a standstill.
+   */
+  clearPerSecond: 0.01,
+
+  /** What the pass costs while it runs. Small, visible, and never a surprise. */
+  productionTax: 0.05,
+
+  /**
+   * The offline half: an absence may push bloat this far and no further. Half a
+   * bar is still a real penalty for being away — production is down 25% — but
+   * it is a machine the player can come back to and keep playing, rather than
+   * one whose only remaining move is a Format C: they had not planned.
+   */
+  offlineCap: 0.5,
 };
 
 /**

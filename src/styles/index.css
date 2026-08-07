@@ -1,4 +1,7 @@
 @import './tokens.css';
+/* Straight after the tokens it overrides — a theme is a palette swap, not a
+   component, so it must not have to out-specify anything. */
+@import './themes.css';
 @import './desktop.css';
 @import './window.css';
 @import './apps.css';
@@ -37,13 +40,21 @@ body {
 }
 
 body {
-  /* Frutiger Aero wallpaper, built from gradients so there is no image to ship
-     until the AI-generated wallpapers land (GDD 2). */
-  background:
-    radial-gradient(120% 90% at 78% 12%, rgb(255 255 255 / 55%) 0%, transparent 42%),
-    radial-gradient(80% 60% at 12% 88%, rgb(111 212 74 / 55%) 0%, transparent 55%),
-    radial-gradient(100% 80% at 50% 120%, rgb(127 228 255 / 65%) 0%, transparent 60%),
-    linear-gradient(160deg, #1e8ce0 0%, #0a4d8c 55%, #073761 100%);
+  /**
+   * The wallpaper the player picked, resolved by styles/themes.css off
+   * `data-wallpaper` on <html> (GDD 2).
+   *
+   * `background-color` is not a belt-and-braces default: the photograph is a
+   * few hundred kB and does not decode instantly on a phone, so without a tone
+   * underneath it every cold load opens on a white flash across the whole
+   * desktop. It is declared as its own property rather than folded into the
+   * `background` shorthand, because the shorthand would reset it each time the
+   * image changes.
+   */
+  background-color: var(--wallpaper-tone);
+  background-image: var(--wallpaper);
+  background-position: center;
+  background-size: cover;
   background-attachment: fixed;
   transition: filter 600ms var(--ease-aero);
 }

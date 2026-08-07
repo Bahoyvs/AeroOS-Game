@@ -1,0 +1,166 @@
+/**
+ * Personalisation (Display Properties).
+ *
+ * Two independent axes, both stamped on <html> by `ui/theme.js` and never read
+ * from anywhere else:
+ *
+ *   [data-tint]       the glass palette — retints every `.glass` panel, meter
+ *                     fill and accent in the OS by overriding tokens.
+ *   [data-wallpaper]  `--wallpaper`, which `body` in index.css paints.
+ *
+ * Imported straight after tokens.css so a theme overrides a token rather than
+ * fighting a component (see the cascade note on `.glass` in tokens.css). Every
+ * wallpaper is still built out of gradients: there is nothing to ship, nothing
+ * to preload and nothing for a portal CSP to block.
+ *
+ * `--aero-tint` is the theme's own hue, published for anything that wants to
+ * borrow it without knowing which theme is live.
+ */
+
+/**
+ * The wallpaper files, named once.
+ *
+ * Relative URLs, so Vite hashes them and rewrites them against `base: './'` —
+ * an absolute `/wallpapers/…` would break the moment the build is dropped into
+ * a portal subdirectory, which is the whole reason the base is relative.
+ *
+ * Declaring a `url()` in a custom property does *not* fetch it: a browser only
+ * requests the image when the property is actually resolved onto a painted
+ * property. So naming all eight here costs nothing, and a player who never
+ * opens Display Properties downloads exactly one wallpaper.
+ */
+:root {
+  --aero-tint: #7fe4ff;
+
+  --wall-blue-lagoon: url('../assets/wallpapers/blue-lagoon.jpg');
+  --wall-green-hill: url('../assets/wallpapers/green-hill.jpg');
+  --wall-moonlit-peak: url('../assets/wallpapers/moonlit-peak.jpg');
+  --wall-crimson-dunes: url('../assets/wallpapers/crimson-dunes.jpg');
+
+  --thumb-blue-lagoon: url('../assets/wallpapers/blue-lagoon-thumb.jpg');
+  --thumb-green-hill: url('../assets/wallpapers/green-hill-thumb.jpg');
+  --thumb-moonlit-peak: url('../assets/wallpapers/moonlit-peak-thumb.jpg');
+  --thumb-crimson-dunes: url('../assets/wallpapers/crimson-dunes-thumb.jpg');
+
+  /* The default, for the frame before <html> is stamped and for any id the
+     save names that this build does not have. */
+  --wallpaper: var(--wall-blue-lagoon);
+  /**
+   * ...and the flat colour painted under it. A 300 kB photograph does not
+   * decode instantly on a phone, and the alternative to a tone that matches it
+   * is a white flash across the whole desktop on every cold load.
+   */
+  --wallpaper-tone: #1a7fae;
+}
+
+/* ------------------------------------------------------------------ tints */
+
+/* `aqua` is the token file's own palette, so it needs no block of its own —
+   which is also what makes it the safe fallback for an unknown id. */
+
+:root[data-tint='midnight'] {
+  --aero-tint: #7fa8ff;
+  --aero-blue: #4a63c8;
+  --aero-blue-deep: #1b2559;
+  --aero-cyan: #9fb9ff;
+  --glass-bg: linear-gradient(
+    180deg,
+    rgb(196 214 255 / 38%) 0%,
+    rgb(70 92 168 / 22%) 48%,
+    rgb(150 176 255 / 26%) 100%
+  );
+  --glass-border: rgb(190 210 255 / 52%);
+  --glass-shadow: 0 10px 30px rgb(6 10 34 / 48%), inset 0 1px 0 rgb(210 226 255 / 60%);
+  --chrome-lit: rgb(58 74 150 / 90%);
+  --chrome-deep: rgb(12 18 52 / 95%);
+}
+
+:root[data-tint='toxic'] {
+  --aero-tint: #b6ff6e;
+  --aero-blue: #45b41f;
+  --aero-blue-deep: #14611a;
+  --aero-cyan: #d6ffb8;
+  --glass-bg: linear-gradient(
+    180deg,
+    rgb(232 255 214 / 44%) 0%,
+    rgb(120 214 74 / 16%) 48%,
+    rgb(190 255 160 / 26%) 100%
+  );
+  --glass-border: rgb(216 255 190 / 58%);
+  --glass-shadow: 0 10px 30px rgb(10 44 12 / 38%), inset 0 1px 0 rgb(240 255 224 / 70%);
+  --chrome-lit: rgb(64 148 42 / 90%);
+  --chrome-deep: rgb(12 52 16 / 95%);
+}
+
+:root[data-tint='sunset'] {
+  --aero-tint: #ffc98a;
+  --aero-blue: #e2762c;
+  --aero-blue-deep: #8c3410;
+  --aero-cyan: #ffd9a3;
+  --glass-bg: linear-gradient(
+    180deg,
+    rgb(255 238 214 / 46%) 0%,
+    rgb(232 140 62 / 18%) 48%,
+    rgb(255 210 160 / 28%) 100%
+  );
+  --glass-border: rgb(255 226 190 / 58%);
+  --glass-shadow: 0 10px 30px rgb(60 22 4 / 40%), inset 0 1px 0 rgb(255 244 226 / 70%);
+  --chrome-lit: rgb(186 96 34 / 90%);
+  --chrome-deep: rgb(66 24 6 / 95%);
+}
+
+/* ------------------------------------------------------------- wallpapers */
+
+/**
+ * One rule per wallpaper: the photograph, and the flat tone that stands in for
+ * it while it decodes. The tone is sampled from the picture's dominant area,
+ * so the swap when it lands reads as the image sharpening rather than as the
+ * desktop changing colour.
+ */
+:root[data-wallpaper='blue-lagoon'] {
+  --wallpaper: var(--wall-blue-lagoon);
+  --wallpaper-tone: #1a7fae;
+}
+
+:root[data-wallpaper='green-hill'] {
+  --wallpaper: var(--wall-green-hill);
+  --wallpaper-tone: #4a8fc8;
+}
+
+:root[data-wallpaper='moonlit-peak'] {
+  --wallpaper: var(--wall-moonlit-peak);
+  --wallpaper-tone: #4b5a86;
+}
+
+:root[data-wallpaper='crimson-dunes'] {
+  --wallpaper: var(--wall-crimson-dunes);
+  --wallpaper-tone: #3a1c14;
+}
+
+/**
+ * The swatch chips in Display Properties, drawn from the 192px thumbnails
+ * rather than the desktop files — the picker shows all four at once, and at
+ * full size that is a megabyte of downloads to fill four chips eighteen pixels
+ * wide.
+ */
+.swatch__chip[data-wallpaper='blue-lagoon'] {
+  background-image: var(--thumb-blue-lagoon);
+}
+
+.swatch__chip[data-wallpaper='green-hill'] {
+  background-image: var(--thumb-green-hill);
+}
+
+.swatch__chip[data-wallpaper='moonlit-peak'] {
+  background-image: var(--thumb-moonlit-peak);
+}
+
+.swatch__chip[data-wallpaper='crimson-dunes'] {
+  background-image: var(--thumb-crimson-dunes);
+}
+
+.swatch__chip[data-wallpaper] {
+  background-position: center;
+  background-size: cover;
+}
+

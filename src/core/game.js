@@ -1,4 +1,4 @@
-import { ADS, CHAT_BOT, CLICK, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { ADS, CHAT_BOT, CLICK, DEFRAG, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
@@ -10,6 +10,8 @@ import * as ads from './ads.js';
 import * as burner from './aeroburn.js';
 import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
+import * as cosmetics from './cosmetics.js';
+import * as defrag from './defrag.js';
 import * as lw from './lemonwire.js';
 import * as shield from './shield99.js';
 import * as sweeper from './sweeper.js';
@@ -62,8 +64,15 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const offline = econ.offlineEarnings(state, result.elapsedSeconds, now);
     if (offline.buzz > 0) {
       grantBuzz(offline.buzz, 'offline');
-      state.bloat = Math.min(1, state.bloat + econ.bloatGain(state, offline.seconds));
-      offlineReport = offline;
+      /**
+       * The offline half of Auto-Defrag (core/defrag.js). There is no pass to
+       * watch and no production to tax while the tab is shut, so ownership caps
+       * what the absence may accrue instead of clearing it — which is the
+       * difference between coming back to a machine you can play and coming
+       * back to one whose only move is a Format C: you had not planned.
+       */
+      state.bloat = econ.offlineBloat(state, state.bloat, econ.bloatGain(state, offline.seconds));
+      offlineReport = { ...offline, bloatCapped: defrag.defragOwned(state) };
     }
     bus.emit(EVENTS.LOADED, { offline: offlineReport });
     return { loaded: true, offline: offlineReport };
@@ -85,6 +94,15 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     grantBuzz(econ.buzzPerSecond(state, now) * dt, 'idle');
     state.bloat = Math.min(1, state.bloat + econ.bloatGain(state, dt));
     state.stats.playtimeSeconds += dt;
+
+    // Auto-Defrag runs on simulation time, after the tick's bloat has landed:
+    // it is a job on a machine somebody is watching, not a wall-clock timer.
+    const pass = defrag.updateDefrag(state, dt);
+    if (pass?.started) bus.emit(EVENTS.DEFRAG_STARTED, { from: pass.from });
+    if (pass?.finished) {
+      bus.emit(EVENTS.DEFRAG_DONE, { from: pass.from, passes: state.defrag.passes });
+      save();
+    }
 
     for (const buff of pruneBuffs(state, now)) bus.emit(EVENTS.BUFF_EXPIRED, { buff });
 
@@ -159,6 +177,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       noticeBottleneck();
     }
     checkTutorial();
+    announceCosmetics();
 
     if (now - lastSaveAt >= SAVE.autosaveMs) save();
     bus.emit(EVENTS.TICK, { state, dt });
@@ -683,10 +702,59 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     if (state.dollars < next.cost) return { ok: false, reason: 'too-expensive' };
 
     state.dollars -= next.cost;
+    state.dollarsSpentTotal += next.cost;
     state.hardware[track] += 1;
     bus.emit(EVENTS.HARDWARE_BOUGHT, { track, tier: next });
+    announceCosmetics();
     save();
     return { ok: true, tier: next };
+  }
+
+  /* -------------------------------------------------------- Auto-Defrag */
+
+  /**
+   * Buy the scheduler (core/defrag.js). Dollar-priced, so it belongs to the
+   * meta-game and survives the wipe — a bloat fix the player has to re-earn
+   * every run is not a fix, it is another chore.
+   */
+  function buyDefrag() {
+    const check = defrag.canBuyDefrag(state);
+    if (!check.ok) return check;
+
+    state.dollars -= check.cost;
+    state.dollarsSpentTotal += check.cost;
+    state.defrag.owned = true;
+    bus.emit(EVENTS.DEFRAG_INSTALLED, { cost: check.cost });
+    announceCosmetics();
+    save();
+    return { ok: true, cost: check.cost };
+  }
+
+  /* --------------------------------------------------------- cosmetics */
+
+  /**
+   * Pick a window tint or a wallpaper. The rules live in `core/cosmetics.js`;
+   * this is the action that writes the choice and tells the shell to redress
+   * the desktop.
+   */
+  function setCosmetic(kind, id) {
+    const result = cosmetics.chooseCosmetic(state, kind, id);
+    if (!result.ok) return result;
+    bus.emit(EVENTS.COSMETIC_CHANGED, { kind, item: result.item });
+    save();
+    return result;
+  }
+
+  /**
+   * Announce anything that just became available. Cheap enough to sit in the
+   * tick — eight predicates over numbers, and it only writes to the save when
+   * the answer changes — which is what lets a lifetime-Buzz unlock arrive at
+   * the moment it is earned rather than the next time a shop is opened.
+   */
+  function announceCosmetics() {
+    for (const item of cosmetics.takeNewlyUnlocked(state)) {
+      bus.emit(EVENTS.COSMETIC_UNLOCKED, { item });
+    }
   }
 
   function startRender(projectName) {
@@ -842,6 +910,11 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     setSettings,
     currentTutorialStep: () => currentStep(state),
     buyHardware,
+    buyDefrag,
+    defragCost: DEFRAG.cost,
+    setCosmetic,
+    cosmetics: () => cosmetics.cosmeticSummary(state),
+    activeCosmetics: () => cosmetics.activeCosmetics(state),
     startRender,
     cancelRender,
     claimRenderReward,
