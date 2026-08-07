@@ -121,6 +121,19 @@ Design rules it follows, all of which are load-bearing:
   objective into a goal with a bar: what it costs, what is banked, and the
   arrow back on the Nudge button reading "9 Buzz to go". The step itself is
   unchanged and nothing is skipped — only what the coach points at.
+- **It ends somewhere useful.** The tour used to stop on the bottleneck: reveal
+  the hardware, then go quiet, leaving the player looking at a memory bar they
+  had just been told was the problem with no idea that CPU, RAM and disk are
+  bought, that they cost Dollars rather than Buzz, or that Dollars come from
+  Format C:. A sixth step opens My Computer, where all three of those live.
+- **It reads its copy from the data.** The heavy playlist was renamed from
+  "IRON OVERDRIVE" to "P2P DOWNLOADER" and the tutorial went on naming the old
+  one, telling the player to click something that is not on screen anywhere.
+  Step copy now comes from `data/playlists.js`, with a test that keeps it there.
+- **It does not cover the app it is teaching.** In PDA mode the coach was drawn
+  over the bottom of the full-screen sheet — which is where AeroChat keeps its
+  buy row. The spotlight was ringing a button hidden underneath the panel
+  describing it. The coach now publishes its height and windows reserve it.
 
 ## 3. Retention: three additions
 
