@@ -1,7 +1,7 @@
 import { ALL_APPS, getApp } from '../data/apps.js';
-import { ADS } from '../data/balance.js';
+import { ADS, NUDGE_JUICE } from '../data/balance.js';
 import { formatDuration, formatNumber } from '../core/format.js';
-import { clear, el, setBar, throttle } from './dom.js';
+import { clear, el, setBar, spawnTransient, throttle } from './dom.js';
 
 /**
  * The desktop: icon grid plus the always-on-top Aero gadget that carries the
@@ -172,6 +172,18 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     for (const animation of nodes.nudge.getAnimations()) {
       if (animation.animationName === 'nudge-shake') animation.currentTime = 0;
     }
+
+    if (NUDGE_JUICE.visualEnabled) {
+      const streak = game.econ.clickStreak(game.state);
+      // Ice blue at the start of a streak, drifting toward neon green as it
+      // builds — same ratio the streak meter under the button is reading.
+      nodes.nudge.style.setProperty('--flare-hue', String(Math.round(200 - streak.ratio * 60)));
+      flareUntil = performance.now() + 140;
+      nodes.nudge.classList.add('is-flaring');
+
+      spawnBubbles(nodes.nudge.getBoundingClientRect());
+      spawnRipple(event.clientX, event.clientY);
+    }
   });
 
   /* ---------------------------------------------------------- ad offers */
@@ -281,6 +293,43 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     setTimeout(() => floater.remove(), 900);
   }
 
+  /* ------------------------------------------------------------ nudge juice */
+
+  // When the flare's opacity transition should be back on its way to 0 —
+  // checked on the ordinary 100ms `update()` tick rather than a `setTimeout`
+  // per click, so a fast streak never queues up dozens of competing timers.
+  let flareUntil = 0;
+
+  // Hard cap across every bubble in flight at once (Faz 2.3): a fast streak
+  // must not let particles pile up faster than their own animation clears
+  // them, which is exactly the failure mode a low-end phone would feel first.
+  let activeParticles = 0;
+
+  function spawnBubbles(rect) {
+    const budget = Math.min(NUDGE_JUICE.bubbleCount, NUDGE_JUICE.maxConcurrentParticles - activeParticles);
+    for (let i = 0; i < budget; i += 1) {
+      const size = 5 + Math.random() * 7;
+      const bubble = el('span', { class: 'nudge-bubble' });
+      bubble.style.width = `${size}px`;
+      bubble.style.height = `${size}px`;
+      bubble.style.left = `${rect.left + rect.width * (0.15 + Math.random() * 0.7) - size / 2}px`;
+      bubble.style.top = `${rect.top + rect.height * (0.3 + Math.random() * 0.5) - size / 2}px`;
+      bubble.style.setProperty('--drift', `${((Math.random() - 0.5) * 30).toFixed(1)}px`);
+      bubble.style.animationDelay = `${Math.round(Math.random() * 60)}ms`;
+
+      activeParticles += 1;
+      spawnTransient(document.body, bubble);
+      bubble.addEventListener('animationend', () => (activeParticles -= 1), { once: true });
+    }
+  }
+
+  function spawnRipple(x, y) {
+    const ripple = el('span', { class: 'nudge-ripple' });
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    spawnTransient(document.body, ripple);
+  }
+
   /* --------------------------------------------------------------- update */
 
   // Once a second is plenty for a countdown measured in minutes, and the offer
@@ -316,6 +365,13 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     nodes.nudge.classList.toggle('is-streaking', streak.active);
     nodes.streak.hidden = !streak.active;
     if (streak.active) setBar(nodes.streakBar, streak.ratio, { warn: 2, critical: 2 });
+
+    if (NUDGE_JUICE.visualEnabled) {
+      nodes.nudge.classList.toggle('is-flaring', performance.now() < flareUntil);
+      // No shake keyframe is running before the streak crosses the threshold,
+      // so toggling the class on is itself the restart — nothing to rewind.
+      gadget.classList.toggle('is-nudge-shaking', streak.count >= NUDGE_JUICE.shakeStreakThreshold);
+    }
 
     const power = `+${formatNumber(econ.clickPower(s))}`;
     nodes.nudgePower.textContent = combo.active

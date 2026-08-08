@@ -38,6 +38,20 @@
 
     <nav id="taskbar" aria-label="Taskbar"></nav>
 
+    <!--
+      Aero ripple filter (Faz 2.1). One definition, reused by every ripple
+      `spawnTransient` creates — an SVG filter, not a WebGL context, so it
+      costs nothing to have unused and never grows the dependency graph.
+    -->
+    <svg aria-hidden="true" focusable="false" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <defs>
+        <filter id="aero-ripple" x="-50%" y="-50%" width="200%" height="200%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

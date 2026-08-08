@@ -260,6 +260,10 @@ async function boot() {
   const audio = createAudio({
     settings: () => game.state.settings,
     heat: () => game.econ.heatRatio(game.state),
+    // Faz 1.4: which RetroAmp playlist (if any) is actually paying right now
+    // — the same rule `retroampMultiplier` uses, so the ambient bed and the
+    // Buzz multiplier always agree on whether a playlist is "live".
+    playlist: () => game.econ.activePlaylist(game.state),
     sdk,
   });
   document.addEventListener('pointerdown', () => audio.unlock());
@@ -420,7 +424,9 @@ async function boot() {
   });
 
   game.bus.on(game.events.BUZZ_GAINED, ({ source }) => {
-    if (source === 'nudge') audio.play('nudge');
+    // Read the streak *after* nudge() has already advanced it, so the pitch
+    // the player hears matches the meter they're looking at (AO-5, Faz 1.2).
+    if (source === 'nudge') audio.playNudgeClick(game.econ.clickStreak(game.state).count);
   });
 
   const desktop = createDesktop({

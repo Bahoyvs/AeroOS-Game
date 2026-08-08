@@ -282,6 +282,7 @@
 /* ------------------------------------------------------------------ nudge */
 
 .nudge-button {
+  position: relative;
   padding: 10px;
   font-size: 0.95rem;
   font-weight: 700;
@@ -298,6 +299,29 @@
     0 6px 14px rgb(3 30 60 / 45%);
   display: grid;
   gap: 2px;
+}
+
+/**
+ * Glass flare (Faz 2.2). A radial highlight flashed on every click, toggled by
+ * `.is-flaring` — desktop.js sets a deadline and clears the class on its next
+ * 100ms tick rather than a `setTimeout`, the same pattern the streak/combo
+ * classes already use below. `--flare-hue` is written per click from the
+ * streak ratio: ice blue at the start of a streak, drifting toward neon green
+ * as it builds. Opacity, not `transform`, so it never fights `nudge-shake`.
+ */
+.nudge-button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 15%, hsl(var(--flare-hue, 200) 95% 78% / 95%), transparent 65%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms var(--ease-aero);
+}
+
+.nudge-button.is-flaring::after {
+  opacity: 1;
 }
 
 .nudge-button:active,
@@ -397,6 +421,94 @@
   }
   75% {
     transform: translate(-2px, -1px);
+  }
+}
+
+/**
+ * Bubble particles (Faz 2.3). Spawned in desktop.js at the button's own
+ * position, fixed so they rise over whatever is beneath the gadget, and
+ * self-removing on `animationend` via `spawnTransient` (ui/dom.js) — nothing
+ * here owns their lifetime, and a capped concurrent count keeps a fast streak
+ * from piling them up.
+ */
+.nudge-bubble {
+  position: fixed;
+  z-index: 900;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgb(255 255 255 / 90%),
+    rgb(150 225 255 / 55%) 60%,
+    rgb(90 180 230 / 0%) 100%
+  );
+  box-shadow: 0 0 6px rgb(150 225 255 / 50%);
+  pointer-events: none;
+  animation: nudge-bubble-rise 700ms ease-out forwards;
+}
+
+@keyframes nudge-bubble-rise {
+  from {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.9;
+  }
+
+  to {
+    transform: translate(var(--drift, 0px), -46px) scale(0.4);
+    opacity: 0;
+  }
+}
+
+/**
+ * Aero ripple (Faz 2.1). One `<div>` per click, run through the `#aero-ripple`
+ * SVG filter defined once in index.html — `feTurbulence` + `feDisplacementMap`
+ * bending the ring so it reads as water on glass instead of a flat circle.
+ * CSS/SVG only, per the project's WebGL/canvas ban.
+ */
+.nudge-ripple {
+  position: fixed;
+  z-index: 899;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border: 2px solid rgb(180 235 255 / 80%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(200 240 255 / 35%), transparent 70%);
+  filter: url(#aero-ripple);
+  pointer-events: none;
+  animation: aero-ripple-pulse 420ms var(--ease-aero) forwards;
+}
+
+@keyframes aero-ripple-pulse {
+  from {
+    transform: scale(0.25);
+    opacity: 0.75;
+  }
+
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/**
+ * Gadget micro-shake (Faz 2.4). `nudge-shake` above only ever moved the
+ * button — Faz 0 confirmed there was no window-level shake to reuse — so past
+ * `NUDGE_JUICE.shakeStreakThreshold` clicks in a live streak the whole gadget
+ * trembles instead. Restarted per click by rewinding `currentTime`, the same
+ * trick `nudge-shake` already uses, so a held streak reads as one continuous
+ * tremor rather than a twitch that restarts from stillness every 140ms.
+ */
+.gadget.is-nudge-shaking {
+  animation: gadget-micro-shake 140ms linear infinite;
+}
+
+@keyframes gadget-micro-shake {
+  25% {
+    transform: translateX(-1.5px);
+  }
+
+  75% {
+    transform: translateX(1.5px);
   }
 }
 

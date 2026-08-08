@@ -123,18 +123,28 @@ export function canOpenApp(state, id) {
 
 /* ------------------------------------------------------------- playlists */
 
-/** Global multiplier from the loaded playlist (AO-14). 1 when nothing plays. */
-export function retroampMultiplier(state, now = Date.now()) {
+/**
+ * The playlist actually driving the multiplier right now — id or null.
+ * Shared by `retroampMultiplier()` and the ambient audio layer (Faz 1.4,
+ * `src/ui/audio.js`), so "is this playlist live" has exactly one definition.
+ */
+export function activePlaylist(state, now = Date.now()) {
   const id = state.retroamp.playlist;
-  if (!id) return 1;
+  if (!id) return null;
   // The music only pays while the window is open — otherwise closing RetroAmp
   // would hand back its 64 MB and keep the multiplier for free. The burn-out
   // clock keeps running regardless, so closing it is not a way to bank a burst.
-  if (!state.apps.retroamp?.open) return 1;
+  if (!state.apps.retroamp?.open) return null;
   const playlist = getPlaylist(id);
   // A burnt-out playlist stops paying immediately; the tick ejects it.
-  if (playlist.durationSeconds && state.retroamp.endsAt <= now) return 1;
-  return 1 + playlist.multiplier;
+  if (playlist.durationSeconds && state.retroamp.endsAt <= now) return null;
+  return id;
+}
+
+/** Global multiplier from the loaded playlist (AO-14). 1 when nothing plays. */
+export function retroampMultiplier(state, now = Date.now()) {
+  const id = activePlaylist(state, now);
+  return id ? 1 + getPlaylist(id).multiplier : 1;
 }
 
 export function playlistSecondsLeft(state, now = Date.now()) {
