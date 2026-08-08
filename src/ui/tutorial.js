@@ -152,8 +152,14 @@ export function createTutorialCoach({ root, game }) {
   }
   requestAnimationFrame(publishHeight);
 
+  /**
+   * One button, two jobs, because it is the same offer both times: stop showing
+   * me this. During the tour it skips the script; on the closing card it
+   * acknowledges the hand-off and the panel goes away for good.
+   */
   ref('skip').addEventListener('click', () => {
-    game.skipOnboarding();
+    if (currentStep(game.state)) game.skipOnboarding();
+    else game.dismissGoals();
     spotlight.clear();
     update();
   });
@@ -207,9 +213,18 @@ export function createTutorialCoach({ root, game }) {
    */
   function renderGoal(goal) {
     spotlight.clear();
-    ref('label').textContent = 'Next up';
-    ref('skip').hidden = true;
-    ref('meter').hidden = false;
+
+    /**
+     * The last card in the chain is a hand-off, not an objective: no target, no
+     * bar, and a button to put it away (`core/goals.js` explains why the 500-buddy
+     * milestone is no longer sitting in this slot). Everything else is "Next up"
+     * with a bar under it.
+     */
+    const closing = goal.progress === null;
+    ref('label').textContent = closing ? 'All caught up' : 'Next up';
+    ref('meter').hidden = closing;
+    ref('skip').hidden = !closing;
+    if (closing) ref('skip').textContent = 'Got it';
 
     // Namespaced: the tour keys on `${stepId}:gated|open`, and the two share
     // this one slot.
@@ -223,6 +238,8 @@ export function createTutorialCoach({ root, game }) {
     }
 
     ref('progress').textContent = `${goalsCompleted(game.state)} / ${GOAL_COUNT}`;
+    if (closing) return;
+
     ref('detail').textContent = goal.detail;
     // The bar is a target, not a warning: a nearly-full objective is good news,
     // so the warn/critical tones are switched off.

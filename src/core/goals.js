@@ -114,23 +114,45 @@ export const GOALS = [
   installGoal('aerosweeper', 'Sweep squares, bank a multiplier, spend it on the Nudge button.'),
   installGoal('aeroburn', 'Burn Buzz onto a disc that survives the next Format C:.'),
   installGoal('aerostudio', 'The longest render in the game, and the biggest single payout.'),
-  {
-    id: 'buddy-list-full',
-    isDone: (state) => state.chat.bots >= CHAT_BOT.maxPerRun,
-    title: 'Fill the buddy list',
-    hint: `${CHAT_BOT.maxPerRun} buddies is the ceiling for a single run.`,
-    progress: (state) => ratio(state.chat.bots, CHAT_BOT.maxPerRun),
-    detail: (state) => `${state.chat.bots} / ${CHAT_BOT.maxPerRun} buddies`,
-  },
 ];
+
+/**
+ * Where the chain stops, and why it stops here rather than one entry later.
+ *
+ * "Fill the buddy list" used to be the last card: 500 buddies, which by then
+ * costs on the order of 10^10 Buzz. That is an endgame achievement wearing a
+ * tutorial costume. "Next up" carries an implicit promise that the thing in it is
+ * reachable soon, and a queue whose final step is quietly four orders of
+ * magnitude past every step before it breaks that promise — not loudly enough for
+ * anyone to file it as a bug, just enough to make the desktop feel like it has
+ * stopped answering.
+ *
+ * The milestone itself is untouched and is not hidden: AeroChat's own header
+ * counts buddies, tracks the next multiplier and reads "buddy list full" when it
+ * is reached, which is the surface that actually owns it. What is removed is the
+ * framing.
+ *
+ * So the chain ends on a hand-off instead. No target and no bar — there is
+ * nothing left to measure, and a progress bar with nothing behind it is the
+ * thing being fixed. `isDone` is what the player says, not what the state says,
+ * which is why this one is not in `GOALS`: it must never be counted as an
+ * objective, and it must not park the coach on screen forever once acknowledged.
+ */
+export const CLOSING_GOAL = {
+  id: 'onboarding-complete',
+  title: "You're in control now",
+  hint: 'Every app is installed and the machine is yours. Build the network your way.',
+  isDone: (state) => state.tutorial.goalsDismissed === true,
+};
 
 /**
  * The one goal to show. First unmet, skipping anything not yet `isReady` —
  * "install Shield99" before the player has met a virus is a shopping list, not
  * an objective.
  *
- * Returns `null` when everything is done, which the coach reads as "there is
- * nothing to nag about" rather than as an error.
+ * Once the chain is exhausted it hands over with `CLOSING_GOAL`, and after that
+ * returns `null`, which the coach reads as "there is nothing to nag about"
+ * rather than as an error.
  */
 export function currentGoal(state) {
   for (const goal of GOALS) {
@@ -138,7 +160,7 @@ export function currentGoal(state) {
     if (goal.isReady && !goal.isReady(state)) continue;
     return goal;
   }
-  return null;
+  return CLOSING_GOAL.isDone(state) ? null : CLOSING_GOAL;
 }
 
 /**
@@ -153,8 +175,10 @@ export function goalStatus(state, { formatNumber = String } = {}) {
     id: goal.id,
     title: goal.title,
     hint: goal.hint,
-    progress: goal.progress(state),
-    detail: goal.detail(state, { formatNumber }),
+    // The hand-off has neither, and says so with null rather than with a full
+    // bar: the coach hides the meter instead of drawing a finished one.
+    progress: goal.progress?.(state) ?? null,
+    detail: goal.detail?.(state, { formatNumber }) ?? null,
   };
 }
 

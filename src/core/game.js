@@ -678,6 +678,18 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
   }
 
   /**
+   * The player has read the hand-off card at the end of the goal chain
+   * (`core/goals.js`). Nothing in the simulation changes; the coach panel stops
+   * being drawn, which on a phone is fifty pixels of app it was reserving to
+   * repeat a sentence with no objective in it.
+   */
+  function dismissGoals() {
+    if (state.tutorial.goalsDismissed) return;
+    state.tutorial.goalsDismissed = true;
+    save();
+  }
+
+  /**
    * Claim the pending status-message bonus (AO-10). Timed buffs are applied by
    * the event module; 'burst' bonuses are paid here, where the rate is known.
    */
@@ -765,7 +777,15 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return result;
   }
 
-  /** Claim the deferred render reward (the player clicks "Collect"). */
+  /**
+   * Claim the deferred render reward (the player clicks "Collect").
+   *
+   * The portal's `happytime()` belongs on this moment, but not in here: core
+   * does not touch the browser, and the bare `window.CrazyGames` this used to
+   * reach for was also a ReferenceError waiting for the first test that ran this
+   * function in plain Node. `RENDER_CLAIMED` is emitted below and main.js makes
+   * the call, the same way it does for PRESTIGE.
+   */
   function claimRenderReward() {
     const pending = state.aerostudio.pendingReward;
     if (!pending) return { ok: false, reason: 'no-pending' };
@@ -779,9 +799,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       body: `+${formatNumber(pending.payout)} Buzz from "${pending.projectName}"`,
       tone: 'success',
     });
-    if (window.CrazyGames?.SDK?.game) {
-      window.CrazyGames.SDK.game.happytime();
-    }
     save();
     return { ok: true, projectName: pending.projectName, payout: pending.payout };
   }
@@ -907,6 +924,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     endSweeperRound,
     sweeperTokenSeconds: (now = Date.now()) => sweeper.secondsToNextToken(state, now),
     skipOnboarding,
+    dismissGoals,
     setSettings,
     currentTutorialStep: () => currentStep(state),
     buyHardware,
