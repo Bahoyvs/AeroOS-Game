@@ -25,6 +25,7 @@ npm run dev      # http://localhost:5173
 | `npm run check` | Tests + build; run this before pushing |
 | `npm run package` | Check, then write the CrazyGames upload zip (Windows) |
 | `npm run wallpapers` | Re-encode `art/wallpapers-src/` into the shipped art; only needed when the source images change |
+| `npm run icons` | Re-export `public/icons/` and the buddy sprite at the size they are drawn; same, only when the art changes |
 
 No framework and no global tooling: Node 20+ and npm are enough.
 

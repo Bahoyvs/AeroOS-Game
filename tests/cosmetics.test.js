@@ -47,8 +47,8 @@ describe('the cosmetic roster', () => {
     // The id is the file stem, so a typo here is a desktop that paints nothing.
     const shipped = readdirSync(new URL('../src/assets/wallpapers/', import.meta.url));
     for (const wallpaper of WALLPAPERS) {
-      expect(shipped).toContain(`${wallpaper.id}.jpg`);
-      expect(shipped).toContain(`${wallpaper.id}-thumb.jpg`);
+      expect(shipped).toContain(`${wallpaper.id}.webp`);
+      expect(shipped).toContain(`${wallpaper.id}-thumb.webp`);
     }
   });
 

@@ -32,15 +32,15 @@
 :root {
   --aero-tint: #7fe4ff;
 
-  --wall-blue-lagoon: url('../assets/wallpapers/blue-lagoon.jpg');
-  --wall-green-hill: url('../assets/wallpapers/green-hill.jpg');
-  --wall-moonlit-peak: url('../assets/wallpapers/moonlit-peak.jpg');
-  --wall-crimson-dunes: url('../assets/wallpapers/crimson-dunes.jpg');
+  --wall-blue-lagoon: url('../assets/wallpapers/blue-lagoon.webp');
+  --wall-green-hill: url('../assets/wallpapers/green-hill.webp');
+  --wall-moonlit-peak: url('../assets/wallpapers/moonlit-peak.webp');
+  --wall-crimson-dunes: url('../assets/wallpapers/crimson-dunes.webp');
 
-  --thumb-blue-lagoon: url('../assets/wallpapers/blue-lagoon-thumb.jpg');
-  --thumb-green-hill: url('../assets/wallpapers/green-hill-thumb.jpg');
-  --thumb-moonlit-peak: url('../assets/wallpapers/moonlit-peak-thumb.jpg');
-  --thumb-crimson-dunes: url('../assets/wallpapers/crimson-dunes-thumb.jpg');
+  --thumb-blue-lagoon: url('../assets/wallpapers/blue-lagoon-thumb.webp');
+  --thumb-green-hill: url('../assets/wallpapers/green-hill-thumb.webp');
+  --thumb-moonlit-peak: url('../assets/wallpapers/moonlit-peak-thumb.webp');
+  --thumb-crimson-dunes: url('../assets/wallpapers/crimson-dunes-thumb.webp');
 
   /* The default, for the frame before <html> is stamped and for any id the
      save names that this build does not have. */
