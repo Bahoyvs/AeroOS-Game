@@ -23,6 +23,8 @@ npm run dev      # http://localhost:5173
 | `npm run build` | Production bundle in `dist/` |
 | `npm run preview` | Serve the built bundle |
 | `npm run check` | Tests + build; run this before pushing |
+| `npm run package` | Check, then write the CrazyGames upload zip (Windows) |
+| `npm run wallpapers` | Re-encode `art/wallpapers-src/` into the shipped art; only needed when the source images change |
 
 No framework and no global tooling: Node 20+ and npm are enough.
 
@@ -102,7 +104,16 @@ AeroOS.game.hardReset()           // wipe the save
 
 ## Deploying
 
-`npm run build` emits a fully static `dist/` with relative asset paths, so it can be zipped
-and uploaded to a portal or dropped in any subdirectory. Portal SDKs (ads, analytics) land
-on Day 7 behind `src/monetization/ads.js` — keep them behind that adapter so the game still
-runs when no SDK is present.
+`npm run build` emits a fully static `dist/` with relative asset paths, so it can be dropped
+in any subdirectory. `npm run package` then writes `aeroos-crazygames-build/` and the
+matching zip, and refuses a build that would be rejected — see the header of
+[`art/package-build.ps1`](art/package-build.ps1) for the two packaging mistakes it exists to
+prevent.
+
+Portal code stays behind one adapter each so the game still runs with no SDK present:
+`src/ui/ads.js` is the only file that names `SDK.ad`/`SDK.banner`, and `defaultStorage()` in
+`src/core/save.js` is the only place `SDK.data` is chosen. `ADS.enabled` in
+`src/data/balance.js` is the master switch, and is `false` for the basic-launch build.
+
+Per-release notes for the portal's QA team live in
+[`docs/RELEASE-NOTES.md`](docs/RELEASE-NOTES.md).

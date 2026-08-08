@@ -1,6 +1,6 @@
 {
   "name": "aeroos-game",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AeroOS - The Messenger Era. A Frutiger Aero idle/simulation game for the browser.",
   "private": true,
   "type": "module",
@@ -11,7 +11,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "thumbnail": "node art/render-thumbnail.mjs",
-    "check": "npm run test && npm run build"
+    "wallpapers": "node art/optimize-wallpapers.mjs",
+    "check": "npm run test && npm run build",
+    "package": "npm run check && powershell -ExecutionPolicy Bypass -File art/package-build.ps1"
   },
   "dependencies": {
     "7.css": "^0.16.0"
