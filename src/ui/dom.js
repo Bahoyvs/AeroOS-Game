@@ -51,3 +51,17 @@ export function setBar(fillEl, ratio, { warn = 0.75, critical = 0.9 } = {}) {
   fillEl.classList.toggle('is-warn', r >= warn && r < critical);
   fillEl.classList.toggle('is-critical', r >= critical);
 }
+
+/**
+ * Append a purely decorative node (a ripple, a bubble) and remove it once its
+ * own CSS animation finishes. `animationend` rather than `setTimeout`, so a
+ * duration tuned in CSS never drifts out of sync with the JS that cleans it
+ * up, and reduced motion — which collapses `animation-duration` to ~0 rather
+ * than removing the animation — still fires the event and cleans up almost
+ * immediately instead of leaving the node stuck for a fixed delay.
+ */
+export function spawnTransient(host, node) {
+  host.appendChild(node);
+  node.addEventListener('animationend', () => node.remove(), { once: true });
+  return node;
+}

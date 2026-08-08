@@ -114,6 +114,35 @@ export const CLICK = {
   },
 };
 
+/**
+ * Nudge "juice" — the click/streak feedback layer (layered click sound, streak
+ * pitch, sidechain ducking, glass flare, bubbles, ripple, gadget micro-shake).
+ *
+ * `audioEnabled`/`visualEnabled` are independent switches, same pattern as
+ * `ADS.enabled` below: either half can ship, be A/B'd, or be pulled back
+ * without touching the other.
+ */
+export const NUDGE_JUICE = {
+  audioEnabled: true,
+  visualEnabled: true,
+
+  /** Pitch grows this fraction per streak click past the first, then rails. */
+  pitchStepPerClick: 0.045,
+  pitchCeiling: 1.5,
+
+  /** Sidechain ducking on the music bus when a click lands. */
+  duckDepth: 0.5, // fraction of the current music gain kept at the dip
+  duckAttackSeconds: 0.05,
+  duckReleaseSeconds: 0.15,
+
+  /** Bubble particles per click, and the hard cap across all of them at once. */
+  bubbleCount: 10,
+  maxConcurrentParticles: 20,
+
+  /** Streak count at which the gadget starts micro-shaking. */
+  shakeStreakThreshold: 10,
+};
+
 export const PRESTIGE = {
   /**
    * Dollars awarded on Format C: = scale * sqrt(lifetimeBuzz / divisor)

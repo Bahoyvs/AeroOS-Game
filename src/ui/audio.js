@@ -18,6 +18,8 @@
  * `applyPortalSettings`.
  */
 
+import { NUDGE_JUICE } from '../data/balance.js';
+
 const SEMITONE = 2 ** (1 / 12);
 const note = (semitonesFromA4) => 440 * SEMITONE ** semitonesFromA4;
 
@@ -37,6 +39,10 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
   let step = 0;
   let lastHeat = -1;
   let portalMuted = false;
+  // The gain `musicBus` is *supposed* to sit at, absent any duck in progress.
+  // Ducking ramps away from and back to this rather than a hard-coded 0.22, so
+  // it composes with the heat-driven fade in `update()` instead of fighting it.
+  let musicBaseGain = 0.22;
 
   // The portal's mute is folded in here rather than checked at each call site,
   // so every existing gate (play, startMusic, unlock, setEnabled) honours it.
@@ -148,10 +154,6 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
       noise({ duration: 0.03, peak: 0.35, frequency: 2600, q: 0.7 });
       tone({ freq: 180, type: 'square', decay: 0.05, peak: 0.12 });
     },
-    nudge: () => {
-      tone({ freq: 660, type: 'square', decay: 0.08, peak: 0.18, slideTo: 990 });
-      noise({ duration: 0.04, peak: 0.2, frequency: 3200 });
-    },
     buy: () => {
       tone({ freq: 523, type: 'triangle', decay: 0.09, peak: 0.2 });
       setTimeout(() => ctx && tone({ freq: 784, type: 'triangle', decay: 0.12, peak: 0.2 }), 70);
@@ -205,6 +207,63 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
     const context = ensureContext();
     if (!context || context.state !== 'running') return;
     SFX[name]?.();
+  }
+
+  /**
+   * The Nudge click (Faz 1.1/1.2, AO-5). Two layers on top of each other: a
+   * thick, low mechanical thunk (filtered noise + a square-wave body) and a
+   * short high sine "ding" — the same pairing as the AeroChat XP cue, so a
+   * streak reads as "the click sound getting excited" rather than a new sound.
+   *
+   * `streakCount` is `clickStreak(state).count` from the click that just
+   * landed — the same number the streak meter is already reading, so the pitch
+   * and the meter always agree. It rails at `pitchCeiling` rather than
+   * climbing with the streak's own (much higher) `maxCount`, so a long streak
+   * stays energetic instead of turning shrill.
+   */
+  function playNudgeClick(streakCount = 0) {
+    if (!sfxOn()) return;
+    const context = ensureContext();
+    if (!context || context.state !== 'running') return;
+
+    // The kill switch reverts to the sound the button always made — not just
+    // pitch/ducking switched off — so Faz 1 is a true independent toggle
+    // (see NUDGE_JUICE.visualEnabled's equivalent on the CSS/DOM side).
+    if (!NUDGE_JUICE.audioEnabled) {
+      tone({ freq: 660, type: 'square', decay: 0.08, peak: 0.18, slideTo: 990 });
+      noise({ duration: 0.04, peak: 0.2, frequency: 3200 });
+      return;
+    }
+
+    const { pitchStepPerClick, pitchCeiling } = NUDGE_JUICE;
+    // The bonus starts on the second click, same rule as clickStreak() — a
+    // single considered press sounds exactly like the button always has.
+    const steps = Math.max(streakCount - 1, 0);
+    const shift = Math.min(1 + steps * pitchStepPerClick, pitchCeiling);
+
+    noise({ duration: 0.03, peak: 0.32, frequency: 2600 * shift, q: 0.7 });
+    tone({ freq: 180 * shift, type: 'square', decay: 0.05, peak: 0.12 });
+    tone({ freq: 1320 * shift, type: 'sine', decay: 0.055, peak: 0.14 });
+
+    duckMusic();
+  }
+
+  /**
+   * Sidechain ducking (Faz 1.3): every Nudge click pulls the music bus down
+   * and lets it spring back, the way a compressor ducks a pad under a kick.
+   * Ramps relative to `musicBaseGain` — the level `update()` maintains for the
+   * current heat — rather than to a fixed value, so ducking under a hot,
+   * already-quiet mix still recovers to the *current* mix instead of jumping it
+   * louder.
+   */
+  function duckMusic() {
+    if (!ctx || ctx.state !== 'running' || !musicBus) return;
+    const { duckDepth, duckAttackSeconds, duckReleaseSeconds } = NUDGE_JUICE;
+    const t = ctx.currentTime;
+    musicBus.gain.cancelScheduledValues(t);
+    musicBus.gain.setValueAtTime(musicBus.gain.value, t);
+    musicBus.gain.linearRampToValueAtTime(musicBaseGain * duckDepth, t + duckAttackSeconds);
+    musicBus.gain.linearRampToValueAtTime(musicBaseGain, t + duckAttackSeconds + duckReleaseSeconds);
   }
 
   /* ------------------------------------------------------------------ BGM */
@@ -275,7 +334,8 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
     if (value === lastHeat) return;
     lastHeat = value;
     shaper.curve = makeCurve(value * 0.8);
-    musicBus.gain.value = 0.22 * (1 - value * 0.35);
+    musicBaseGain = 0.22 * (1 - value * 0.35);
+    musicBus.gain.value = musicBaseGain;
   }
 
   function setEnabled({ sfx, bgm }) {
@@ -313,6 +373,7 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
   return {
     unlock,
     play,
+    playNudgeClick,
     update,
     startMusic,
     stopMusic,
