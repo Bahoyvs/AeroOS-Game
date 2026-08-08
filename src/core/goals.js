@@ -104,7 +104,8 @@ export const GOALS = [
   {
     id: 'first-hardware',
     isDone: (state) =>
-      state.hardware.cpu + state.hardware.ram + state.hardware.gpu + state.hardware.hdd >= 1,
+      state.hardware.cpu + state.hardware.ram + state.hardware.gpu + state.hardware.hdd + state.hardware.mobo >=
+      1,
     isReady: (state) => state.tutorial.hardwareRevealed === true,
     title: 'Buy your first upgrade',
     hint: 'Dollars are spent in My Computer, and hardware survives every wipe.',

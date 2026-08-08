@@ -79,6 +79,16 @@ describe('the goal tracker', () => {
     expect(goal.progress(state)).toBeCloseTo(0.5);
   });
 
+  it('completes the first-hardware goal on a mainboard-only purchase', () => {
+    const state = fresh();
+    state.tutorial.hardwareRevealed = true;
+    state.chat.bots = 10;
+    state.hardware.mobo = 1;
+
+    const goal = GOALS.find((g) => g.id === 'first-hardware');
+    expect(goal.isDone(state)).toBe(true);
+  });
+
   /** Everything on the chain done, with the closing card not yet acknowledged. */
   const finished = () => {
     const state = fresh();

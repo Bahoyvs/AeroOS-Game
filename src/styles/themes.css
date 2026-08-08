@@ -71,8 +71,8 @@
   );
   --glass-border: rgb(190 210 255 / 52%);
   --glass-shadow: 0 10px 30px rgb(6 10 34 / 48%), inset 0 1px 0 rgb(210 226 255 / 60%);
-  --chrome-lit: rgb(58 74 150 / 90%);
-  --chrome-deep: rgb(12 18 52 / 95%);
+  --chrome-lit: rgb(58 74 150 / 46%);
+  --chrome-deep: rgb(12 18 52 / 58%);
 }
 
 :root[data-tint='toxic'] {
@@ -88,8 +88,8 @@
   );
   --glass-border: rgb(216 255 190 / 58%);
   --glass-shadow: 0 10px 30px rgb(10 44 12 / 38%), inset 0 1px 0 rgb(240 255 224 / 70%);
-  --chrome-lit: rgb(64 148 42 / 90%);
-  --chrome-deep: rgb(12 52 16 / 95%);
+  --chrome-lit: rgb(64 148 42 / 46%);
+  --chrome-deep: rgb(12 52 16 / 58%);
 }
 
 :root[data-tint='sunset'] {
@@ -105,8 +105,8 @@
   );
   --glass-border: rgb(255 226 190 / 58%);
   --glass-shadow: 0 10px 30px rgb(60 22 4 / 40%), inset 0 1px 0 rgb(255 244 226 / 70%);
-  --chrome-lit: rgb(186 96 34 / 90%);
-  --chrome-deep: rgb(66 24 6 / 95%);
+  --chrome-lit: rgb(186 96 34 / 46%);
+  --chrome-deep: rgb(66 24 6 / 58%);
 }
 
 /* ------------------------------------------------------------- wallpapers */
