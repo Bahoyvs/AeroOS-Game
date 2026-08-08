@@ -29,12 +29,81 @@ const SCALE = [-9, -7, -5, -2, 0, 3, 5, 7]; // A minor pentatonic-ish, two octav
 /** Master bus level when we are not muted. Named because the mute restores it. */
 const MASTER_GAIN = 0.5;
 
-export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGames?.SDK }) {
+/**
+ * Ambient variations keyed by RetroAmp playlist id (Faz 1.4). RetroAmp has no
+ * audio buffers of its own — `retroampMultiplier` is derived state, not a
+ * track deck (docs/AI_AGENT_CONTEXT.md) — so "the music changes with the
+ * playlist" means retuning this one generative loop, not switching to a
+ * second synth. Each profile nods at its genre without literally quoting a
+ * 2000s track: P2P DOWNLOADER (nu-metal/post-grunge) drops the register and
+ * tightens the pulse into a chug, Y2K TRANCE speeds the sequencer to a
+ * four-on-the-floor tempo and opens the filter into a bright supersaw-ish
+ * lead, AERO AMBIENCE slows and softens what's already playing. `default`
+ * covers no playlist loaded — the original light synthwave bed, unchanged.
+ */
+const AMBIENT_PROFILES = {
+  default: {
+    stepMs: 340,
+    rootOffset: 0,
+    filterCutoff: 6000,
+    leadType: 'square',
+    leadPeak: 0.12,
+    leadDecay: 0.34,
+    bassType: 'sawtooth',
+    bassPeak: 0.1,
+    bassDecay: 0.5,
+    bassEvery: 4,
+  },
+  'soft-signals': {
+    stepMs: 460,
+    rootOffset: 0,
+    filterCutoff: 2200,
+    leadType: 'triangle',
+    leadPeak: 0.09,
+    leadDecay: 0.5,
+    bassType: 'sine',
+    bassPeak: 0.06,
+    bassDecay: 0.7,
+    bassEvery: 4,
+  },
+  'iron-overdrive': {
+    stepMs: 260,
+    rootOffset: -12,
+    filterCutoff: 3400,
+    leadType: 'sawtooth',
+    leadPeak: 0.15,
+    leadDecay: 0.22,
+    bassType: 'square',
+    bassPeak: 0.17,
+    bassDecay: 0.28,
+    bassEvery: 1,
+  },
+  'y2k-trance': {
+    stepMs: 150,
+    rootOffset: 12,
+    filterCutoff: 9000,
+    leadType: 'sawtooth',
+    leadPeak: 0.1,
+    leadDecay: 0.13,
+    bassType: 'sawtooth',
+    bassPeak: 0.13,
+    bassDecay: 0.16,
+    bassEvery: 1,
+  },
+};
+
+export function createAudio({
+  settings,
+  heat = () => 0,
+  playlist = () => null,
+  sdk = globalThis.CrazyGames?.SDK,
+}) {
   let ctx = null;
   let master = null;
   let shaper = null;
   let sfxBus = null;
   let musicBus = null;
+  let musicFilter = null;
   let musicTimer = null;
   let step = 0;
   let lastHeat = -1;
@@ -84,8 +153,17 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
     musicBus = ctx.createGain();
     musicBus.gain.value = 0.22;
 
+    // The "BPM/filter cutoff" half of the ambient profile (Faz 1.4) — a
+    // lowpass every generated note passes through, so AERO AMBIENCE reads as
+    // muffled and distant while Y2K TRANCE reads as open and bright, without
+    // touching each oscillator individually.
+    musicFilter = ctx.createBiquadFilter();
+    musicFilter.type = 'lowpass';
+    musicFilter.frequency.value = AMBIENT_PROFILES.default.filterCutoff;
+    musicFilter.Q.value = 0.7;
+
     sfxBus.connect(shaper);
-    musicBus.connect(shaper);
+    musicBus.connect(musicFilter).connect(shaper);
     shaper.connect(master);
     master.connect(ctx.destination);
     return ctx;
@@ -268,56 +346,82 @@ export function createAudio({ settings, heat = () => 0, sdk = globalThis.CrazyGa
 
   /* ------------------------------------------------------------------ BGM */
 
+  /** The ambient profile for whatever RetroAmp is playing right now, if anything. */
+  function currentProfile() {
+    return AMBIENT_PROFILES[playlist()] ?? AMBIENT_PROFILES.default;
+  }
+
   /**
    * A slow arpeggio over a held pad — "light retro synthwave" (GDD 2) with a
    * scheduler rather than a loop file, so it never repeats exactly and costs
-   * nothing to ship.
+   * nothing to ship. Tempo, register, timbre and filter cutoff all come from
+   * `currentProfile()` (Faz 1.4): the loop itself never changes, only how
+   * it's played, so a playlist switch is heard on the very next step rather
+   * than needing a restart.
    */
   function tickMusic() {
     if (!ctx || ctx.state !== 'running' || !bgmOn()) return;
 
+    const profile = currentProfile();
+    // Follows rather than jumps, so a playlist switch mid-note doesn't click.
+    musicFilter.frequency.setTargetAtTime(profile.filterCutoff, ctx.currentTime, 0.2);
+
     const heatNow = heat();
-    const root = SCALE[step % SCALE.length];
+    const root = SCALE[step % SCALE.length] + profile.rootOffset;
     const octave = step % 16 < 8 ? 0 : 12;
 
     // Arpeggio voice.
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.type = 'square';
+    osc.type = profile.leadType;
     osc.frequency.value = note(root + octave - 12);
     const t = ctx.currentTime;
     gain.gain.setValueAtTime(0.0001, t);
-    gain.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    gain.gain.exponentialRampToValueAtTime(profile.leadPeak, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + profile.leadDecay);
     osc.connect(gain).connect(musicBus);
     osc.start();
-    osc.stop(t + 0.4);
+    osc.stop(t + profile.leadDecay + 0.05);
 
-    // Every fourth step, a low pulse — the "driving" part when things heat up.
-    if (step % 4 === 0) {
+    // The "driving" pulse — every step for the heavy profiles, every fourth
+    // for the calmer ones, same as it always was for `default`.
+    if (step % profile.bassEvery === 0) {
       const bass = ctx.createOscillator();
       const bassGain = ctx.createGain();
-      bass.type = 'sawtooth';
+      bass.type = profile.bassType;
       bass.frequency.value = note(root - 24);
       bassGain.gain.setValueAtTime(0.0001, t);
-      bassGain.gain.exponentialRampToValueAtTime(0.1 + heatNow * 0.08, t + 0.02);
-      bassGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      bassGain.gain.exponentialRampToValueAtTime(profile.bassPeak + heatNow * 0.08, t + 0.02);
+      bassGain.gain.exponentialRampToValueAtTime(0.0001, t + profile.bassDecay);
       bass.connect(bassGain).connect(musicBus);
       bass.start();
-      bass.stop(t + 0.55);
+      bass.stop(t + profile.bassDecay + 0.05);
     }
     step += 1;
+  }
+
+  /**
+   * Self-rescheduling rather than `setInterval`: each step reads the *current*
+   * profile's `stepMs`, so Y2K TRANCE's fast four-on-the-floor tempo and AERO
+   * AMBIENCE's slow one both take effect on the very next step after a
+   * playlist loads, with nothing to tear down and restart.
+   */
+  function scheduleTick() {
+    musicTimer = setTimeout(() => {
+      tickMusic();
+      scheduleTick();
+    }, currentProfile().stepMs);
   }
 
   function startMusic() {
     if (musicTimer || !bgmOn()) return;
     const context = ensureContext();
     if (!context) return;
-    musicTimer = setInterval(tickMusic, 340);
+    scheduleTick();
   }
 
   function stopMusic() {
-    if (musicTimer) clearInterval(musicTimer);
+    if (musicTimer) clearTimeout(musicTimer);
     musicTimer = null;
   }
 

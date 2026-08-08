@@ -260,6 +260,10 @@ async function boot() {
   const audio = createAudio({
     settings: () => game.state.settings,
     heat: () => game.econ.heatRatio(game.state),
+    // Faz 1.4: which RetroAmp playlist (if any) is actually paying right now
+    // — the same rule `retroampMultiplier` uses, so the ambient bed and the
+    // Buzz multiplier always agree on whether a playlist is "live".
+    playlist: () => game.econ.activePlaylist(game.state),
     sdk,
   });
   document.addEventListener('pointerdown', () => audio.unlock());
