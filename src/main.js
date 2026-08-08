@@ -68,6 +68,38 @@ async function initPortalSdk() {
   return sdk;
 }
 
+/**
+ * Everything that goes wrong, in one place.
+ *
+ * An uncaught error in a listener, a rejected promise nobody awaited, a boot that
+ * throws — none of those leave a trace anywhere we can read once the game is on
+ * the portal, which is why a crash rate can only be inferred from sessions that
+ * end early. There is no telemetry endpoint to send them to and adding one is not
+ * worth a network request, so they go where the portal will hand them back with
+ * the rest of a support report: the game context (see `reportContext` below),
+ * plus the console for anyone with devtools open.
+ *
+ * Deliberately at module scope and installed on import, so a failure *during*
+ * boot is captured too — that is the class of failure that shows up as a load
+ * with no gameplay in it.
+ */
+const crashes = { count: 0, last: null };
+
+function reportError(kind, detail) {
+  crashes.count += 1;
+  // Trimmed: this ends up as a context value on a support report, not a log file.
+  crashes.last = `${kind}: ${detail}`.slice(0, 180);
+  console.error(`[aeroos] ${kind}`, detail);
+}
+
+window.addEventListener('error', (event) => {
+  const where = event.filename ? ` (${event.filename}:${event.lineno})` : '';
+  reportError('uncaught', `${event.message}${where}`);
+});
+window.addEventListener('unhandledrejection', (event) => {
+  reportError('unhandled-rejection', String(event.reason));
+});
+
 /** How long the portal handshake may hold the desktop back. */
 const SDK_INIT_TIMEOUT_MS = 3000;
 /** ...and the ad-blocker probe, which nothing on the first screen needs. */
@@ -112,9 +144,21 @@ function isLicensedHost() {
       if (PORTAL_HOST.test(hostOf(origin))) return true;
     }
   }
-  if (!host && document.referrer && PORTAL_HOST.test(hostOf(document.referrer))) return true;
 
-  return false;
+  /**
+   * Last resort: who linked us here.
+   *
+   * This used to be gated on an empty hostname, which left out the case it is
+   * most needed for — Firefox has never implemented `ancestorOrigins`, so the
+   * one browser that cannot answer the ancestor question was also the only one
+   * never allowed to answer it the other way, and a Firefox player framed from a
+   * host we do not recognise by name would get the refusal page. A referrer is
+   * weaker evidence than an ancestor origin, and it is used in the direction
+   * where being wrong is survivable: it can only *grant* a licence, never revoke
+   * one. Nothing depends on it today, which is why it is worth fixing before
+   * something does.
+   */
+  return Boolean(document.referrer) && PORTAL_HOST.test(hostOf(document.referrer));
 }
 
 /** A refusal the player can read, rather than a wiped document. */
@@ -633,8 +677,12 @@ async function boot() {
   game.bus.on(game.events.SWEEPER_STARTED, () => taskbar.flag('aerosweeper', false));
 
   // The other natural break: a four-hour render has just been collected, which
-  // is a milestone screen in everything but name.
-  game.bus.on(game.events.RENDER_CLAIMED, () => ads.midgame('render-collected'));
+  // is a milestone screen in everything but name — and the portal's own idea of a
+  // good moment, which is what happytime() reports.
+  game.bus.on(game.events.RENDER_CLAIMED, () => {
+    if (sdk) sdk.game.happytime();
+    ads.midgame('render-collected');
+  });
 
   /**
    * One place to announce every rewarded payout, so a new placement gets its
@@ -814,21 +862,55 @@ async function boot() {
   }
 
   if (sdk) {
-    setInterval(() => {
+    /**
+     * What the portal knows about this session.
+     *
+     * Two additions beyond the progress numbers, both there to be read back
+     * against a support report rather than to change anything in the game:
+     *
+     * - `orientation`, because mobile orientation is locked to Portrait at the
+     *   submission level and this is the only way to confirm the lock is actually
+     *   holding. Anything other than a portrait reading on a phone means players
+     *   are still landing in a viewport shape the layout is not built for.
+     * - the crash counters, because an error nobody catches is otherwise
+     *   indistinguishable from a player who simply left.
+     *
+     * Reported once immediately as well as on the interval: a session that breaks
+     * in its first thirty seconds is precisely the session worth hearing about,
+     * and it would never reach the first tick.
+     */
+    const reportContext = () => {
       const hwTotal = game.state.hardware.cpu + game.state.hardware.ram + game.state.hardware.hdd;
       let percentage = (hwTotal / 30) * 100;
       if (hwTotal === 0) percentage = Math.min(10, (game.state.chat.bots / 100) * 10);
       percentage = Math.floor(Math.min(100, Math.max(0, percentage)));
-      
+
       sdk.game.reportGameCompletedPercentage(percentage);
       sdk.game.setGameContext({
         bots: game.state.chat.bots,
         prestige: game.state.prestigeCount,
         cpu: game.state.hardware.cpu,
         ram: game.state.hardware.ram,
-        hdd: game.state.hardware.hdd
+        hdd: game.state.hardware.hdd,
+        orientation: globalThis.screen?.orientation?.type ?? 'unknown',
+        viewport: `${window.innerWidth}×${window.innerHeight}`,
+        errors: crashes.count,
+        lastError: crashes.last ?? '',
       });
-    }, 30000);
+    };
+
+    // Wrapped, like the gameplay lifecycle calls: a portal method that is absent
+    // or throws must not take a 30-second interval — or the boot — down with it.
+    const safeReport = () => {
+      try {
+        reportContext();
+      } catch (err) {
+        console.warn('[aeroos] portal context report failed', err);
+      }
+    };
+
+    safeReport();
+    setInterval(safeReport, 30000);
   }
 
   loop.start();
@@ -872,7 +954,7 @@ async function boot() {
 }
 
 /** Boot failures are silent otherwise — an async boot() rejects into nothing. */
-const start = () => void boot().catch((err) => console.error('[aeroos] boot failed', err));
+const start = () => void boot().catch((err) => reportError('boot-failed', err?.stack ?? err));
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', start, { once: true });

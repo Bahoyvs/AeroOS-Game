@@ -457,11 +457,19 @@
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%), inset 0 -2px 3px rgb(0 0 0 / 18%);
 }
 
+/**
+ * The row scrolls rather than shrinking. Six windows on a phone is the exception
+ * — PDA mode is one app at a time and the Start menu reaches everything anyway —
+ * but when it happens, eight squashed 20px chips are less usable than a strip you
+ * swipe. No visible scrollbar: this is chrome, and a track across the taskbar
+ * reads as a rendering fault.
+ */
 .taskbar__tasks {
   display: flex;
   flex: 1;
   gap: 4px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
 
@@ -475,6 +483,10 @@
   grid-template-columns: auto 1fr;
   gap: 2px 6px;
   align-items: center;
+  /* Overflow the scroller above rather than compress into it. `min-width` below
+     already floors the button; this says the same thing on the property the flex
+     layout reads, so the two cannot disagree. */
+  flex-shrink: 0;
   min-width: 110px;
   max-width: 170px;
   padding: 4px 8px;
@@ -730,6 +742,14 @@
 
 /* ------------------------------------------------------- onboarding coach */
 
+/**
+ * White text on `.glass` is white text on whatever the wallpaper happens to be,
+ * and two of the four wallpapers are bright. The panel carries the only
+ * instruction a new player has, so it does not get to be a translucent pane
+ * that reads well over Moonlit Peak and vanishes over Green Hill: it keeps the
+ * glass edge and highlight and states its own near-opaque slab underneath, in
+ * the same blue the spotlight-on state below already switches it to.
+ */
 .coach {
   position: absolute;
   bottom: 12px;
@@ -741,6 +761,7 @@
   padding: 10px 12px;
   color: var(--text-invert);
   text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
+  background: linear-gradient(180deg, rgb(18 74 122 / 92%), rgb(8 38 68 / 92%));
   border-left: 3px solid var(--aero-cyan);
 }
 

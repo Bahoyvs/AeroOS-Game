@@ -21,6 +21,16 @@
        is hidden. A guess here would reserve a strip at the bottom of every
        window for a panel that may not be on screen at all. */
     --coach-height: 0px;
+
+    /**
+     * Four pixels taller than the desktop bar, and they all go to the task
+     * buttons: the bar's 4px of padding left them 36px in a 44px bar, and the
+     * taskbar is the *only* way back to a minimised app in PDA mode. Everything
+     * that positions itself off the bottom of the screen — the desktop's own
+     * inset, the Nudge dock, the Start menu — reads this variable, so the whole
+     * stack moves up with it.
+     */
+    --taskbar-height: 48px;
   }
 
   .aero-window {
@@ -70,11 +80,39 @@
     display: none;
   }
 
-  /* The title bar is the sheet's drag handle (AO-23). */
+  /**
+   * The title bar is the sheet's drag handle (AO-23) — and a handle drawn for a
+   * mouse is 27px tall, which is not a thing a thumb can find on the first try.
+   * The window body is `flex: 1`, so the extra height comes off the body rather
+   * than out of the sheet.
+   */
   .aero-window .title-bar {
     cursor: grab;
     touch-action: none;
     padding-top: max(0px, env(safe-area-inset-top));
+    min-height: 44px;
+  }
+
+  /**
+   * ...and the buttons on it grow with it. Stretching the cluster, rather than
+   * letting the bar's `align-items: center` float it in the middle, is what turns
+   * the extra height into tap target: at 29×19 these were the smallest controls
+   * in the game, sat side by side, and one of them closes the app.
+   *
+   * The margins are the two ends of the same 6px. 7.css pulls the cluster up out
+   * of the bar's padding, which it can do on a desktop because the padding is
+   * there — the rule above replaces the top padding with the safe-area inset,
+   * usually 0, so keeping that negative margin here hangs the cluster over the
+   * top edge of a sheet that has no frame above it to hang on.
+   */
+  .aero-window .title-bar-controls {
+    align-self: stretch;
+    margin-top: 0;
+    margin-bottom: -6px;
+  }
+
+  .aero-window .title-bar-controls button {
+    min-width: 44px;
   }
 
   .aero-window.is-sheet-dragging {
@@ -213,8 +251,11 @@
     display: none;
   }
 
+  /* The label is gone, so the icon is the whole target: it gets the bar's full
+     height (see --taskbar-height above) and enough width to aim at. */
   .task {
     min-width: 56px;
+    min-height: 40px;
     justify-items: center;
   }
 
@@ -247,6 +288,17 @@
   .coach {
     gap: 2px;
     padding: 8px 10px;
+  }
+
+  /**
+   * ...with one exception. "Skip the tour" is the way out of the onboarding, and
+   * an escape hatch too small to hit is the same thing as a tutorial that will
+   * not let go. It is only on screen during the tour, so the height it costs the
+   * sheet above it is paid for the first minute and never again.
+   */
+  .coach__skip {
+    min-height: 40px;
+    padding-inline: 12px;
   }
 
   .coach__hint {

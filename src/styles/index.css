@@ -39,6 +39,29 @@ body {
   -webkit-user-select: none;
 }
 
+/**
+ * Every control the player taps repeatedly, exempted from double-tap-to-zoom.
+ *
+ * This is a phone bug with a desktop-shaped cause: the Nudge button is pressed
+ * hundreds of times a minute, and a mobile browser cannot know that the second
+ * tap of a fast pair is not a zoom gesture — so it zooms the desktop, and then
+ * waits ~300ms before every subsequent tap in case that one is a double too. A
+ * clicker that zooms itself on the tenth click is a clicker nobody finishes a
+ * session on.
+ *
+ * `manipulation` rather than `none`, and on these selectors rather than on
+ * `body`: it keeps panning and pinch-zoom everywhere else, which is the one
+ * accessibility affordance a player with low vision has on a fixed-size
+ * desktop. `-webkit-tap-highlight-color` above kills the flash; this kills the
+ * gesture.
+ */
+button,
+[role='button'],
+.desktop-icon,
+.task {
+  touch-action: manipulation;
+}
+
 body {
   /**
    * The wallpaper the player picked, resolved by styles/themes.css off

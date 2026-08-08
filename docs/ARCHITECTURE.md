@@ -34,7 +34,7 @@ index.html
     │   ├── cds.js            AeroBurn disc types
     │   ├── cosmetics.js      window tints, wallpapers, and what unlocks each
     │   └── hardware.js       CPU/RAM/GPU/HDD/Mainboard tier tables
-    ├── assets/               the only shipped art: built by art/optimize-wallpapers.mjs
+    ├── assets/               the only shipped art: built by art/optimize-*.mjs
     ├── ui/                   presentation — reads state, calls actions
     │   ├── windowManager.js  drag/resize/focus/minimize, PDA full-screen mode
     │   ├── theme.js          stamps data-tint / data-wallpaper on <html>
@@ -279,10 +279,16 @@ Tints are still pure CSS. Wallpapers are photographs, and that costs bytes on th
 asset that blocks the first frame — so three things are deliberate:
 
 - **They are built, not committed as shot.** `art/wallpapers-src/` holds the originals;
-  `node art/optimize-wallpapers.mjs` fits them to 1920×1200, re-encodes at q0.82 and
-  emits a 192px thumbnail beside each. That is 8.1 MB of source down to 1.2 MB shipped.
-  It drives whatever Chromium is on the machine rather than adding an image toolchain,
-  the same argument `art/render-thumbnail.mjs` already makes.
+  `node art/optimize-wallpapers.mjs` fits them to 1920×1200, re-encodes at q0.82 as WebP
+  and emits a 192px thumbnail beside each. That is 8.1 MB of source down to 0.85 MB
+  shipped. WebP rather than JPEG for the last third of that: same photograph, same
+  apparent quality, and no browser that can run this game lacks the decoder. It drives
+  whatever Chromium is on the machine rather than adding an image toolchain — see
+  `art/lib/chromium.mjs`, which `art/optimize-icons.mjs` shares.
+- **The icons are built the same way.** `node art/optimize-icons.mjs` re-exports
+  `public/icons/*.png` at 96px — 3× the largest size any of them is drawn at, where they
+  used to ship as 256px exports — and writes the buddy sprite as WebP. 823 kB of art down
+  to 180 kB, none of it visible to the player.
 - **The thumbnail is not a nicety.** Display Properties shows every wallpaper at once, so
   without it, opening My Computer downloads the full set — more bytes than the rest of
   the game together, to fill four chips eighteen pixels wide. They come in under Vite's

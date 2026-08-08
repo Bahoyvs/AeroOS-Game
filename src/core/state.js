@@ -182,7 +182,11 @@ export function createInitialState(now = Date.now()) {
 
     // Scripted onboarding (GDD 7). `hardwareRevealed` gates My Computer and the
     // CPU/RAM readouts until the player hits their first memory bottleneck.
-    tutorial: { step: 0, done: false, hardwareRevealed: false },
+    // `goalsDismissed` is the far end of the same thread: the player has
+    // acknowledged the hand-off card at the end of the goal chain
+    // (`core/goals.js`) and the coach stops taking up room. Default false, so a
+    // save from before this existed simply sees the card once.
+    tutorial: { step: 0, done: false, hardwareRevealed: false, goalsDismissed: false },
 
     // Aero Studio (Day 7). Mega-project render center.
     aerostudio: {

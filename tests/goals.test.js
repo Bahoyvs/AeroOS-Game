@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GOALS, currentGoal, goalStatus, goalsCompleted } from '../src/core/goals.js';
+import { GOALS, GOAL_COUNT, currentGoal, goalStatus, goalsCompleted } from '../src/core/goals.js';
 import { createInitialState } from '../src/core/state.js';
 import { APPS, getApp } from '../src/data/apps.js';
 import { CHAT_BOT, PRESTIGE } from '../src/data/balance.js';
@@ -79,15 +79,42 @@ describe('the goal tracker', () => {
     expect(goal.progress(state)).toBeCloseTo(0.5);
   });
 
-  it('runs out of goals rather than repeating the last one', () => {
+  /** Everything on the chain done, with the closing card not yet acknowledged. */
+  const finished = () => {
     const state = fresh();
-    state.chat.bots = CHAT_BOT.maxPerRun;
     state.apps.retroamp.installed = true;
     state.retroamp.playlist = 'soft-signals';
+    state.chat.bots = CHAT_BOT.milestoneEvery;
     state.prestigeCount = 1;
     state.hardware.cpu = 1;
     state.tutorial.hardwareRevealed = true;
     for (const app of APPS) state.apps[app.id].installed = true;
+    return state;
+  };
+
+  /**
+   * The chain used to end on "fill the buddy list" — 500 buddies, which is an
+   * endgame achievement rather than a next step. It hands over instead, and the
+   * hand-off is not an objective: no target, no bar, nothing to measure.
+   */
+  it('ends the chain with a hand-off rather than an endgame target', () => {
+    const state = finished();
+
+    expect(currentGoal(state).id).toBe('onboarding-complete');
+    const status = goalStatus(state);
+    expect(status.progress).toBeNull();
+    expect(status.detail).toBeNull();
+  });
+
+  it('does not count the hand-off as a goal', () => {
+    const state = finished();
+    expect(GOALS.some((goal) => goal.id === 'onboarding-complete')).toBe(false);
+    expect(goalsCompleted(state)).toBe(GOAL_COUNT);
+  });
+
+  it('runs out of goals rather than repeating the last one', () => {
+    const state = finished();
+    state.tutorial.goalsDismissed = true;
 
     expect(currentGoal(state)).toBeNull();
     expect(goalStatus(state)).toBeNull();

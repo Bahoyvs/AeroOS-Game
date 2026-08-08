@@ -28,7 +28,12 @@ export const APPS = [
     ram: 64,
     // Cheap and unlocked early on purpose: the scripted tutorial (GDD 7) hands
     // the player RetroAmp right after their first buddy.
-    install: { cost: 50, unlockAt: 20 },
+    //
+    // 28, not 50. A buddy is 10 Buzz and the tour asks for RetroAmp immediately
+    // afterwards, so at 50 the third step of the onboarding was a stretch of
+    // nudging with nothing else to do in it — the flattest part of the first
+    // minute, and the first place a new session has a reason to stop.
+    install: { cost: 28, unlockAt: 20 },
     window: { width: 340, height: 330 },
     blurb: 'Playlists give global Buzz multipliers. Heavy metal costs RAM.',
   },

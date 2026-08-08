@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "thumbnail": "node art/render-thumbnail.mjs",
     "wallpapers": "node art/optimize-wallpapers.mjs",
+    "icons": "node art/optimize-icons.mjs",
     "check": "npm run test && npm run build",
     "package": "npm run check && powershell -ExecutionPolicy Bypass -File art/package-build.ps1"
   },

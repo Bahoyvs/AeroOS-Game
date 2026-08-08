@@ -296,13 +296,37 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     else focus(id);
   }
 
-  // Keep windows on screen when the viewport changes, and drop inline geometry
-  // when crossing into PDA mode.
+  /**
+   * Keep windows on screen when the viewport changes, and drop inline geometry
+   * when crossing into PDA mode.
+   *
+   * Size before position, and both of them: this used to clamp only x/y, so a
+   * window opened on a large viewport kept its width and height on a small one
+   * and pushed its own bottom edge — AeroChat's buy row, AeroSweeper's cash-out —
+   * off the screen, with the position clamp reporting everything as fine because
+   * the *top-left corner* was still in bounds. Phones vary enough in aspect ratio
+   * for that to happen without anybody rotating anything.
+   *
+   * The ceilings are the ones `initialRect()` uses, so a window that reflows onto
+   * a smaller viewport ends up the size it would have opened at there. The
+   * position clamp runs afterwards, on the new size, or a shrunk window would be
+   * left positioned by geometry it no longer has.
+   *
+   * The vertical bound is the whole window rather than `dragBounds`'s "keep some
+   * of the title bar reachable": dragging a window down behind the taskbar is a
+   * choice the player made, a viewport that got shorter is not, and the bottom
+   * edge is where an app puts the button the window is for.
+   */
   const reflow = () => {
     for (const entry of windows.values()) {
-      const { maxX, maxY } = dragBounds(entry.rect);
-      entry.rect.x = Math.max(0, Math.min(entry.rect.x, maxX));
-      entry.rect.y = Math.max(0, Math.min(entry.rect.y, maxY));
+      const { rect } = entry;
+      rect.width = clamp(rect.width, MIN_WIDTH, window.innerWidth - 32);
+      rect.height = clamp(rect.height, MIN_HEIGHT, window.innerHeight - TASKBAR_HEIGHT - 32);
+
+      const { maxX } = dragBounds(rect);
+      const maxY = window.innerHeight - TASKBAR_HEIGHT - rect.height - EDGE_MARGIN;
+      rect.x = Math.max(0, Math.min(rect.x, maxX));
+      rect.y = clamp(rect.y, 0, maxY);
       applyRect(entry);
     }
   };
