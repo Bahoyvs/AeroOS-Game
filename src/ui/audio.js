@@ -308,8 +308,11 @@ export function createAudio({
     // pitch/ducking switched off — so Faz 1 is a true independent toggle
     // (see NUDGE_JUICE.visualEnabled's equivalent on the CSS/DOM side).
     if (!NUDGE_JUICE.audioEnabled) {
-      tone({ freq: 660, type: 'square', decay: 0.08, peak: 0.18, slideTo: 990 });
-      noise({ duration: 0.04, peak: 0.2, frequency: 3200 });
+      // Peaks trimmed ~30% below the original 0.18/0.2: this is the one sound
+      // in the game a player hears on every single input, hundreds of times a
+      // minute, so it is the one place "quieter" is worth more than "punchier".
+      tone({ freq: 660, type: 'square', decay: 0.08, peak: 0.13, slideTo: 990 });
+      noise({ duration: 0.04, peak: 0.14, frequency: 3200 });
       return;
     }
 
@@ -319,9 +322,11 @@ export function createAudio({
     const steps = Math.max(streakCount - 1, 0);
     const shift = Math.min(1 + steps * pitchStepPerClick, pitchCeiling);
 
-    noise({ duration: 0.03, peak: 0.32, frequency: 2600 * shift, q: 0.7 });
-    tone({ freq: 180 * shift, type: 'square', decay: 0.05, peak: 0.12 });
-    tone({ freq: 1320 * shift, type: 'sine', decay: 0.055, peak: 0.14 });
+    // Same ~30% trim as the fallback above, split across the three stacked
+    // layers so the relative balance (thunk vs. body vs. ding) is unchanged.
+    noise({ duration: 0.03, peak: 0.22, frequency: 2600 * shift, q: 0.7 });
+    tone({ freq: 180 * shift, type: 'square', decay: 0.05, peak: 0.085 });
+    tone({ freq: 1320 * shift, type: 'sine', decay: 0.055, peak: 0.1 });
 
     duckMusic();
   }

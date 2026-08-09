@@ -162,7 +162,7 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
   }
   requestAnimationFrame(publishGadgetHeight);
 
-  nodes.nudge.addEventListener('click', (event) => {
+  function applyNudge(event) {
     const amount = game.nudge();
     spawnFloater(event, `+${formatNumber(amount)}`);
     // Rewind rather than remove/reflow/re-add: reading offsetWidth to restart an
@@ -184,6 +184,36 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
       spawnBubbles(nodes.nudge.getBoundingClientRect());
       spawnRipple(event.clientX, event.clientY);
     }
+  }
+
+  /**
+   * Touch and pen go through `pointerdown`, not `click`.
+   *
+   * A `click` is synthesized from a touch only after the browser has decided
+   * the gesture was a tap — and that synthesis is keyed to a single touch
+   * sequence. Two fingers landing on the button close together (the standard
+   * "drum" technique players use on any mobile clicker to beat their own tap
+   * rate) are two independent touch points, but the browser reasons about
+   * them as one ambiguous multi-touch gesture on the same element and can
+   * drop the `click` for one or both — the exact "clicks stop registering
+   * with a second finger" report this fixes. Pointer Events give each finger
+   * its own `pointerId` and its own `pointerdown`, dispatched independently,
+   * so both register.
+   *
+   * `preventDefault()` here stops the browser's follow-up compatibility
+   * `click` for *this* touch, which is what keeps a tap from nudging twice.
+   * It has no effect on real mouse input — a mouse `click` is not synthesized
+   * from `pointerdown` — so the `click` listener below still owns the mouse
+   * and keyboard (Space/Enter on a focused button) paths untouched.
+   */
+  nodes.nudge.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'touch' && event.pointerType !== 'pen') return;
+    event.preventDefault();
+    applyNudge(event);
+  });
+
+  nodes.nudge.addEventListener('click', (event) => {
+    applyNudge(event);
   });
 
   /* ---------------------------------------------------------- ad offers */
