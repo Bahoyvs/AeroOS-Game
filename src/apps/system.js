@@ -1,6 +1,8 @@
 import { formatBytesMB, formatDuration, formatNumber } from '../core/format.js';
-import { DEFRAG } from '../data/balance.js';
+import { BREACH, DEFRAG } from '../data/balance.js';
 import { HARDWARE } from '../data/hardware.js';
+import { getUpgrade } from '../data/upgrades.js';
+import { ownedUpgradeIds } from '../core/upgrades.js';
 import { MOTION_LABELS, MOTION_MODES, systemPrefersReducedMotion } from './../ui/motion.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 
@@ -40,6 +42,16 @@ export function mount(body, { game, ads = null }) {
 
     <h4 class="sys__heading">Utilities</h4>
     <div class="sys__utility glass" data-role="defrag"></div>
+
+    <!--
+      The two Dollar sinks that are not hardware (v2 §5.2, GDD §C.5). They live
+      here rather than in a shop of their own because this is the window the
+      player already opens to spend Dollars — and both are permanent purchases
+      that outlive a Format C:, which is the thing every row on this page has in
+      common.
+    -->
+    <section class="sys__legacy" data-role="legacy"></section>
+    <section class="sys__incognito" data-role="incognito"></section>
 
     <h4 class="sys__heading">Display properties</h4>
     <div class="sys__display glass">
@@ -385,6 +397,135 @@ export function mount(body, { game, ads = null }) {
     ref('format').classList.toggle('is-ready', progress.pending > 0);
   }, 200);
 
+  /* --------------------------------------------- Legacy layer (v2 §5) */
+
+  /**
+   * The permanent multiplier and its slots.
+   *
+   * There is no "activate" button, and that is the design (patch §3): an
+   * earlier draft made the player re-buy the bonus after every wipe, which
+   * reads as a ritual on your first Format C: and as a chore on your fiftieth.
+   * The POST screen reports the level; this panel explains it.
+   */
+  let slotSignature = null;
+
+  function renderLegacy() {
+    const progress = game.legacy();
+    const slots = game.legacySlots();
+    const signature = `${progress.level}|${slots.slots.join(',')}|${slots.nextCost}|${slots.canBuy.ok}`;
+    if (signature === slotSignature) return;
+    slotSignature = signature;
+
+    const host = ref('legacy');
+    clear(host);
+    host.append(
+      el('div', { class: 'sys__legacy-head' }, [
+        el('strong', { text: `Legacy Level ${progress.level}` }),
+        el('small', { text: `+${Math.round((progress.multiplier - 1) * 100)}% production, permanently` }),
+      ]),
+      el('div', { class: 'meter__track' }, [
+        el('div', {
+          class: 'meter__fill',
+          style: `--fill:${progress.ratio}`,
+        }),
+      ]),
+      el('small', {
+        text:
+          progress.buzzNeeded > 0
+            ? `${formatNumber(progress.buzzNeeded)} more all-time Buzz for level ${progress.nextLevel}.`
+            : 'Next level reached.',
+      }),
+      el('h5', { class: 'sys__legacy-head', text: 'Legacy Slots' }),
+      el('small', {
+        text: 'Each slot carries one building upgrade through the next Format C:.',
+      }),
+    );
+
+    const list = el('ul', { class: 'sys__slots' });
+    slots.slots.forEach((slotted, index) => {
+      const select = el('select', {
+        'aria-label': `Legacy slot ${index + 1}`,
+        onchange: (e) => {
+          game.setLegacySlot(index, e.target.value || null);
+          slotSignature = null;
+        },
+      });
+      select.appendChild(el('option', { value: '', text: '— empty —' }));
+      // Only upgrades the player actually owns: a slot pointing at something
+      // unbought would carry nothing and quietly waste a $250 purchase.
+      for (const id of ownedUpgradeIds(game.state)) {
+        const upgrade = getUpgrade(id);
+        if (!upgrade) continue;
+        const option = el('option', { value: id, text: upgrade.name });
+        if (slotted === id) option.selected = true;
+        select.appendChild(option);
+      }
+      list.appendChild(el('li', { class: 'sys__slot' }, [select]));
+    });
+    host.appendChild(list);
+
+    if (slots.nextCost !== null) {
+      host.appendChild(
+        el('button', {
+          type: 'button',
+          class: 'sys__buy',
+          disabled: slots.canBuy.ok ? null : '',
+          text: `Buy slot — $${slots.nextCost.toLocaleString()}`,
+          onclick: () => {
+            game.buyLegacySlot();
+            slotSignature = null;
+            renderLegacy();
+          },
+        }),
+      );
+    }
+  }
+
+  /* ------------------------------------------- Incognito Mode (GDD §C.5) */
+
+  let incognitoShown = null;
+
+  function renderIncognito() {
+    const status = game.breach();
+    if (status.incognito === incognitoShown) return;
+    incognitoShown = status.incognito;
+
+    const host = ref('incognito');
+    clear(host);
+    host.classList.toggle('is-owned', status.incognito);
+
+    if (status.incognito) {
+      host.append(
+        el('strong', { text: 'Incognito Mode — active' }),
+        el('p', {
+          text: `LemonWire, AdBar and IoT Botnet produce ${Math.round(BREACH.incognito.productionTax * 100)}% less. Nothing on the darknet can see this machine.`,
+        }),
+      );
+      return;
+    }
+
+    host.append(
+      el('strong', { text: 'Incognito Mode' }),
+      el('p', {
+        text: `Permanently silences Darknet Breach events. Costs ${Math.round(BREACH.incognito.productionTax * 100)}% of LemonWire, AdBar and IoT Botnet production.`,
+      }),
+      el('button', {
+        type: 'button',
+        class: 'sys__buy',
+        disabled: game.state.dollars >= game.incognitoCost ? null : '',
+        text: `Buy — $${game.incognitoCost}`,
+        onclick: () => {
+          const result = game.buyIncognito();
+          if (result.ok) {
+            game.notify('Incognito Mode', 'The darknet has lost interest in you.', 'success');
+          }
+          incognitoShown = null;
+          renderIncognito();
+        },
+      }),
+    );
+  }
+
   /* --------------------------------------------------------------- actions */
 
   ref('format').addEventListener('click', () => {
@@ -408,8 +549,16 @@ export function mount(body, { game, ads = null }) {
   const slot = ads?.banner(ref('banner-slot'));
   bannerFrame.hidden = !slot?.ok;
 
+  renderLegacy();
+  renderIncognito();
   update();
-  const unsubscribe = game.bus.on(game.events.TICK, update);
+  const unsubscribe = game.bus.on(game.events.TICK, () => {
+    update();
+    // Both panels early-out on an unchanged signature, so this is a string
+    // compare per tick rather than a rebuild.
+    renderLegacy();
+    renderIncognito();
+  });
   return () => {
     unsubscribe();
     slot?.clear();

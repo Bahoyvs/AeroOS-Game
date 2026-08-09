@@ -367,6 +367,72 @@ the full diagnosis and plan; what shipped:
 `src/ui/ads.js`) once the basic launch is approved, and read the metrics again
 after 3–7 days per GROWTH.md §5.
 
+## Economy v2 + retention systems ✅ shipped
+
+The economy redesign (`aeroos-economy-redesign-refactor-plan-v2.md` and its
+UI/safety patch) and the depth/retention GDD, built together because the GDD's
+four systems all hang off the building layer the redesign introduces.
+
+**The building layer.** Twelve buildings replacing "six apps that happen to
+produce", each a thing you own N of on one shared price curve. Six are new:
+AdBar, VidChat, Registry Doctor, GeoPage, IoT Botnet and Cloud Mainframe — and
+IoT Botnet finally fills the `unlocksBotnet` CPU flag that had been sitting
+unused in `data/hardware.js` since Day 4.
+
+The structural change is that **production no longer depends on an open window**.
+That was the shipped behaviour and it made every building a chore to babysit.
+Windows now buy active participation instead, which is what they were always
+actually good at.
+
+**Three window footprints, not one.** AdBar, IoT Botnet and Cloud Mainframe never
+open a window — they are adware, a botnet and a rented datacentre, and they live
+in the system tray. That is period-correct *and* it caps the render load exactly
+where the roster gets deepest, which is the same problem from two directions.
+A five-window ceiling backs it up: opening a sixth retires the least-recently
+used one to the taskbar rather than refusing.
+
+**Upgrades with a double gate.** Buzz *and* a unit count, with the unit
+requirement printed while it is unmet. The economy audit's finding was that
+nothing showed the player what was next; this makes "visible but out of reach"
+the default state of the whole upgrade ladder rather than a hint bolted on top.
+
+**Legacy** replaces the v1 idea of feeding a permanent multiplier from Dollars —
+which would have put one currency in charge of both the shop and the forever
+bonus. It runs off its own all-time accumulator on a cubic curve, applies
+automatically (the POST screen reports it; there is no ritual to re-buy), and
+Legacy Slots carry one chosen upgrade through each wipe.
+
+**Darknet Breach** — a ratio the player builds, escalating over three phases,
+recoverable 3× faster than it escalates, and permanently silenceable with
+Incognito Mode for anyone who does not want a horror game. It can take Buzz; it
+can never touch permanent progress. Surviving one the hard way unlocks the
+"Salvaged System" tint, which is also the game's only dark theme — a cosmetic
+unlock, per the charter, rather than a default.
+
+**Five mini-games** on the five buildings whose themes fit, gated behind their
+tier-3 upgrade, all funnelling through one `applyMinigameReward()` so no game can
+quietly become the best Buzz-per-minute in the run. The phase-3 breach reuses
+Shield99's Firewall Defence engine rather than adding a sixth.
+
+**Achievements** are first-party because they have to be: CrazyGames has no
+achievement API. Twenty-eight badges, derived from state rather than stored, with
+only two real SDK hooks behind them — `happytime()` on three curated moments and
+`reportGameCompletedPercentage()` behind a step gate. Four of the badges target
+the D1/D7 gap GROWTH.md identified.
+
+**The visual charter is a test.** `tests/aeroCharter.test.js` runs the GDD's
+banned-element list against the source, so "no pills, no Material shadows, no
+thin fonts, no dark default" is enforced rather than reviewed.
+
+**DoD:** `npm run check` green (544 tests + build), and the desktop, tray
+popovers, mini-games, breach phases 1-3 and the achievements window verified in
+a real browser at 1280×800 and 390×844. ✅
+
+**Still open:** the emoji debt. The apps that predate the charter use ~29 of
+them; the test holds the line at "no new files, list may only shrink", but
+redrawing those glyphs as period-correct icon art is the remaining half of
+GDD §G phase 6.
+
 ## Backlog (post-week)
 
 Cloud saves, achievements, buddy-list events with named characters, seasonal wallpapers,

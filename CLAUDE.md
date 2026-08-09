@@ -15,6 +15,20 @@ most "missing" apps are scheduled, not forgotten.
   (constants) — not inline in a UI module.
 - New persisted fields need a default in `createInitialState()`; only bump `SAVE_VERSION`
   when an existing field changes meaning, and add a migration when you do.
+- Buildings produce whether or not their window is open. An open window buys *active
+  participation* (playlists, seed slots, scans), and that pays through the buff system.
+- A building upgrade multiplies its own building only. The global chain is hardware and
+  Legacy — adding to it needs a very good reason.
+- Anything a building's output depends on has to appear in `getProductionBreakdown()`.
+  A multiplier the player cannot see does not exist for them.
+- Mini-game rewards go through `applyMinigameReward()`: a timed, building-scoped buff.
+  Never a permanent multiplier and never raw Buzz.
+- The Darknet Breach may take Buzz. It may never touch `lifetimeBuzz`, `allTimeBuzz` or
+  `dollarsEarnedTotal`.
+- The Vista/7 visual charter is enforced by `tests/aeroCharter.test.js`, not by review.
+  New files must be emoji-free; the debt list in that test may only shrink.
+- 7.css styles bare `button`, including `:focus` at specificity (0,1,1). A control with a
+  semantic colour needs its focus/hover states written out, or it turns Aero blue on click.
 - Two clocks, deliberately: things that should keep running while the tab is closed (buffs,
   offline earnings, autosave) use `Date.now()`; things that should only advance while the
   player is watching (status events) take `dt`. Pick one on purpose — see ARCHITECTURE.md.

@@ -44,6 +44,22 @@ export const EVENTS = {
   OUT_OF_MEMORY: 'system:oom', // { id, needed, free }
   BOT_BOUGHT: 'chat:bot', // { count, cost }
   MILESTONE: 'chat:milestone', // { at, multiplier }
+  UNITS_BOUGHT: 'building:units', // { id, count, cost, building }
+  UPGRADE_BOUGHT: 'building:upgrade', // { upgrade, cost }
+  SYNERGY_APPLIED: 'building:synergy', // { source, target, upgrade? }
+  LEGACY_LEVEL: 'legacy:level', // { from, to }
+  LEGACY_SLOT: 'legacy:slot', // { slots, cost }
+  BREACH_PHASE: 'breach:phase', // { from, to }
+  BREACH_POPUP: 'breach:popup', // { popup }
+  BREACH_FULL: 'breach:full', // {} — the phase-3 full-screen event is armed
+  BREACH_RESOLVED: 'breach:resolved', // { outcome, lost, reward?, dollars? }
+  ROGUE_SPAWNED: 'breach:rogue', // { rogue }
+  ROGUE_TERMINATED: 'breach:terminated', // { id, buzz }
+  INCOGNITO_BOUGHT: 'breach:incognito', // { cost }
+  MINIGAME_UNLOCKED: 'minigame:unlocked', // { id }
+  MINIGAME_ENDED: 'minigame:ended', // { buildingId, score, perfect, magnitude }
+  ACHIEVEMENT: 'achievement:unlocked', // { achievement }
+  COMPLETION_REPORT: 'portal:completion', // { percent } — feeds the SDK hook
   STATUS_SPAWNED: 'status:spawned', // { index, bonusId, expiresAt }
   STATUS_MISSED: 'status:missed', // { index, bonusId }
   STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }

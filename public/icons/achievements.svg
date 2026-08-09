@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="acCup" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff6c8"/><stop offset=".4" stop-color="#f6cf49"/>
+      <stop offset=".6" stop-color="#dfa310"/><stop offset="1" stop-color="#9a6a03"/>
+    </linearGradient>
+    <linearGradient id="acBase" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a9754a"/><stop offset="1" stop-color="#5c3a1e"/>
+    </linearGradient>
+    <filter id="acShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="1" flood-color="#3a2a00" flood-opacity=".55"/>
+    </filter>
+  </defs>
+  <g filter="url(#acShadow)">
+    <path d="M8 4h16v7a8 8 0 0 1-16 0z" fill="url(#acCup)" stroke="#7d5602" stroke-width="1.1" stroke-linejoin="round"/>
+    <path d="M8 6H5.5a4.5 4.5 0 0 0 4.5 6" fill="none" stroke="#9a6a03" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M24 6h2.5a4.5 4.5 0 0 1-4.5 6" fill="none" stroke="#9a6a03" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M10 5.5h5v6a5.5 5.5 0 0 1-5-4z" fill="#fff" fill-opacity=".38"/>
+    <rect x="14" y="18.5" width="4" height="4" fill="url(#acBase)"/>
+    <rect x="9" y="22.5" width="14" height="4.5" rx="1.2" fill="url(#acBase)" stroke="#40270f" stroke-width="1"/>
+    <path d="M10 23.4h12" stroke="#fff" stroke-opacity=".35" stroke-width="1"/>
+  </g>
+</svg>

@@ -139,6 +139,9 @@ describe('the goal tracker', () => {
     const covered = new Set(GOALS.map((goal) => goal.id));
     for (const app of APPS) {
       if (app.install.cost === 0) continue;
+      // `beyondCoach` apps are surfaced by the v2 building roster instead — see
+      // the note on the flag in data/apps.js, and on CLOSING_GOAL.
+      if (app.beyondCoach) continue;
       expect(covered.has(`install-${app.id}`)).toBe(true);
     }
   });

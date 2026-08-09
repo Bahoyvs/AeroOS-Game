@@ -14,8 +14,14 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     clear(iconRoot);
     for (const app of ALL_APPS) {
       if (!game.state.apps[app.id]?.installed) continue;
-      // My Computer stays hidden until the first bottleneck reveals hardware.
-      if (app.system && !game.state.tutorial.hardwareRevealed) continue;
+      /**
+       * My Computer stays hidden until the first bottleneck reveals hardware
+       * (GDD 7). Keyed off an explicit flag rather than off `system`, because
+       * the Achievements window is also a system app and has nothing to do
+       * with hardware — gating it here would hide the badge list from exactly
+       * the new players its first badges are written for.
+       */
+      if (app.hiddenUntilHardware && !game.state.tutorial.hardwareRevealed) continue;
 
       const icon = el(
         'button',

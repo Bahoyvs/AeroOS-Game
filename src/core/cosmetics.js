@@ -33,6 +33,15 @@ function measure(state, unlock) {
         have: state.dollarsSpentTotal ?? 0,
         requirement: `$${unlock.at.toFixed(2)} spent on hardware`,
       };
+    case 'breachSurvived':
+      return {
+        at: unlock.at,
+        have: state.event?.survived ?? 0,
+        requirement:
+          unlock.at === 1
+            ? 'fighting off a full Darknet Breach'
+            : `${unlock.at} Darknet Breaches fought off`,
+      };
     default:
       return { at: 0, have: 1, requirement: 'included' };
   }

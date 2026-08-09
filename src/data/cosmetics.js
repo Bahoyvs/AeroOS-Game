@@ -24,6 +24,12 @@ export const UNLOCK = {
   lifetimeBuzz: (at) => ({ kind: 'lifetimeBuzz', at }),
   prestige: (at) => ({ kind: 'prestige', at }),
   dollarsSpent: (at) => ({ kind: 'dollarsSpent', at }),
+  /**
+   * Breaches fought off and won (GDD §C.4). Monotonic like the rest —
+   * `event.survived` only ever counts up, and it survives a Format C: — so it
+   * is safe to derive an unlock from, same as the others.
+   */
+  breachSurvived: (at) => ({ kind: 'breachSurvived', at }),
 };
 
 /**
@@ -60,6 +66,23 @@ export const TINTS = [
     blurb: 'Warm plastic and a low orange sun. Peak 2006.',
     swatch: 'linear-gradient(160deg, #ffd9a3, #f0762c 58%, #8c2f0a)',
     unlock: UNLOCK.dollarsSpent(20),
+  },
+  /**
+   * The trophy for seeing off a full Darknet Breach (GDD §C.4) — a permanent
+   * badge that costs the economy nothing.
+   *
+   * It is also the *only* dark theme in the game, and deliberately so: the
+   * visual charter (GDD §A.1) says Aero's default is bright glass and that a
+   * dark option must be an unlock rather than the default. Earning it by
+   * fighting off an intrusion is a better story than a toggle in a settings
+   * panel, and it means nobody meets it before they have met the light one.
+   */
+  {
+    id: 'salvaged',
+    label: 'Salvaged System',
+    blurb: 'Phosphor green on black. You kept the machine; it kept the scars.',
+    swatch: 'linear-gradient(160deg, #9dffc0, #1d7a44 58%, #04150b)',
+    unlock: UNLOCK.breachSurvived(1),
   },
 ];
 

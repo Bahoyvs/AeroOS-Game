@@ -1,6 +1,8 @@
 import { LEMONWIRE, SAVE } from '../data/balance.js';
 import { hasApp } from '../data/apps.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { hasFile } from '../data/files.js';
+import { hasUpgrade } from '../data/upgrades.js';
 import { SAVE_VERSION, createInitialState } from './state.js';
 
 /**
@@ -137,6 +139,76 @@ const MIGRATIONS = {
       version: 3,
     };
   },
+
+  /**
+   * 3 -> 4: the building layer (v2 §2).
+   *
+   * Every economic app became a thing you own N of. Existing saves own none of
+   * anything — except AeroChat, whose units were already `chat.bots` and are
+   * left exactly where they are (redesign decision #3). Installed-ness is
+   * untouched: an app the player bought is still installed, they simply have no
+   * units in it yet, which is the honest reading of a save from before units
+   * existed.
+   */
+  3: (data) => {
+    const buildings = { ...(data.buildings ?? {}) };
+    for (const building of BUILDINGS) {
+      if (building.unitsFrom) continue;
+      if (!buildings[building.id]) buildings[building.id] = { units: 0 };
+    }
+    return {
+      ...data,
+      buildings,
+      upgrades: data.upgrades ?? { owned: {} },
+      version: 4,
+    };
+  },
+
+  /**
+   * 4 -> 5: the Legacy layer (v2 §5.1, §7).
+   *
+   * `allTimeBuzz` starts from the save's `lifetimeBuzz` rather than from zero.
+   * Anything else would take a permanent multiplier away from players who had
+   * already earned it — the one migration outcome that is worse than not
+   * shipping the feature.
+   */
+  4: (data) => ({
+    ...data,
+    allTimeBuzz: data.allTimeBuzz ?? data.lifetimeBuzz ?? 0,
+    legacy: data.legacy ?? { level: 0, slots: [] },
+    version: 5,
+  }),
+
+  /**
+   * 5 -> 6: the retention systems (GDD §E) — achievements, Darknet Breach,
+   * mini-game records and the portal reporting cursor.
+   *
+   * All four are additive and start empty, so this step only has to *exist*
+   * (`withDefaults` fills the shapes). It is written out rather than folded into
+   * the defaults pass because `breachPhase` must start at 0 for a returning
+   * player: waking up mid-breach on a save that never had one is not a
+   * migration, it is an ambush.
+   */
+  5: (data) => ({
+    ...data,
+    achievements: data.achievements ?? { unlocked: {} },
+    event: {
+      riskRatioHistory: [],
+      nextSampleIn: 0,
+      aboveSeconds: 0,
+      breachPhase: 0,
+      rogueProcesses: [],
+      popups: [],
+      nextSpawnIn: 0,
+      phase3: null,
+      survived: 0,
+      incognitoModeOwned: false,
+      ...(data.event ?? {}),
+    },
+    minigames: data.minigames ?? {},
+    crazyGames: data.crazyGames ?? { lastReportedCompletion: 0 },
+    version: 6,
+  }),
 };
 
 export function migrate(data) {
@@ -180,6 +252,18 @@ export function deserialize(raw, now = Date.now()) {
    */
   for (const id of Object.keys(state.apps)) {
     if (!hasApp(id)) delete state.apps[id];
+  }
+
+  /**
+   * The same grenade, one layer down. A retired upgrade id left in `owned` would
+   * be looked up by `getUpgrade()` on every production frame, and a slot
+   * pointing at one would re-grant it forever after each Format C:.
+   */
+  for (const id of Object.keys(state.upgrades?.owned ?? {})) {
+    if (!hasUpgrade(id)) delete state.upgrades.owned[id];
+  }
+  if (Array.isArray(state.legacy?.slots)) {
+    state.legacy.slots = state.legacy.slots.map((id) => (id && hasUpgrade(id) ? id : null));
   }
 
   // Windows never survive a reload as "open with no window on screen".

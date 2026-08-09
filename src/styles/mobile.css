@@ -394,3 +394,130 @@
     display: none;
   }
 }
+/**
+ * PDA mode for the v2/GDD systems (GDD §F).
+ *
+ * The rule the whole section serves: **no new system may be a desktop-only
+ * citizen**. Each block below is one of §F's named requirements, in order.
+ *
+ * The breakpoint is duplicated in `src/ui/windowManager.js` (`mobileQuery`) —
+ * change both together.
+ */
+@media (max-width: 820px) {
+  /* --- Tray buildings become the PocketPC-style status strip (§F, item 1) --- */
+  .tray-buildings {
+    gap: 4px;
+  }
+
+  .tray-building {
+    /* 44px, like every other touch target. The desktop's 28px tray is a
+       mouse-precision size and does not survive contact with a thumb. */
+    width: 44px;
+    height: 44px;
+  }
+
+  .tray-building__icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .tray-building__badge {
+    font-size: 0.6rem;
+  }
+
+  /* A popover, never a full-screen sheet: tray buildings have no window on the
+     desktop either, and the two modes must agree about what they are. */
+  .tray-popover {
+    left: 8px !important;
+    width: calc(100vw - 16px) !important;
+    max-height: 60vh;
+  }
+
+  /* --- Mini-games: one thumb, portrait (§F, item 2) --- */
+  .minigame {
+    padding: 0;
+  }
+
+  .minigame__frame {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+  }
+
+  .minigame__stage {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  /* Bigger still on a touchscreen — the desktop size assumes a mouse. */
+  .mg-fire__threat {
+    width: 56px;
+    height: 56px;
+  }
+
+  .mg-frag {
+    width: min(320px, 92vw);
+  }
+
+  .mg-tug input[type='range'] {
+    height: 56px;
+  }
+
+  .mg-sync__tap,
+  .mg-burn__stop {
+    width: 100%;
+    min-height: 64px;
+  }
+
+  /* --- Rogue processes: hunted with a thumb (§F, item 3) --- */
+  .breach-rogue {
+    min-width: 64px;
+    min-height: 64px;
+  }
+
+  .breach-popup {
+    width: min(260px, 78vw);
+  }
+
+  /* The phase-3 takeover has to work in portrait, where two side-by-side
+     buttons become two cramped ones. Stack them and put "Fight back" first —
+     it is the better outcome and the one a thumb reaches. */
+  .breach-full__actions {
+    display: flex;
+    flex-direction: column-reverse;
+  }
+
+  .breach-full__panel {
+    padding: 14px;
+  }
+
+  /* --- Achievements: single column list on a phone (§F, item 4) --- */
+  .ach__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ach__head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .ach__progress {
+    max-width: none;
+  }
+
+  /* --- Building panels stay usable in a full-screen sheet --- */
+  .bpanel__buy-btn {
+    min-height: 52px;
+    font-size: 0.78rem;
+  }
+
+  .bpanel__upgrade-buy {
+    min-width: 76px;
+    min-height: 44px;
+  }
+}

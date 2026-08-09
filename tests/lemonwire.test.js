@@ -75,13 +75,21 @@ describe('what a slot earns', () => {
     expect(econ.seedRate(fibre, 'anime', 0)).toBeCloseTo(econ.seedRate(dialup, 'anime', 0) * faster);
   });
 
-  it('only earns while the window is open', () => {
+  // Filling a slot *is* the active decision (v2 patch §1.1). Having made it, the
+  // swarm does not stop uploading because the player alt-tabbed — so seeds pay
+  // whether or not the window is open, like every other building.
+  it('keeps earning with the window closed', () => {
     const s = wired();
     seed(s, 'battlefront');
-    expect(econ.seedBuzzPerSecond(s, 0)).toBeGreaterThan(0);
+    const open = econ.seedBuzzPerSecond(s, 0);
+    expect(open).toBeGreaterThan(0);
 
     s.apps.lemonwire.open = false;
-    expect(econ.seedBuzzPerSecond(s, 0)).toBe(0);
+    expect(econ.seedBuzzPerSecond(s, 0)).toBeCloseTo(open);
+  });
+
+  it('earns nothing with no files in the slots', () => {
+    expect(econ.seedBuzzPerSecond(wired(), 0)).toBe(0);
   });
 
   it('lands in the production total, so global multipliers apply to it', () => {

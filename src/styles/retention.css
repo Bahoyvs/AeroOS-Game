@@ -1,0 +1,1614 @@
+/**
+ * The v2 economy and retention systems (GDD §A) — building panels, tray
+ * buildings, mini-games, the Darknet Breach and the achievements window.
+ *
+ * Every rule here obeys the visual charter in GDD §A.1, which is a hard list
+ * rather than a mood board. In practice that means:
+ *
+ * - Gradient fills and `--emboss` bevels, never flat colour and never a soft
+ *   Material drop shadow. Surfaces have a thickness.
+ * - Rounded-rectangle buttons at ~3-4px, never pills.
+ * - Segoe UI / Tahoma with bold hierarchy, never a thin sans.
+ * - Glass over blur, never neumorphism.
+ * - No emoji anywhere in the chrome; glyphs are CSS-drawn.
+ *
+ * Nothing in this file invents a colour: the tokens are in `tokens.css` and the
+ * palettes in `themes.css`, so a tint swap reaches all of this for free.
+ */
+
+/**
+ * Two things 7.css does to every `button`, corrected once here rather than
+ * rediscovered by each control below.
+ *
+ * **1. `min-width: 75px`** — the genuine Windows dialog button width, exactly
+ * right for the OK/Cancel pairs it was written for and wrong for a 28px tray
+ * icon, a puzzle tile or a close box.
+ *
+ * **2. `button:focus` repaints the background Aero blue.** That is the correct
+ * default for the shell's grey buttons, and wrong for the handful of controls
+ * that carry a *semantic* colour — a gold "play", a red "close", a green
+ * "repair". Since `button:focus` is (0,1,1) it beats a bare class, and focus
+ * persists after a click, so without this a gold button turns blue the first
+ * time it is pressed and stays that way.
+ */
+.bpanel .bpanel__play:focus,
+.bpanel .bpanel__play:hover:not(:disabled),
+.minigame .mg-burn__stop:focus,
+.minigame .mg-burn__stop:hover {
+  background-image: linear-gradient(180deg, #fff3c4 0%, #ffd977 46%, #f0b93b 54%, #ffe9a8 100%);
+  border: 1px solid #a97c14;
+}
+
+.minigame .minigame__close:focus,
+.minigame .minigame__close:hover,
+.breach-layer .breach-popup__close:focus,
+.breach-layer .breach-popup__close:hover {
+  background-image: linear-gradient(180deg, #ffd7d2, #e06b5e 55%, #9e2418);
+  border: 1px solid #7d1a10;
+}
+
+.app-registry .rd__repair:focus,
+.app-registry .rd__repair:hover {
+  background-image: linear-gradient(180deg, #d4ffd9 0%, #7ede8e 46%, #3fae56 54%, #d0ffd9 100%);
+  border: 1px solid #2b7a3c;
+}
+
+.tray-building,
+.tray-popover__close,
+.minigame__close,
+.breach-popup__close,
+.mg-frag__tile,
+.breach-rogue,
+.bpanel__buy-btn,
+.bpanel__upgrade-buy {
+  min-width: 0;
+}
+
+/* ==================================================== the building panel */
+
+.bpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 0 0;
+}
+
+.app__building {
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid rgb(13 36 55 / 14%);
+}
+
+.bpanel__head {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 62%), rgb(255 255 255 / 22%));
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-soft);
+}
+
+.bpanel__owned,
+.bpanel__rate {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.bpanel__rate {
+  text-align: right;
+}
+
+.bpanel__owned strong,
+.bpanel__rate strong {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.bpanel__owned small,
+.bpanel__rate small {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+}
+
+/* ------------------------------------------------------------ buy buttons */
+
+.bpanel__buy {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.bpanel__buy-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  align-items: center;
+  /* 44px minimum touch target (GDD §F) — this is the control a phone player
+     presses more than any other after the Nudge button. */
+  min-height: 44px;
+  padding: 5px 4px;
+  font-size: 0.72rem;
+  color: var(--text);
+  cursor: pointer;
+  background: linear-gradient(180deg, #fdfefe 0%, #dfe9f2 48%, #cbd9e6 52%, #eef4f9 100%);
+  border: 1px solid #7d94a8;
+  /* Aero's rounded rectangle. Not a pill — see the charter. */
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.bpanel__buy-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fff 0%, #e8f4fd 48%, #d4e8fa 52%, #f4fbff 100%);
+  border-color: #4b90c4;
+}
+
+/* Hover is decoration; `:active` is the contract a touchscreen actually has. */
+.bpanel__buy-btn:active:not(:disabled) {
+  background: linear-gradient(180deg, #c3d6e6 0%, #d8e6f2 50%, #eaf3fa 100%);
+  box-shadow: var(--emboss-well-light);
+}
+
+.bpanel__buy-btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.bpanel__buy-step {
+  font-weight: 700;
+}
+
+.bpanel__buy-cost {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.bpanel__lock {
+  padding: 6px 8px;
+  margin: 0;
+  font-size: 0.78rem;
+  background: rgb(255 214 130 / 30%);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-well-light);
+}
+
+/* -------------------------------------------------------------- breakdown */
+
+.bpanel__breakdown {
+  font-size: 0.78rem;
+}
+
+.bpanel__breakdown summary {
+  padding: 3px 0;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.bpanel__breakdown ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  margin: 4px 0 0;
+  list-style: none;
+  background: rgb(255 255 255 / 34%);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-well-light);
+}
+
+.bpanel__breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bpanel__breakdown b {
+  font-variant-numeric: tabular-nums;
+}
+
+.bpanel__breakdown li:last-child {
+  padding-top: 3px;
+  margin-top: 2px;
+  font-weight: 700;
+  border-top: 1px solid rgb(13 36 55 / 18%);
+}
+
+/* --------------------------------------------------------------- upgrades */
+
+.bpanel__heading {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.7;
+}
+
+.bpanel__upgrades {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.bpanel__upgrade {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 55%), rgb(255 255 255 / 20%));
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-soft);
+}
+
+.bpanel__upgrade-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.bpanel__upgrade-text strong {
+  font-size: 0.84rem;
+}
+
+.bpanel__upgrade-text small {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+/* The visible-but-unaffordable requirement (v2 §6). It is the loudest thing on
+   a locked row on purpose: it is the goal. */
+.bpanel__req {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  font-style: normal;
+  font-weight: 700;
+  color: #8a5a00;
+}
+
+.bpanel__upgrade.is-gated {
+  opacity: 0.72;
+  filter: saturate(0.7);
+}
+
+.bpanel__upgrade.is-owned {
+  background: linear-gradient(180deg, rgb(198 240 200 / 60%), rgb(150 210 155 / 28%));
+}
+
+.bpanel__upgrade-buy {
+  flex: none;
+  min-width: 68px;
+  min-height: 32px;
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fdfefe 0%, #dfe9f2 48%, #cbd9e6 52%, #eef4f9 100%);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.bpanel__upgrade-buy:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.bpanel__owned-tick {
+  flex: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #1c6b28;
+}
+
+.bpanel__empty {
+  padding: 8px;
+  font-size: 0.78rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+/* -------------------------------------------------------- mini-game launcher */
+
+.bpanel__minigame {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bpanel__play {
+  min-height: 44px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fff3c4 0%, #ffd977 46%, #f0b93b 54%, #ffe9a8 100%);
+  border: 1px solid #a97c14;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.bpanel__play:disabled {
+  cursor: default;
+  filter: grayscale(0.7);
+  opacity: 0.55;
+}
+
+.bpanel__play-note {
+  font-size: 0.7rem;
+  text-align: center;
+  opacity: 0.68;
+}
+
+/* ================================================= tray buildings (§A.3) */
+
+.tray-buildings {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.tray-building {
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* The tray is dense, but a 28px hit area is unusable on a phone; mobile.css
+     grows this to 44px rather than letting the desktop size leak through. */
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+.tray-building:hover,
+.tray-building[aria-expanded='true'] {
+  background: linear-gradient(180deg, rgb(255 255 255 / 45%), rgb(255 255 255 / 12%));
+  border-color: rgb(255 255 255 / 55%);
+  box-shadow: var(--emboss-soft);
+}
+
+.tray-building__icon {
+  width: 16px;
+  height: 16px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 45%));
+}
+
+/* Three CSS-drawn tray glyphs — no image requests for icons this small. */
+.tray-building[data-building='adbar'] .tray-building__icon {
+  background-image: linear-gradient(180deg, #ffe9a8, #e08c14 60%, #a35c05);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%), inset 0 -1px 2px rgb(0 0 0 / 35%);
+}
+
+.tray-building[data-building='iotbotnet'] .tray-building__icon {
+  background-image: radial-gradient(circle at 50% 40%, #7dffb0, #14a04e 55%, #063d1e);
+  border-radius: 50%;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%), 0 0 6px rgb(60 255 140 / 55%);
+}
+
+.tray-building[data-building='cloudmainframe'] .tray-building__icon {
+  background-image: linear-gradient(180deg, #dff6ff, #6fc0e8 55%, #24698f);
+  border-radius: 3px 3px 2px 2px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 75%), inset 0 -2px 3px rgb(0 0 0 / 30%);
+}
+
+.tray-building.is-idle .tray-building__icon {
+  filter: grayscale(0.85) opacity(0.55);
+}
+
+.tray-building__badge {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  padding: 0 3px;
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, #4aa3e0, #165c8c);
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------- popover */
+
+.tray-popover {
+  position: fixed;
+  z-index: 800;
+  max-height: min(70vh, 520px);
+  padding: 10px;
+  overflow-y: auto;
+  border-radius: var(--radius-md);
+  /**
+   * `.glass` alone is far too transparent for a panel of small text: over a
+   * bright wallpaper the palm trees read straight through the upgrade list.
+   * Aero's own flyouts did the same thing — a glass *frame* around an opaque
+   * content plate — so the tint goes on top of the blur rather than replacing
+   * it, and the glass edge and highlight survive.
+   */
+  background-color: rgb(238 246 252 / 92%);
+  background-image: var(--glass-bg);
+}
+
+.tray-popover__head {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tray-popover__head strong {
+  font-size: 0.95rem;
+}
+
+.tray-popover__close {
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fdfefe, #dfe9f2 50%, #cbd9e6);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+}
+
+.tray-popover__blurb {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  opacity: 0.72;
+}
+
+/* ========================================================== mini-games */
+
+.minigame {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgb(4 22 40 / 55%);
+  backdrop-filter: blur(3px);
+}
+
+.minigame__frame {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(460px, 100%);
+  max-height: 100%;
+  padding: 12px;
+  overflow: auto;
+  /* Same reasoning as the tray popover: a game needs a readable plate, not a
+     window onto the wallpaper. */
+  background-color: rgb(238 246 252 / 94%);
+  background-image: var(--glass-bg);
+}
+
+.minigame__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.minigame__head strong {
+  font-size: 1rem;
+}
+
+.minigame__close {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd7d2, #e06b5e 55%, #9e2418);
+  border: 1px solid #7d1a10;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.minigame__blurb {
+  margin: 0;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.minigame__stage {
+  min-height: 240px;
+  padding: 10px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 45%), rgb(255 255 255 / 15%));
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-well-light);
+}
+
+.minigame__timer .meter__fill {
+  background: linear-gradient(180deg, #b9f0ff, #37a4d8 55%, #16628c);
+}
+
+/* -------------------------------------------------- 1. bandwidth tug-of-war */
+
+.mg-tug {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mg-tug__lane {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mg-tug__label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.mg-tug__track {
+  position: relative;
+  height: 20px;
+  background: linear-gradient(180deg, #1d2f3d, #33505f);
+  border-radius: 3px;
+  box-shadow: var(--emboss-well);
+}
+
+.mg-tug__band {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(var(--pos) * 100%);
+  width: calc(var(--width) * 100%);
+  background: linear-gradient(180deg, #a8ffbe, #34b357);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 60%);
+  transform: translateX(-50%);
+}
+
+.mg-tug__band.is-hit {
+  background: linear-gradient(180deg, #fff6a8, #f3c53f);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%), 0 0 10px rgb(255 220 90 / 80%);
+}
+
+.mg-tug input[type='range'] {
+  width: 100%;
+  height: 44px; /* the touch target, not the visual track */
+  accent-color: #2b7fc4;
+}
+
+.mg-tug__score {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ------------------------------------------------------ 2. firewall defence */
+
+.mg-fire {
+  position: relative;
+  min-height: 240px;
+}
+
+.mg-fire__score {
+  margin: 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.mg-fire__threat {
+  position: absolute;
+  top: calc(var(--y) * 100%);
+  left: calc(var(--x) * 100%);
+  /* 44px, per the mobile rule. A whack-a-mole with 28px moles is a game about
+     the player's fingertip size rather than their reactions. */
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  background: radial-gradient(circle at 40% 32%, #ffd0c8, #d8452c 58%, #7c1408);
+  border: 1px solid #5e0f04;
+  border-radius: 50%;
+  box-shadow: inset 0 2px 3px rgb(255 255 255 / 45%), 0 2px 6px rgb(80 10 0 / 55%);
+  transform: translate(-50%, -50%);
+  animation: mg-threat-in 140ms var(--ease-aero);
+}
+
+@keyframes mg-threat-in {
+  from {
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+/* --------------------------------------------------- 3. fragmentation puzzle */
+
+.mg-frag {
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  gap: 5px;
+  width: min(280px, 100%);
+  margin: 0 auto;
+  aspect-ratio: 1;
+}
+
+.mg-frag__tile {
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fdfefe 0%, #dfe9f2 48%, #cbd9e6 52%, #eef4f9 100%);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.mg-frag__tile.is-home {
+  background: linear-gradient(180deg, #dcffe2 0%, #a7e6b4 50%, #7fd193 52%, #e8fff0 100%);
+  border-color: #3f8a52;
+}
+
+.mg-frag__gap {
+  background: rgb(20 40 58 / 25%);
+  border-radius: 3px;
+  box-shadow: var(--emboss-well);
+}
+
+.mg-frag__score {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+/* ---------------------------------------------------------- 4. latency sync */
+
+.mg-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.mg-sync__screen {
+  display: grid;
+  place-items: center;
+  width: min(220px, 70%);
+  aspect-ratio: 4 / 3;
+  background: linear-gradient(180deg, #223442, #0e1b25);
+  border: 2px solid #4d6577;
+  border-radius: 3px;
+  box-shadow: var(--emboss-well);
+}
+
+.mg-sync__screen.is-onbeat {
+  border-color: #6fe89a;
+}
+
+.mg-sync__screen.is-hit {
+  background: linear-gradient(180deg, #2f6a44, #14361f);
+}
+
+.mg-sync__pulse {
+  width: 40px;
+  height: 40px;
+  background: radial-gradient(circle, #a8f0ff, #2b8fc4 60%, transparent 72%);
+  border-radius: 50%;
+  transform: scale(calc(0.5 + var(--near, 0) * 1.1));
+}
+
+.mg-sync__tap {
+  width: min(220px, 70%);
+  min-height: 56px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fdfefe 0%, #dfe9f2 48%, #cbd9e6 52%, #eef4f9 100%);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.mg-sync__tap:active {
+  box-shadow: var(--emboss-well-light);
+}
+
+.mg-sync__score {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------- 5. perfect burn */
+
+.mg-burn {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.mg-burn__disc {
+  width: 92px;
+  height: 92px;
+  background:
+    radial-gradient(circle at 50% 50%, #f6f8fa 0 16%, transparent 16.5%),
+    conic-gradient(from 0deg, #cfe3f0, #a9d0e6, #e6d7f2, #cfe3f0, #b8dcc9, #cfe3f0);
+  border: 1px solid #7d94a8;
+  border-radius: 50%;
+  box-shadow: inset 0 0 12px rgb(255 255 255 / 60%), 0 2px 8px rgb(10 30 50 / 45%);
+}
+
+.mg-burn__disc.is-hit {
+  box-shadow: inset 0 0 14px rgb(255 255 255 / 80%), 0 0 18px rgb(120 255 160 / 85%);
+}
+
+.mg-burn__track {
+  position: relative;
+  width: 100%;
+  height: 26px;
+  background: linear-gradient(180deg, #1d2f3d, #33505f);
+  border-radius: 3px;
+  box-shadow: var(--emboss-well);
+}
+
+.mg-burn__band {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(var(--pos) * 100%);
+  width: calc(var(--width) * 100%);
+  background: linear-gradient(180deg, #a8ffbe, #34b357);
+  border-radius: 2px;
+  transform: translateX(-50%);
+}
+
+.mg-burn__head {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: calc(var(--pos) * 100%);
+  width: 4px;
+  background: linear-gradient(180deg, #fff, #ffd35a);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgb(255 210 90 / 90%);
+  transform: translateX(-50%);
+}
+
+.mg-burn__stop {
+  width: min(220px, 80%);
+  min-height: 56px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fff3c4 0%, #ffd977 46%, #f0b93b 54%, #ffe9a8 100%);
+  border: 1px solid #a97c14;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.mg-burn__score {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* ==================================================== Darknet Breach (§C) */
+
+.breach-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 300;
+  pointer-events: none;
+}
+
+.breach-layer > * {
+  pointer-events: auto;
+}
+
+/**
+ * Phase dressing. Keyed off one attribute on <html> so the escalation lives in
+ * the stylesheet, where `data-motion` has already resolved the player's own
+ * reduced-motion preference — a raw media query here would ignore it.
+ */
+[data-breach='1'] body,
+[data-breach='2'] body {
+  filter: saturate(0.9) contrast(1.03) hue-rotate(-4deg);
+}
+
+[data-breach='3'] body {
+  filter: saturate(0.6) contrast(1.1) hue-rotate(-10deg);
+}
+
+[data-breach='2'] .tray__clock,
+[data-breach='3'] .tray__clock {
+  animation: breach-jitter 3.4s steps(1) infinite;
+}
+
+@keyframes breach-jitter {
+  0%, 92%, 100% {
+    transform: none;
+  }
+  93% {
+    transform: translate(1px, -1px);
+  }
+  95% {
+    transform: translate(-1px, 1px);
+  }
+  97% {
+    transform: translate(1px, 1px);
+  }
+}
+
+[data-motion='reduced'] [data-breach] .tray__clock {
+  animation: none;
+}
+
+/* -------------------------------------------------------- phase 1 popups */
+
+.breach-popup {
+  position: absolute;
+  top: calc(var(--y) * 100%);
+  left: calc(var(--x) * 100%);
+  width: min(230px, 60vw);
+  border-radius: var(--radius-sm);
+}
+
+.breach-popup__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px 4px 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, #6aa6d8, #1d5c92);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+
+.breach-popup__close {
+  width: 44px;
+  height: 28px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffd7d2, #e06b5e 55%, #9e2418);
+  border: 1px solid #7d1a10;
+  border-radius: 3px;
+}
+
+.breach-popup__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  text-align: center;
+}
+
+.breach-popup__body strong {
+  font-size: 0.85rem;
+  color: #a8140b;
+}
+
+.breach-popup__body small {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+/* -------------------------------------------------- phase 2 rogue processes */
+
+.breach-rogue {
+  position: absolute;
+  top: calc(var(--y) * 100%);
+  left: calc(var(--x) * 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  /* Comfortably past 44px: these are hunted, not merely tapped, and a mouse
+     pointer's precision cannot be assumed on the device most players are on. */
+  min-width: 56px;
+  min-height: 56px;
+  padding: 4px;
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 35%, rgb(90 20 10 / 85%), rgb(20 4 2 / 92%));
+  border: 1px solid #8e2b18;
+  border-radius: 4px;
+  box-shadow: 0 0 14px rgb(230 60 30 / 55%), var(--emboss-soft);
+  animation: rogue-drift 5.5s ease-in-out infinite alternate;
+}
+
+.breach-rogue__glyph {
+  font-size: 1.2rem;
+  line-height: 1;
+  color: #ffb3a0;
+}
+
+.breach-rogue__name {
+  font-size: 0.58rem;
+  color: #ffd9d0;
+}
+
+@keyframes rogue-drift {
+  from {
+    transform: translate(-4px, -3px);
+  }
+  to {
+    transform: translate(5px, 4px);
+  }
+}
+
+[data-motion='reduced'] .breach-rogue {
+  animation: none;
+}
+
+/* ------------------------------------------------------ phase 3 full breach */
+
+.breach-full {
+  position: fixed;
+  inset: 0;
+  z-index: 9800;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow: auto;
+  color: #86ffa8;
+  background: #020a04;
+  font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+.breach-full__rain {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgb(120 255 160 / 9%) 0 2px,
+    transparent 2px 4px
+  );
+  animation: breach-rain 9s linear infinite;
+}
+
+@keyframes breach-rain {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: 400px;
+  }
+}
+
+[data-motion='reduced'] .breach-full__rain {
+  animation: none;
+}
+
+.breach-full__panel {
+  position: relative;
+  width: min(520px, 100%);
+  padding: 20px;
+  border: 1px solid #2f7a48;
+  box-shadow: 0 0 40px rgb(60 255 130 / 25%), inset 0 0 30px rgb(20 80 40 / 60%);
+}
+
+.breach-full__panel h2 {
+  margin: 0 0 8px;
+  font-size: clamp(1.1rem, 4.5vw, 1.5rem);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 12px rgb(120 255 160 / 70%);
+}
+
+.breach-full__lead {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.breach-full__stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 14px;
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+}
+
+.breach-full__stats dt {
+  opacity: 0.7;
+}
+
+.breach-full__stats dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.breach-full__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.breach-full__pay,
+.breach-full__fight {
+  min-height: 48px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+/**
+ * Both states are written out, because 7.css styles `button:focus` — and that
+ * is (0,1,1) against a bare class's (0,1,0), so it wins.
+ *
+ * That matters here more than anywhere else in the shell: the fight button is
+ * focused the moment the breach opens (it is the primary action, and a modal
+ * has to land focus somewhere), so *its focused appearance is the only one most
+ * players ever see*. Without these it renders in 7.css's default Aero blue in
+ * the middle of a phosphor-green takeover.
+ */
+/* 7.css also pulses a focused button indefinitely. That animation belongs to
+   its blue chrome; here it would strobe the primary action of a modal. */
+.breach-full button:focus {
+  animation: none;
+}
+
+.breach-full .breach-full__pay,
+.breach-full .breach-full__pay:focus,
+.breach-full .breach-full__pay:hover {
+  color: #cfe9d8;
+  background-image: linear-gradient(180deg, #1c3a26, #0d2114);
+  border: 1px solid #3f7a52;
+}
+
+.breach-full .breach-full__fight,
+.breach-full .breach-full__fight:focus,
+.breach-full .breach-full__fight:hover {
+  color: #04180b;
+  background-image: linear-gradient(180deg, #b9ffcf, #4ad07a 55%, #1f8a48);
+  border: 1px solid #86ffa8;
+}
+
+/* The focus ring still has to be visible — it is just green now, not blue. */
+.breach-full .breach-full__pay:focus-visible,
+.breach-full .breach-full__fight:focus-visible {
+  box-shadow: inset 0 0 0 2px #86ffa8;
+  outline: 1px dotted #04180b;
+  outline-offset: -4px;
+}
+
+.breach-full__note {
+  margin: 12px 0 0;
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
+/* ================================================ achievements window (§D) */
+
+.app-achievements {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ach__head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 60%), rgb(255 255 255 / 20%));
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-soft);
+}
+
+.ach__count strong {
+  display: block;
+  font-size: 1.2rem;
+}
+
+.ach__count small,
+.ach__progress small {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+}
+
+.ach__progress {
+  flex: 1;
+  max-width: 220px;
+}
+
+.ach__progress .meter__fill {
+  background: linear-gradient(180deg, #ffe9a8, #f0b93b 55%, #a97c14);
+}
+
+.ach__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ach__group-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.72;
+}
+
+.ach__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.ach__badge {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 52%), rgb(255 255 255 / 18%));
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-soft);
+}
+
+.ach__badge.is-locked {
+  filter: grayscale(0.9);
+  opacity: 0.55;
+}
+
+.ach__badge.is-unlocked {
+  background: linear-gradient(180deg, rgb(255 240 190 / 70%), rgb(240 200 100 / 28%));
+}
+
+.ach__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: linear-gradient(180deg, #fdfefe, #dfe9f2 50%, #cbd9e6);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+/* Category glyphs, drawn in CSS — the charter bans emoji, and four shapes do
+   not justify four image requests. */
+.ach__glyph {
+  width: 16px;
+  height: 16px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 65%);
+}
+
+.ach__glyph--milestone {
+  background: linear-gradient(180deg, #b9dcff, #2b7fc4);
+  border-radius: 2px;
+}
+
+.ach__glyph--collector {
+  background: linear-gradient(180deg, #ffd7f0, #c43aa0);
+  border-radius: 50%;
+}
+
+.ach__glyph--skill {
+  background: linear-gradient(180deg, #ffe9a8, #e08c14);
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.ach__glyph--retention {
+  background: linear-gradient(180deg, #c6f0c8, #2f8a44);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.ach__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.ach__text strong {
+  font-size: 0.8rem;
+}
+
+.ach__text small {
+  font-size: 0.68rem;
+  opacity: 0.75;
+}
+
+/* ================================================ v2 app chrome (§A.4) */
+
+/* ------------------------------------------------------------- VidChat */
+
+.app-vidchat .vc__stage {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #0b141b;
+  border: 2px solid #4d6577;
+  border-radius: 3px;
+  box-shadow: var(--emboss-well);
+}
+
+.app-vidchat .vc__remote {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 6px;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 40%),
+    linear-gradient(calc(var(--jitter, 0) * 360deg), #2b4d63, #7ba7c2 45%, #3d6a86);
+  /* The intentional low-fidelity webcam (GDD §A.4): pixel blocking and a hue
+     shift, done with filters over a gradient. No <video>, no decoder, no
+     per-frame cost — and more period-accurate than real footage would be. */
+  filter: contrast(1.15) saturate(0.85) blur(0.4px);
+  transform: translateX(calc(var(--shift, 0) * 1px));
+}
+
+.app-vidchat .vc__remote.is-offline {
+  background: repeating-linear-gradient(90deg, #1a2831 0 8px, #23343f 8px 16px);
+  filter: grayscale(1) brightness(0.6);
+}
+
+.app-vidchat .vc__noise {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-conic-gradient(
+    rgb(255 255 255 / 5%) 0% 25%,
+    transparent 0% 50%
+  );
+  background-size: 6px 6px;
+  mix-blend-mode: overlay;
+}
+
+.app-vidchat .vc__self {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 30%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: linear-gradient(160deg, #3c5f52, #16302a);
+  border: 1px solid rgb(255 255 255 / 55%);
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 55%);
+}
+
+.app-vidchat .vc__label {
+  position: relative;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  color: #eaf6ff;
+  background: rgb(6 20 30 / 70%);
+  border-radius: 2px;
+}
+
+.app-vidchat .vc__hud {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  color: #cfe9f7;
+  background: rgb(6 20 30 / 65%);
+  border-radius: 2px;
+}
+
+.app-vidchat .vc__dot {
+  width: 8px;
+  height: 8px;
+  background: #5c6a72;
+  border-radius: 50%;
+}
+
+.app-vidchat .vc__dot.is-live {
+  background: radial-gradient(circle, #b6ffcd, #2fbf5c);
+  box-shadow: 0 0 6px rgb(80 240 130 / 90%);
+}
+
+/* ------------------------------------------------------ Registry Doctor */
+
+.app-registry .rd__banner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #fff4f2, #ffd9d2);
+  border: 1px solid #c98b80;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.app-registry .rd__gauge {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.app-registry .rd__gauge .meter__track {
+  flex: 1;
+}
+
+.app-registry .rd__gauge strong {
+  font-size: 0.78rem;
+  color: #a8140b;
+  letter-spacing: 0.05em;
+}
+
+.app-registry .rd__found {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.app-registry .rd__found b {
+  color: #a8140b;
+}
+
+.app-registry .rd__list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  margin: 8px 0;
+  list-style: none;
+  background: rgb(255 255 255 / 45%);
+  border-radius: 3px;
+  box-shadow: var(--emboss-well-light);
+}
+
+.app-registry .rd__problem {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+
+.app-registry .rd__problem-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, #ffd45c, #d88a04);
+  border: 1px solid #8a5602;
+  border-radius: 2px;
+}
+
+.app-registry .rd__problem span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.app-registry .rd__problem strong {
+  font-size: 0.76rem;
+}
+
+.app-registry .rd__problem small {
+  font-family: 'Lucida Console', 'Courier New', monospace;
+  font-size: 0.65rem;
+  opacity: 0.65;
+}
+
+.app-registry .rd__repair {
+  width: 100%;
+  min-height: 48px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(180deg, #d4ffd9 0%, #7ede8e 46%, #3fae56 54%, #d0ffd9 100%);
+  border: 1px solid #2b7a3c;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.app-registry .rd__smallprint {
+  margin: 6px 0 0;
+  font-size: 0.66rem;
+  text-align: center;
+  opacity: 0.6;
+}
+
+/* -------------------------------------------------------------- GeoPage */
+
+.app-geopage .gp__browser {
+  overflow: hidden;
+  border: 1px solid #8c98aa;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.app-geopage .gp__chrome {
+  padding: 3px 6px;
+  background: linear-gradient(180deg, #f4f7fa, #d5dee8);
+  border-bottom: 1px solid #8c98aa;
+}
+
+.app-geopage .gp__url {
+  font-family: 'Lucida Console', 'Courier New', monospace;
+  font-size: 0.62rem;
+  opacity: 0.7;
+}
+
+.app-geopage .gp__page {
+  padding: 10px;
+  color: #10108a;
+  text-align: center;
+  background: #d8d8f0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgb(255 255 255 / 35%) 0 6px,
+    transparent 6px 12px
+  );
+}
+
+.app-geopage .gp__marquee {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #b0107a;
+}
+
+.app-geopage .gp__title {
+  margin: 6px 0;
+  font-family: 'Comic Sans MS', 'Trebuchet MS', cursive;
+  font-size: 1rem;
+  color: #d81b8c;
+  text-shadow: 1px 1px 0 #ffe94a;
+}
+
+.app-geopage .gp__construction {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #3a2a00;
+  background: repeating-linear-gradient(45deg, #ffd400 0 8px, #1a1a1a 8px 16px);
+  border: 1px solid #8a6a00;
+}
+
+.app-geopage .gp__construction span:last-child {
+  padding: 1px 4px;
+  background: #ffd400;
+}
+
+.app-geopage .gp__cone {
+  width: 0;
+  height: 0;
+  border-right: 6px solid transparent;
+  border-bottom: 12px solid #ff6a00;
+  border-left: 6px solid transparent;
+}
+
+.app-geopage .gp__body {
+  margin: 8px 0;
+  font-size: 0.72rem;
+}
+
+.app-geopage .gp__counter {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+}
+
+/* The odometer: mechanical digit cells, the way every hit counter looked. */
+.app-geopage .gp__odometer {
+  display: inline-flex;
+  gap: 1px;
+  padding: 2px;
+  background: #111;
+  border: 1px solid #555;
+}
+
+.app-geopage .gp__digit {
+  display: grid;
+  place-items: center;
+  width: 11px;
+  font-family: 'Lucida Console', 'Courier New', monospace;
+  font-size: 0.7rem;
+  font-style: normal;
+  color: #6cff8a;
+  background: linear-gradient(180deg, #1c1c1c, #050505);
+}
+
+/* ============================================ My Computer: legacy & opt-out */
+
+.sys__legacy,
+.sys__incognito {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  margin-top: 10px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 55%), rgb(255 255 255 / 18%));
+  border-radius: var(--radius-sm);
+  box-shadow: var(--emboss-soft);
+}
+
+.sys__legacy-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.sys__legacy-head strong {
+  font-size: 0.95rem;
+}
+
+.sys__legacy-head small {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.sys__legacy .meter__fill {
+  background: linear-gradient(180deg, #e8d0ff, #9a5cd8 55%, #5c2b8a);
+}
+
+.sys__slots {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sys__slot {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.sys__slot select {
+  flex: 1;
+  min-height: 36px;
+  font-family: inherit;
+  font-size: 0.76rem;
+  background: linear-gradient(180deg, #fdfefe, #e4edf4);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+}
+
+.sys__buy {
+  min-height: 44px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fdfefe 0%, #dfe9f2 48%, #cbd9e6 52%, #eef4f9 100%);
+  border: 1px solid #7d94a8;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.sys__buy:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.sys__incognito.is-owned {
+  background: linear-gradient(180deg, rgb(200 230 255 / 60%), rgb(150 190 230 / 26%));
+}
+
+.sys__incognito p {
+  margin: 0;
+  font-size: 0.74rem;
+  opacity: 0.78;
+}

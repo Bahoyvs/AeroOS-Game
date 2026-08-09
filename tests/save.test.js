@@ -11,6 +11,7 @@ import {
   serialize,
 } from '../src/core/save.js';
 import { SAVE_VERSION, createInitialState } from '../src/core/state.js';
+import { legacyLevel } from '../src/core/legacy.js';
 import { LEMONWIRE, SAVE, SWEEPER } from '../src/data/balance.js';
 
 describe('save round-trip', () => {
@@ -210,6 +211,74 @@ describe('resilience', () => {
     expect(loaded.buzz).toBe(500);
   });
 
+  /**
+   * The v3 -> v6 chain (v2 §7, §9 and GDD §E). A save from the shipped game has
+   * to walk three steps in order, and the one that actually carries data is
+   * 4 -> 5: `allTimeBuzz` must start from what the player already earned, or the
+   * Legacy layer would silently take a permanent multiplier away from everybody
+   * who was already playing.
+   */
+  describe('the v3 -> v6 migration chain', () => {
+    const v3Save = () =>
+      JSON.stringify({
+        version: 3,
+        buzz: 400,
+        lifetimeBuzz: 8_000_000,
+        chat: { bots: 42, event: null, nextEventIn: 0 },
+      });
+
+    it('walks every step and lands on the current version', () => {
+      expect(deserialize(v3Save(), 0).version).toBe(SAVE_VERSION);
+    });
+
+    it('seeds the Legacy accumulator from the save it already had', () => {
+      const loaded = deserialize(v3Save(), 0);
+      expect(loaded.allTimeBuzz).toBe(8_000_000);
+      // ...which is a real Legacy level, not a reset to zero.
+      expect(legacyLevel(loaded)).toBe(2);
+    });
+
+    it('gives every building a unit count without touching the buddies', () => {
+      const loaded = deserialize(v3Save(), 0);
+      expect(loaded.chat.bots).toBe(42);
+      // AeroChat's units live in chat.bots, so it gets no buildings entry.
+      expect(loaded.buildings.aerochat).toBeUndefined();
+      expect(loaded.buildings.lemonwire).toEqual({ units: 0 });
+      expect(loaded.buildings.cloudmainframe).toEqual({ units: 0 });
+    });
+
+    it('adds the retention slices empty, and emphatically not mid-breach', () => {
+      const loaded = deserialize(v3Save(), 0);
+      expect(loaded.achievements).toEqual({ unlocked: {} });
+      expect(loaded.upgrades).toEqual({ owned: {} });
+      expect(loaded.event.breachPhase).toBe(0);
+      expect(loaded.event.rogueProcesses).toEqual([]);
+      expect(loaded.event.incognitoModeOwned).toBe(false);
+      expect(loaded.crazyGames.lastReportedCompletion).toBe(0);
+    });
+
+    it('keeps the money and the progress it was already holding', () => {
+      const loaded = deserialize(v3Save(), 0);
+      expect(loaded.buzz).toBe(400);
+      expect(loaded.lifetimeBuzz).toBe(8_000_000);
+    });
+
+    it('drops an upgrade id the roster no longer has', () => {
+      const loaded = deserialize(
+        JSON.stringify({
+          version: SAVE_VERSION,
+          upgrades: { owned: { 'retroamp.t1': true, 'pinball.t1': true } },
+          legacy: { level: 0, slots: ['pinball.t1', 'retroamp.t1'] },
+        }),
+        0,
+      );
+      expect(loaded.upgrades.owned['retroamp.t1']).toBe(true);
+      expect(loaded.upgrades.owned['pinball.t1']).toBeUndefined();
+      // A slot pointing at a retired upgrade is emptied, not left to re-grant it.
+      expect(loaded.legacy.slots).toEqual([null, 'retroamp.t1']);
+    });
+  });
+
   it('clears minimized flags so no window is restored off-screen', () => {
     const raw = serialize({
       ...createInitialState(0),
@@ -273,7 +342,11 @@ describe('portal storage limits', () => {
   it('accepts a payload just under the limit', () => {
     const storage = createMemoryStorage();
     const state = createInitialState(0);
-    state.chat.note = 'x'.repeat(MAX_SAVE_BYTES - 2000);
+    // Padded against the *actual* serialised size rather than a fixed guess:
+    // the base state grew when the building and upgrade layers landed, and a
+    // hard-coded headroom figure is a test that breaks every time it does.
+    const headroom = MAX_SAVE_BYTES - serialize(state).length - 200;
+    state.chat.note = 'x'.repeat(headroom);
     expect(saveGame(state, storage)).toBe(true);
   });
 });

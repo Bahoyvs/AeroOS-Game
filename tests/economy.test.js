@@ -63,9 +63,19 @@ describe('chat bots', () => {
 });
 
 describe('production', () => {
-  it('produces nothing while AeroChat is closed', () => {
+  // Buildings produce whether or not their window is open (v2 patch §1.1). The
+  // shipped behaviour was the opposite and the change is deliberate: a building
+  // is a thing you own, not a thing you babysit. What an open window buys now is
+  // active participation — status bonuses, playlists, seeds — and those still
+  // pay only while somebody is there.
+  it('produces while AeroChat is closed', () => {
     const s = stateWith({ chat: { bots: 10 } });
-    expect(econ.baseBuzzPerSecond(s)).toBe(0);
+    expect(s.apps.aerochat.open).toBe(false);
+    expect(econ.baseBuzzPerSecond(s)).toBeCloseTo(10 * CHAT_BOT.baseRate);
+  });
+
+  it('produces nothing with no units anywhere', () => {
+    expect(econ.baseBuzzPerSecond(createInitialState(0))).toBe(0);
   });
 
   it('scales with bots when AeroChat is open', () => {
@@ -285,12 +295,14 @@ describe('rate breakdown', () => {
     expect(bd.total).toBeCloseTo(bd.base, 0);
   });
 
-  it('reports zero while AeroChat is closed', () => {
+  it('keeps producing while AeroChat is closed, and says the window is shut', () => {
     const s = producing(10);
     s.apps.aerochat.open = false;
     const bd = econ.rateBreakdown(s, 0);
+    // `open` is still reported because the window state drives what the app
+    // itself can offer (status events); it no longer gates production.
     expect(bd.open).toBe(false);
-    expect(bd.total).toBe(0);
+    expect(bd.total).toBeGreaterThan(0);
   });
 });
 

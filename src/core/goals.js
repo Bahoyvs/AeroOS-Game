@@ -112,7 +112,9 @@ export const GOALS = [
     progress: (state) => (state.dollars > 0 ? 1 : 0),
     detail: (state) => `$${state.dollars.toFixed(2)} banked`,
   },
+  installGoal('vidchat', 'Video calls pay per channel, and they never stop paying.'),
   installGoal('aerosweeper', 'Sweep squares, bank a multiplier, spend it on the Nudge button.'),
+  installGoal('registrydoctor', 'Sell the cure for a problem you are also selling.'),
   installGoal('aeroburn', 'Burn Buzz onto a disc that survives the next Format C:.'),
   installGoal('aerostudio', 'The longest render in the game, and the biggest single payout.'),
 ];

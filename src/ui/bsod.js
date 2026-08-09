@@ -112,6 +112,20 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
           <div><dt>Format C: count</dt><dd>${summary.prestigeCount}</dd></div>
           <div><dt>Memory</dt><dd>${summary.ramMB} MB OK</dd></div>
         </dl>
+        ${
+  /**
+   * The Legacy line (v2 patch §3.1).
+   *
+   * The permanent multiplier applies automatically — an earlier draft made
+   * the player re-buy it every run, which is a ritual the first time and a
+   * chore the fiftieth. But automatic must not mean invisible, and the POST
+   * screen is exactly the right place to say so: it is already the beat where
+   * the machine reports what it woke up as.
+   */
+  summary.legacyLevel > 0
+    ? `<p class="bsod__legacy">Restoring system profile… <b>Legacy Level ${summary.legacyLevel}</b> applied (+${Math.round((summary.legacyMultiplier - 1) * 100)}% production)</p>`
+    : ''
+}
         <p class="bsod__hint">Starting AeroOS…</p>
       </div>
     `;

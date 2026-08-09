@@ -92,6 +92,58 @@ export const APPS = [
     window: { width: 340, height: 560 },
     blurb: 'Push your luck. Every safe square multiplies the Nudge button.',
   },
+
+  /**
+   * The v2 roster's three new *Full Window* buildings (patch §1.2). The other
+   * three newcomers — AdBar, IoT Botnet and Cloud Mainframe — are deliberately
+   * absent: they are Tray buildings, they never open a window, and they are
+   * rendered by `src/ui/tray.js` instead. That is the whole point of the
+   * category, so giving them an entry here would quietly undo it.
+   *
+   * Install costs are a small gate on top of the unit price, exactly as they
+   * were for the shipped six. What actually paces these apps is the unit curve.
+   */
+  {
+    id: 'vidchat',
+    name: 'VidChat',
+    icon: 'icons/vidchat.svg',
+    day: 9,
+    ram: 128,
+    install: { cost: 250_000, unlockAt: 4_000 },
+    window: { width: 400, height: 470 },
+    blurb: 'Webcam calls at fifteen frames a second. Every one of them pays.',
+  },
+  {
+    id: 'registrydoctor',
+    name: 'Registry Doctor',
+    icon: 'icons/registrydoctor.svg',
+    day: 9,
+    ram: 96,
+    install: { cost: 3_000_000, unlockAt: 6_500 },
+    window: { width: 420, height: 480 },
+    blurb: 'Found 4,197 problems on this computer. Fixing them is not free.',
+  },
+  {
+    id: 'geopage',
+    name: 'GeoPage',
+    icon: 'icons/geopage.svg',
+    day: 9,
+    ram: 112,
+    /**
+     * Deliberately outside the onboarding coach (`core/goals.js`).
+     *
+     * The goal chain ends on a hand-off precisely because a queue whose final
+     * card is orders of magnitude past every card before it stops reading as a
+     * queue — see the note on `CLOSING_GOAL`. GeoPage's install price is four
+     * orders of magnitude past Aero Studio's, so pointing the coach at it would
+     * reintroduce exactly the bug that note describes. The building roster is
+     * what surfaces it, which is the job v2 §6 gives the roster.
+     */
+    beyondCoach: true,
+    install: { cost: 5_000_000_000, unlockAt: 25_000 },
+    window: { width: 430, height: 490 },
+    blurb: 'Personal homepages. Under construction, forever.',
+  },
 ];
 
 /** Always-available system windows. Not part of the RAM budget. */
@@ -103,8 +155,25 @@ export const SYSTEM_APPS = [
     day: 1,
     ram: 0,
     system: true,
+    // Revealed by the first memory bottleneck, per the scripted tour (GDD 7).
+    hiddenUntilHardware: true,
     window: { width: 380, height: 400 },
     blurb: 'Hardware, Buzz rate, and the Format C: button.',
+  },
+  /**
+   * The achievements window (GDD §D.3) is a system app, not a purchase: it is
+   * a view onto progress the player already has, and charging RAM for looking
+   * at your own trophies would be a strange thing to model.
+   */
+  {
+    id: 'achievements',
+    name: 'Achievements',
+    icon: 'icons/achievements.svg',
+    day: 9,
+    ram: 0,
+    system: true,
+    window: { width: 460, height: 520 },
+    blurb: 'Every badge, earned and unearned.',
   },
 ];
 

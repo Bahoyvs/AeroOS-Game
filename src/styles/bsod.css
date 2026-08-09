@@ -56,6 +56,20 @@
 }
 
 /* The prompt only appears once clicking actually skips (see SKIP_GRACE_MS). */
+/**
+ * The Legacy line on the POST screen (patch §3.1). Phosphor green against the
+ * BIOS grey, because it is the one line on this screen that is good news.
+ */
+.bsod__legacy {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: #9dffc0;
+}
+
+.bsod__legacy b {
+  color: #d8ffe6;
+}
+
 .bsod__hint {
   margin: 24px 0 0;
   font-size: 0.7rem;

@@ -1,4 +1,5 @@
 import { ALL_APPS } from '../data/apps.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { LEMONWIRE, SWEEPER } from '../data/balance.js';
 import { DEFAULT_COSMETICS } from '../data/cosmetics.js';
 import { carryDiscsThroughPrestige } from './aeroburn.js';
@@ -7,7 +8,7 @@ import { carryDiscsThroughPrestige } from './aeroburn.js';
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
  * cannot satisfy, and add a migration in src/core/save.js.
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 6;
 
 /** Apps the player boots with on a fresh install. */
 const PREINSTALLED = new Set(['system', 'aerochat']);
@@ -22,6 +23,23 @@ export function createInitialState(now = Date.now()) {
     };
   }
 
+  /**
+   * Unit counts for the building layer (v2 §2). AeroChat is absent on purpose:
+   * its units are `chat.bots` and stay there, so there is exactly one place a
+   * buddy count can be written. `core/buildings.js` resolves which is which
+   * from the roster's `unitsFrom`, so nothing else needs to know.
+   */
+  const buildings = {};
+  for (const building of BUILDINGS) {
+    if (building.unitsFrom) continue;
+    buildings[building.id] = { units: 0 };
+  }
+
+  const minigames = {};
+  for (const building of BUILDINGS) {
+    minigames[building.id] = { bestScore: 0, timesPlayed: 0, lastPlayedAt: 0 };
+  }
+
   return {
     version: SAVE_VERSION,
     username: null, // set on boot from CrazyGames or randomly if guest
@@ -30,6 +48,13 @@ export function createInitialState(now = Date.now()) {
     buzz: 0,
     lifetimeBuzz: 0, // never reset; drives Format C: payout
     runBuzz: 0, // reset on prestige; drives unlocks within a run
+    /**
+     * The Legacy accumulator (v2 §5.1). It tracks `lifetimeBuzz` today, but it
+     * is deliberately a *separate* field: `lifetimeBuzz` is the input to the
+     * Dollar payout curve and may one day want to be run-scoped, whereas this
+     * one can never be reset without silently deleting permanent progress.
+     */
+    allTimeBuzz: 0,
     dollars: 0,
     dollarsEarnedTotal: 0, // never reset; prestige pays out the difference
     // ...and never reset either: what has been *spent* on hardware and
@@ -50,6 +75,25 @@ export function createInitialState(now = Date.now()) {
       event: null,
       nextEventIn: 0, // rolled on the first tick with AeroChat open
     },
+
+    /** Building unit counts (v2 §2). AeroChat's live in `chat.bots` above. */
+    buildings,
+
+    /**
+     * Purchased upgrades (v2 §4), as a flat id set. A set rather than a
+     * per-building nesting because Legacy Slots address upgrades by id, and
+     * because "is this owned" is the only question anything ever asks.
+     */
+    upgrades: { owned: {} },
+
+    /**
+     * The Legacy layer (v2 §5, patch §3). `level` is a *cache* of the derived
+     * value — `core/legacy.js` recomputes it from `allTimeBuzz` — kept only so
+     * the tick can notice a level-up and say so. `slots` holds upgrade ids that
+     * survive a Format C:; there is no `restoreActivatedThisRun`, because the
+     * multiplier now applies automatically (patch §3.1).
+     */
+    legacy: { level: 0, slots: [] },
 
     // LemonWire seeds instead of downloading: a file in a slot pays Buzz for as
     // long as it is shared. `maxSeedSlots` is the *base* count — the effective
@@ -162,6 +206,48 @@ export function createInitialState(now = Date.now()) {
      */
     cosmetics: { ...DEFAULT_COSMETICS, seen: [] },
 
+    /**
+     * Achievements (GDD §D). Only the unlock timestamps are stored — whether a
+     * badge is *earnable* is a predicate over ordinary state, evaluated fresh
+     * every tick in `core/achievements.js`, so re-tuning a threshold never needs
+     * a migration and a badge can never get stuck.
+     */
+    achievements: { unlocked: {} },
+
+    /**
+     * Darknet Breach (GDD §C).
+     *
+     * `riskRatioHistory` is a short rolling window so a phase transition tracks
+     * the shape of a run rather than a single sampled instant; `aboveSeconds` is
+     * the escalation clock that history feeds. `rogueProcesses` and `popups` are
+     * live entities and are dropped by a Format C:, but `survived` and
+     * `incognitoModeOwned` are not: one is a lifetime tally behind a badge, the
+     * other was bought with Dollars.
+     */
+    event: {
+      riskRatioHistory: [],
+      nextSampleIn: 0,
+      aboveSeconds: 0,
+      breachPhase: 0, // 0 = clear, 1-3 = active phase
+      rogueProcesses: [], // [{ id, bornAt }]
+      popups: [], // [{ id, kind }] — phase 1's harmless nuisance
+      nextSpawnIn: 0,
+      phase3: null, // { startedAt } while the full-screen event is on screen
+      survived: 0, // lifetime count of breaches seen off
+      incognitoModeOwned: false,
+    },
+
+    /**
+     * Mini-games (GDD §B). `unlocked` is deliberately *not* stored: it is
+     * `upgrades.owned[<building>.t3]`, and duplicating it would be a second
+     * source of truth that a Legacy Slot could put out of step. Only the
+     * lifetime records live here.
+     */
+    minigames,
+
+    /** Portal reporting (GDD §D.3), so the SDK is never called twice for one number. */
+    crazyGames: { lastReportedCompletion: 0 },
+
     // Session bookkeeping
     stats: {
       nudges: 0,
@@ -169,6 +255,16 @@ export function createInitialState(now = Date.now()) {
       bonusesClaimed: 0,
       bonusesMissed: 0,
       threatsBlocked: 0,
+      minigamesPlayed: 0,
+      perfectMinigames: 0,
+      /**
+       * Retention bookkeeping for the "come back" badges (GDD §D.2). All three
+       * are wall-clock facts about real days, which is exactly what those
+       * achievements are about — see `core/achievements.js`.
+       */
+      lastPlayDay: 0, // UTC day index of the last session
+      dayStreak: 0,
+      longestAwayHours: 0,
     },
     lastSeen: now,
     startedAt: now,
@@ -220,6 +316,19 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
   carryDiscsThroughPrestige(state, fresh);
 
   /**
+   * Legacy Slots (v2 §5.2) are re-granted here, and this is the only place an
+   * upgrade is ever handed out without being paid for. The slots themselves
+   * were bought with Dollars, so what survives the wipe is the *purchase of the
+   * privilege*, not the run's progress — the same reasoning that lets hardware
+   * and Auto-Defrag through. Filtering against the roster keeps a save that
+   * names a retired upgrade from resurrecting it.
+   */
+  const carriedUpgrades = {};
+  for (const id of state.legacy?.slots ?? []) {
+    if (id && state.upgrades?.owned?.[id]) carriedUpgrades[id] = true;
+  }
+
+  /**
    * ...and so does the burner itself, which is the one exception to "all
    * software is wiped". A CD drive is part of the machine, and without it the
    * discs would be unreachable until the player re-earned its install cost —
@@ -250,6 +359,29 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
      */
     ads: { ...state.ads, formatBoost: false },
     lifetimeBuzz: state.lifetimeBuzz,
+    /**
+     * The Legacy accumulator and everything derived from it. This is the one
+     * layer a Format C: exists to feed, so wiping it would make prestige a
+     * strictly losing move.
+     */
+    allTimeBuzz: state.allTimeBuzz ?? state.lifetimeBuzz ?? 0,
+    legacy: { ...state.legacy, slots: [...(state.legacy?.slots ?? [])] },
+    upgrades: { owned: carriedUpgrades },
+    /** Badges are permanent by definition, and so is the tally behind them. */
+    achievements: { unlocked: { ...(state.achievements?.unlocked ?? {}) } },
+    /**
+     * The breach system resets to calm — a fresh machine has no rogue processes
+     * on it — but not the two facts that were not part of this run: the opt-out
+     * the player paid Dollars for, and how many breaches they have seen off.
+     */
+    event: {
+      ...fresh.event,
+      incognitoModeOwned: state.event?.incognitoModeOwned === true,
+      survived: state.event?.survived ?? 0,
+    },
+    /** Best scores are records, not progress. */
+    minigames: { ...state.minigames },
+    crazyGames: { ...state.crazyGames },
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
     aeroburn: fresh.aeroburn,

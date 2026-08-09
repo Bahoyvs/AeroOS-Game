@@ -5,8 +5,10 @@
 @import './desktop.css';
 @import './window.css';
 @import './apps.css';
+@import './retention.css';
 @import './bsod.css';
 @import './ads.css';
+/* Last, so the PDA overrides win without having to out-specify anything. */
 @import './mobile.css';
 
 *,

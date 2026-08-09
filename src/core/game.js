@@ -1,4 +1,4 @@
-import { ADS, CHAT_BOT, CLICK, DEFRAG, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { ADS, BREACH, CHAT_BOT, CLICK, DEFRAG, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { getCD } from '../data/cds.js';
@@ -15,6 +15,13 @@ import * as defrag from './defrag.js';
 import * as lw from './lemonwire.js';
 import * as shield from './shield99.js';
 import * as sweeper from './sweeper.js';
+import * as buildings from './buildings.js';
+import * as upgrades from './upgrades.js';
+import * as legacy from './legacy.js';
+import * as breach from './breach.js';
+import * as minigames from './minigames.js';
+import * as achievements from './achievements.js';
+import { BUILDINGS as BUILDING_LIST, getBuilding } from '../data/buildings.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
 import { defaultStorage, loadGame, saveGame } from './save.js';
@@ -44,6 +51,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     state.buzz += amount;
     state.runBuzz += amount;
     state.lifetimeBuzz += amount;
+    // The Legacy accumulator (v2 §5.1). Every path that pays Buzz goes through
+    // here, which is exactly why it is the right place to feed it — a permanent
+    // multiplier that misses a payout source would drift forever.
+    state.allTimeBuzz = (state.allTimeBuzz ?? 0) + amount;
     bus.emit(EVENTS.BUZZ_GAINED, { amount, source });
   }
 
@@ -60,6 +71,13 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     state.chat.event = null;
     state.chat.nextEventIn = 0;
     resumeTutorial(state);
+
+    /**
+     * The habit badges (GDD §D.2) are measured here, before anything else has a
+     * chance to move the clock: how long the player was away, and whether this
+     * is a new day on their login streak.
+     */
+    achievements.noteSession(state, result.elapsedSeconds, now);
 
     const offline = econ.offlineEarnings(state, result.elapsedSeconds, now);
     if (offline.buzz > 0) {
@@ -173,14 +191,68 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       ejectPlaylist('burnt-out');
     }
 
+    /**
+     * The Darknet Breach clock (GDD §C). Simulation time, not wall clock: a
+     * player who shuts the tab for a week must not come back to a machine that
+     * has been quietly robbed in their absence. See ARCHITECTURE.md on the two
+     * clocks — this is firmly in the "only while somebody is watching" camp.
+     */
+    for (const item of breach.updateBreach(state, dt, rng, now)) {
+      if (item.type === 'phase') {
+        bus.emit(EVENTS.BREACH_PHASE, { from: item.from, to: item.to });
+        save();
+      } else if (item.type === 'rogue') {
+        bus.emit(EVENTS.ROGUE_SPAWNED, { rogue: item.rogue });
+      } else if (item.type === 'popup') {
+        bus.emit(EVENTS.BREACH_POPUP, { popup: item.popup });
+      } else if (item.type === 'phase3') {
+        bus.emit(EVENTS.BREACH_FULL, {});
+        save();
+      }
+    }
+
+    // A Legacy level-up is silent otherwise — it is a background accumulator
+    // with no purchase attached, so this is the only moment it can announce
+    // itself (patch §3: automatic, but never invisible).
+    const level = legacy.legacyLevel(state);
+    if (level !== state.legacy.level) {
+      const from = state.legacy.level;
+      state.legacy.level = level;
+      if (level > from) bus.emit(EVENTS.LEGACY_LEVEL, { from, to: level });
+      save();
+    }
+
     if (shouldRevealHardware(state, econ.ramUsed(state), econ.ramCapacity(state))) {
       noticeBottleneck();
     }
     checkTutorial();
     announceCosmetics();
+    checkAchievements(now);
 
     if (now - lastSaveAt >= SAVE.autosaveMs) save();
     bus.emit(EVENTS.TICK, { state, dt });
+  }
+
+  /**
+   * Award anything just earned, and tell the portal how far along the player is.
+   *
+   * Both halves are cheap by construction: the predicates are ~30 comparisons
+   * over numbers already in memory, and `completionToReport` returns null until
+   * the figure has actually moved five points, so the SDK call site downstream
+   * fires a handful of times across an entire playthrough rather than per tick.
+   */
+  function checkAchievements(now = Date.now()) {
+    const fresh = achievements.evaluateAchievements(state, now);
+    for (const achievement of fresh) {
+      bus.emit(EVENTS.ACHIEVEMENT, { achievement });
+    }
+    if (fresh.length > 0) save();
+
+    const percent = achievements.completionToReport(state);
+    if (percent !== null) {
+      achievements.markCompletionReported(state, percent);
+      bus.emit(EVENTS.COMPLETION_REPORT, { percent });
+    }
   }
 
   /* -------------------------------------------------------------- actions */
@@ -250,27 +322,227 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true };
   }
 
-  /** Buy chat buddies — the core spending sink (AO-9). */
-  function buyBots(amount = 1) {
-    const { count, cost } = econ.affordableBots(state, amount);
-    if (count === 0) {
-      const reason = state.chat.bots >= CHAT_BOT.maxPerRun ? 'buddy-list-full' : 'too-expensive';
-      return { ok: false, reason };
+  /**
+   * Buy units of a building (v2 §2) — the economy's main spending sink.
+   *
+   * One action for all twelve, including AeroChat: the price curve is shared
+   * (patch §2.1) and so is the max-per-run rail, so a second code path would
+   * only be a second place for them to drift apart.
+   *
+   * A purchase that changes another building's output says so (patch §4.2). A
+   * synergy the player cannot see is a synergy that, for them, does not exist.
+   */
+  function buyBuildingUnits(id, amount = 1) {
+    const milestonesBefore = id === 'aerochat' ? econ.chatMilestoneCount(state) : 0;
+    const result = buildings.buyUnits(state, id, amount);
+    if (!result.ok) return result;
+
+    const building = getBuilding(id);
+    bus.emit(EVENTS.UNITS_BOUGHT, { id, count: result.count, cost: result.cost, building });
+    if (id === 'aerochat') {
+      bus.emit(EVENTS.BOT_BOUGHT, { count: result.count, cost: result.cost });
+      // Crossing a milestone is the reason to buy in bulk, so it is announced.
+      if (econ.chatMilestoneCount(state) > milestonesBefore) {
+        bus.emit(EVENTS.MILESTONE, {
+          at: econ.chatMilestoneCount(state) * CHAT_BOT.milestoneEvery,
+          multiplier: econ.chatMilestoneMultiplier(state),
+        });
+      }
     }
 
-    const milestonesBefore = econ.chatMilestoneCount(state);
-    state.buzz -= cost;
-    state.chat.bots += count;
-    bus.emit(EVENTS.BOT_BOUGHT, { count, cost });
+    for (const partner of buildings.synergyPartnersOf(state, id)) {
+      bus.emit(EVENTS.SYNERGY_APPLIED, { source: id, target: partner });
+    }
 
-    // Crossing a milestone is the reason to buy in bulk, so it gets announced.
-    if (econ.chatMilestoneCount(state) > milestonesBefore) {
-      bus.emit(EVENTS.MILESTONE, {
-        at: econ.chatMilestoneCount(state) * CHAT_BOT.milestoneEvery,
-        multiplier: econ.chatMilestoneMultiplier(state),
+    save();
+    return result;
+  }
+
+  /**
+   * One row per building for the roster UI, already resolved.
+   *
+   * Locked buildings are included on purpose — that is the visibility hook
+   * (v2 §6). The player is meant to see Cloud Mainframe sitting greyed out with
+   * its requirement printed under it for a very long time before they can touch
+   * it.
+   */
+  function buildingRows() {
+    const now = Date.now();
+    return BUILDING_LIST.map((building) => {
+      const unlocked = buildings.isBuildingUnlocked(state, building.id);
+      const owned = buildings.unitsOf(state, building.id);
+      return {
+        ...building,
+        unlocked,
+        lock: buildings.lockReason(state, building.id),
+        units: owned,
+        maxed: owned >= building.maxPerRun,
+        cost: buildings.unitCost(building.id, owned),
+        affordable: state.buzz >= buildings.unitCost(building.id, owned),
+        production: buildings.buildingProduction(state, building.id, now),
+        breakdown: econ.getProductionBreakdown(state, building.id, now),
+        upgrades: upgrades.upgradeRows(state, building.id),
+        minigame: minigames.hasMinigame(building.id)
+          ? {
+            unlocked: minigames.isMinigameUnlocked(state, building.id),
+            cooldownSeconds: minigames.minigameCooldownLeft(state, building.id, now),
+            config: minigames.minigameConfig(building.id),
+          }
+          : null,
+      };
+    });
+  }
+
+  /** Buy chat buddies (AO-9). AeroChat's units, under their original name. */
+  function buyBots(amount = 1) {
+    const result = buyBuildingUnits('aerochat', amount);
+    if (!result.ok && result.reason === 'maxed') {
+      return { ok: false, reason: 'buddy-list-full' };
+    }
+    return result;
+  }
+
+  /**
+   * Buy a building upgrade (v2 §4). The double gate — Buzz *and* a unit count —
+   * is enforced in `core/upgrades.js`; this only announces the result.
+   */
+  function buyBuildingUpgrade(upgradeId) {
+    const result = upgrades.buyUpgrade(state, upgradeId);
+    if (!result.ok) return result;
+
+    bus.emit(EVENTS.UPGRADE_BOUGHT, { upgrade: result.upgrade, cost: result.cost });
+    // A synergy upgrade is the one purchase whose whole point is elsewhere.
+    if (result.upgrade.effect.kind === 'synergy') {
+      bus.emit(EVENTS.SYNERGY_APPLIED, {
+        source: result.upgrade.effect.major,
+        target: result.upgrade.effect.minor,
+        upgrade: result.upgrade,
       });
     }
-    return { ok: true, count, cost };
+    if (minigames.hasMinigame(result.upgrade.buildingId) && minigames.isMinigameUnlocked(state, result.upgrade.buildingId)) {
+      bus.emit(EVENTS.MINIGAME_UNLOCKED, { id: result.upgrade.buildingId });
+    }
+    save();
+    return result;
+  }
+
+  /* --------------------------------------------------------------- legacy */
+
+  /** Buy another Legacy Slot (v2 §5.2) — the second Dollar sink. */
+  function buyLegacySlot() {
+    const result = legacy.buySlot(state);
+    if (result.ok) {
+      bus.emit(EVENTS.LEGACY_SLOT, { slots: result.slots, cost: result.cost });
+      announceCosmetics();
+      save();
+    }
+    return result;
+  }
+
+  /** Point a slot at the upgrade it should carry through the next wipe. */
+  function setLegacySlot(index, upgradeId) {
+    const result = legacy.assignSlot(state, index, upgradeId);
+    if (result.ok) save();
+    return result;
+  }
+
+  /* ------------------------------------------------------- Darknet Breach */
+
+  /**
+   * Kill a rogue process (GDD §C.3, phase 2). Pays a lump sized by current
+   * production, so checking in on a breached desktop is rewarded rather than
+   * merely damage-limiting.
+   */
+  function terminateRogue(id) {
+    const now = Date.now();
+    const result = breach.popRogue(state, id, econ.buzzPerSecond(state, now));
+    if (!result.ok) return result;
+
+    grantBuzz(result.buzz, 'rogue-process');
+    bus.emit(EVENTS.ROGUE_TERMINATED, { id, buzz: result.buzz });
+    save();
+    return result;
+  }
+
+  function dismissBreachPopup(id) {
+    return breach.closePopup(state, id);
+  }
+
+  /**
+   * Answer the full-screen breach (GDD §C.3, phase 3).
+   *
+   * `outcome` is 'ransom' (pay and it ends), 'fought' (the reaction game was
+   * won) or 'lost' (it was not). Fighting and winning is the best result and
+   * losing is the worst, which is what makes the choice a real one.
+   */
+  function resolveBreach(outcome) {
+    const now = Date.now();
+    const result = breach.resolveBreach(state, outcome);
+    if (!result.ok) return result;
+
+    if (outcome === 'fought') {
+      const reward = econ.buzzPerSecond(state, now) * BREACH.phase3.fightRewardSeconds;
+      grantBuzz(reward, 'breach');
+      state.dollars += BREACH.phase3.fightDollars;
+      addBuff(
+        state,
+        {
+          id: 'breach-victory',
+          kind: 'global',
+          magnitude: BREACH.phase3.fightBuffMagnitude,
+          durationSeconds: BREACH.phase3.fightBuffSeconds,
+          label: 'Counter-Attack',
+          source: 'breach',
+        },
+        now,
+      );
+      result.reward = reward;
+      result.dollars = BREACH.phase3.fightDollars;
+    }
+
+    bus.emit(EVENTS.BREACH_RESOLVED, result);
+    checkAchievements(now);
+    save();
+    return result;
+  }
+
+  /** Buy the opt-out (GDD §C.5). Permanent, priced, and it silences everything. */
+  function buyIncognito() {
+    const result = breach.buyIncognito(state);
+    if (result.ok) {
+      bus.emit(EVENTS.INCOGNITO_BOUGHT, { cost: result.cost });
+      checkAchievements();
+      save();
+    }
+    return result;
+  }
+
+  /* ------------------------------------------------------------ mini-games */
+
+  function canPlayMinigame(id) {
+    return minigames.canPlayMinigame(state, id, Date.now());
+  }
+
+  /**
+   * Bank a mini-game round (GDD §B).
+   *
+   * Every one of the five funnels through here, and through the one reward
+   * function underneath it — which is what guarantees the economic rule holds:
+   * a timed bonus scoped to that building, never a permanent multiplier and
+   * never raw Buzz.
+   */
+  function finishMinigame(id, result) {
+    const now = Date.now();
+    const check = minigames.canPlayMinigame(state, id, now);
+    if (!check.ok) return check;
+
+    const reward = minigames.applyMinigameReward(state, id, result, now);
+    if (!reward.ok) return reward;
+
+    bus.emit(EVENTS.MINIGAME_ENDED, reward);
+    checkAchievements(now);
+    save();
+    return reward;
   }
 
   /* ------------------------------------------------------------- RetroAmp */
@@ -909,6 +1181,43 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     closeApp,
     installApp,
     buyBots,
+
+    /* ------------------------------------------- v2 economy: buildings */
+    buyBuildingUnits,
+    buyBuildingUpgrade,
+    units: (id) => buildings.unitsOf(state, id),
+    unitCost: (id) => buildings.unitCost(id, buildings.unitsOf(state, id)),
+    buildingRows: () => buildingRows(),
+    upgradeRows: (id) => upgrades.upgradeRows(state, id),
+    productionBreakdown: (id) => econ.getProductionBreakdown(state, id),
+
+    /* ------------------------------------------------- v2 economy: legacy */
+    buyLegacySlot,
+    setLegacySlot,
+    legacy: () => legacy.legacyProgress(state),
+    legacySlots: () => ({
+      slots: [...(state.legacy?.slots ?? [])],
+      nextCost: legacy.nextSlotCost(state),
+      canBuy: legacy.canBuySlot(state),
+    }),
+
+    /* ------------------------------------------------------ Darknet Breach */
+    breach: () => breach.breachStatus(state),
+    terminateRogue,
+    dismissBreachPopup,
+    resolveBreach,
+    buyIncognito,
+    incognitoCost: BREACH.incognito.cost,
+
+    /* ---------------------------------------------------------- mini-games */
+    canPlayMinigame,
+    finishMinigame,
+    minigames: () => minigames.minigameRows(state, Date.now()),
+    minigameConfig: (id) => minigames.minigameConfig(id),
+
+    /* -------------------------------------------------------- achievements */
+    achievements: () => achievements.achievementSummary(state),
+    completionPercent: () => achievements.completionPercent(state),
     claimStatusBonus,
     loadPlaylist,
     ejectPlaylist,

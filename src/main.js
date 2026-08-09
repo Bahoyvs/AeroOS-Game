@@ -6,6 +6,7 @@ import { createGame } from './core/game.js';
 import { createGameLoop } from './core/loop.js';
 import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
+import { getBuilding } from './data/buildings.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
 import { ADS, HEAT } from './data/balance.js';
@@ -16,6 +17,10 @@ import { createDesktop } from './ui/desktop.js';
 import { createMotionPreference } from './ui/motion.js';
 import { createNotifier } from './ui/notify.js';
 import { createTaskbar } from './ui/taskbar.js';
+import { createTrayBuildings } from './ui/tray.js';
+import { mountBreachLayer } from './ui/breach.js';
+import { attachPortalHooks } from './ui/crazygames.js';
+import { minigameTitle } from './ui/minigames.js';
 import { createTheme } from './ui/theme.js';
 import { createTutorialCoach } from './ui/tutorial.js';
 import { showWelcomeBack } from './ui/welcomeBack.js';
@@ -382,6 +387,10 @@ async function boot() {
             bonus: result.bonus ?? 0,
             prestigeCount: game.state.prestigeCount,
             ramMB: game.econ.ramCapacity(game.state),
+            // Read *after* the reset, so the POST screen reports the machine
+            // the player is about to get — Legacy included (patch §3.1).
+            legacyLevel: game.legacy().level,
+            legacyMultiplier: game.legacy().multiplier,
           };
         });
         gameplay.start();
@@ -450,6 +459,62 @@ async function boot() {
     ads,
   });
   const taskbar = createTaskbar({ root: document.getElementById('taskbar'), game, wm, launch });
+
+  /**
+   * The three retention systems that live over the desktop rather than inside a
+   * window (GDD §C, §D).
+   *
+   * The breach layer owns the popups, the rogue processes and the phase-3
+   * takeover; the portal bridge turns two of our own events into the two real
+   * SDK hooks. Neither is given a reference to the other — a breach that is
+   * survived rings the portal's bell by *emitting*, not by calling.
+   */
+  const breachLayer = mountBreachLayer(document.getElementById('desktop') ?? document.body, {
+    game,
+  });
+  const detachPortal = attachPortalHooks(game);
+
+  const trayBuildings = createTrayBuildings({
+    root: document.querySelector('#taskbar .tray'),
+    game,
+  });
+  game.bus.on(game.events.UNITS_BOUGHT, trayBuildings.update);
+  game.bus.on(game.events.PRESTIGE, trayBuildings.update);
+  game.bus.on(game.events.HARDWARE_BOUGHT, trayBuildings.update);
+
+  /**
+   * A purchase that quietly improved something else must say so (patch §4.2).
+   * "GeoPage bought — AdBar is producing more" is the whole reward for spotting
+   * a synergy, and a synergy the player cannot see does not exist for them.
+   */
+  game.bus.on(game.events.SYNERGY_APPLIED, ({ source, target }) => {
+    notify({
+      title: 'Synergy',
+      body: `${getBuilding(source).name} and ${getBuilding(target).name} are boosting each other.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.ACHIEVEMENT, ({ achievement }) => {
+    notify({ title: `Achievement: ${achievement.name}`, body: achievement.blurb, tone: 'success' });
+    if (game.state.settings.sfx !== false) audio.play('chime');
+  });
+
+  game.bus.on(game.events.LEGACY_LEVEL, ({ to }) => {
+    notify({
+      title: `Legacy Level ${to}`,
+      body: `Permanent production bonus is now +${to}%.`,
+      tone: 'success',
+    });
+  });
+
+  game.bus.on(game.events.MINIGAME_UNLOCKED, ({ id }) => {
+    notify({
+      title: 'Mini-game unlocked',
+      body: `${minigameTitle(id)} is now playable from that app.`,
+      tone: 'success',
+    });
+  });
 
   // Status-message bonus events (AO-10). The taskbar flag matters most in PDA
   // mode, where AeroChat may be sitting behind another full-screen window.

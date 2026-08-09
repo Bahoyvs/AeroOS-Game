@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <linearGradient id="vcBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eaf6ff"/><stop offset=".45" stop-color="#9ccdf0"/>
+      <stop offset=".55" stop-color="#5aa5da"/><stop offset="1" stop-color="#2b6f9e"/>
+    </linearGradient>
+    <linearGradient id="vcLens" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5d6b78"/><stop offset="1" stop-color="#141c24"/>
+    </linearGradient>
+    <radialGradient id="vcGlint" cx=".35" cy=".3" r=".5">
+      <stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="vcShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="1.2" stdDeviation="1" flood-color="#0b2233" flood-opacity=".55"/>
+    </filter>
+  </defs>
+  <g filter="url(#vcShadow)">
+    <rect x="3" y="8" width="19" height="16" rx="3" fill="url(#vcBody)" stroke="#1d4f73" stroke-width="1"/>
+    <path d="M22 14l6-4v12l-6-4z" fill="url(#vcBody)" stroke="#1d4f73" stroke-width="1" stroke-linejoin="round"/>
+    <circle cx="12.5" cy="16" r="5" fill="url(#vcLens)" stroke="#0d1a24" stroke-width="1"/>
+    <circle cx="12.5" cy="16" r="2.2" fill="#2f5f80"/>
+    <ellipse cx="11" cy="14" rx="2.6" ry="1.8" fill="url(#vcGlint)"/>
+    <path d="M4.5 9.5h16" stroke="#fff" stroke-opacity=".6" stroke-width="1.2" stroke-linecap="round"/>
+  </g>
+</svg>

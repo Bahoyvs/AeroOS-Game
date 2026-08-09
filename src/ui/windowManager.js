@@ -22,6 +22,19 @@ const SHEET_DISMISS_PX = 90; // drag a PDA modal down this far to dismiss it
 /** Clamp that stays sane when max < min (a window dragged to the far edge). */
 const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
 
+/**
+ * How many Full Window apps may be on screen at once (v2 patch §1.3).
+ *
+ * Five, not "as many as you like": the v2 roster is twelve buildings deep, and
+ * nine of them open real draggable windows. The three late-game ones became
+ * tray icons precisely to cap this, and this is the other half of that decision
+ * — a ceiling that does not depend on anybody remembering it.
+ *
+ * PDA mode is exempt because it has no concept of overlapping windows: every
+ * app is a full-screen sheet and only one is ever on screen.
+ */
+export const MAX_OPEN_WINDOWS = 5;
+
 export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }) {
   const windows = new Map();
   const focusOrder = [];
@@ -225,8 +238,29 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
       return windows.get(app.id);
     }
 
+    /**
+     * The Full Window ceiling (v2 patch §1.3).
+     *
+     * Twelve buildings could otherwise put nine draggable, resizable, per-frame
+     * windows on a mid-range phone at once, which is a real render cost rather
+     * than a simulated one — and the reason the three late buildings became
+     * tray icons in the first place. Rather than refuse the open (which would
+     * read as a bug on a machine with plenty of RAM left), the oldest
+     * unfocused window is retired to the taskbar, exactly like a window manager
+     * running out of room.
+     *
+     * `state.apps[id].open` is untouched by minimizing, so nothing economic
+     * changes: production has not depended on an open window since patch §1.1.
+     */
+    if (!isMobile()) {
+      // `focusOrder` is least-recently-focused first, so index 0 is the window
+      // the player has looked at least recently — the right one to retire.
+      const onScreen = focusOrder.filter((id) => windows.has(id) && !windows.get(id).minimized);
+      if (onScreen.length >= MAX_OPEN_WINDOWS) minimize(onScreen[0]);
+    }
+
     const el = buildFrame(app);
-    const entry = { id: app.id, app, el, rect: initialRect(app), cleanup: null };
+    const entry = { id: app.id, app, el, rect: initialRect(app), cleanup: null, minimized: false };
     windows.set(app.id, entry);
 
     el.querySelector('[data-drag-handle]').addEventListener('pointerdown', (e) => {

@@ -194,6 +194,109 @@ Rules the whole thing depends on:
   +50% into `dollarsEarnedTotal` would borrow it straight back from the next wipe.
   `resetForPrestige(..., { bonusDollars })` pays it into the wallet only.
 
+## Buildings, upgrades and Legacy (economy v2)
+
+The economy is three layers, and the boundary between them is the whole design.
+
+**Buildings** (`src/data/buildings.js`, `src/core/buildings.js`). Twelve steps,
+each ~12× the cost and ~10× the output of the one above it. A unit costs
+`ceil(baseCost × 1.15^owned)` and the growth factor is *fixed for all twelve* —
+one `unitCost()` rather than twelve tuning knobs. AeroChat is the only special
+case: its units are `state.chat.bots` and stay there, resolved through the
+roster's `unitsFrom` so nothing else needs an `if`.
+
+**Two rules that are easy to break by accident:**
+
+- **Production does not depend on a window being open.** That was the shipped
+  behaviour and it is deliberately gone. A building is a thing you own, not a
+  thing you babysit. What an open window buys is *active participation* —
+  status bonuses, playlists, seed slots, scans — and those pay through the buff
+  system, which is where anything temporary belongs.
+- **A building's upgrades multiply only that building.** The global chain is
+  hardware and Legacy, nothing else. Twelve buildings' worth of upgrades
+  compounding globally is a number nobody can read or balance.
+
+**Upgrades** (`src/data/upgrades.js`, `src/core/upgrades.js`). Four patterns:
+tiered doubling (six per building), one buddy-scaled cross-building bonus each,
+five synergy pairs that pay both directions asymmetrically, and AeroChat's
+exception — flat Buzz/sec per *distinct building owned* rather than another
+doubling of the cheapest thing in the game.
+
+Every upgrade has a **double gate**: Buzz *and* a unit count. That is not
+difficulty, it is the visibility hook the economy audit found missing — the unit
+requirement is printed while it is unmet, and tiered upgrades reveal exactly one
+rung ahead, so there is always one visible goal per building and never a wall of
+twelve.
+
+**Legacy** (`src/core/legacy.js`). The permanent multiplier, fed by
+`state.allTimeBuzz` — its own accumulator, deliberately *not* Dollars. Dollars
+are spent in a shop; a permanent multiplier that shares a currency with a shop
+puts one number in charge of two competing purchases. The curve is cubic
+(`floor((allTimeBuzz / divisor)^1/3)`), so the reward is linear in the level
+while the level is cubic in the Buzz.
+
+There is no per-run activation step. An earlier draft made the player re-buy the
+bonus after each wipe — a ritual the first time and a chore the fiftieth. It
+applies automatically and the POST screen reports it. **Legacy Slots** carry one
+chosen upgrade through a Format C: each; `resetForPrestige` is the only place an
+upgrade is ever granted without being paid for, and it re-grants only what was
+both slotted *and* actually owned.
+
+### Showing the working
+
+`econ.getProductionBreakdown(state, id)` returns a building's output itemised by
+source, and the UI prints those parts rather than recomputing them. This is a
+hard rule, not a convenience: **no multiplier may act invisibly.** A synergy the
+player cannot see does not exist for them, so a purchase that helps another
+building also emits `SYNERGY_APPLIED` and the shell says so out loud.
+
+## Retention systems: breach, mini-games, achievements
+
+Three systems layered on the economy, all DOM-free in `core/` and drawn in `ui/`.
+
+**Darknet Breach** (`src/core/breach.js`, `src/ui/breach.js`). A ratio the player
+builds — risky buildings over Shield99 licences — escalating through three
+phases. Four properties make it a risk system rather than a punishment: the
+player causes it, escalation is slow while recovery is 3× faster (so buying the
+counterweight visibly works), every phase can be answered, and it can be bought
+off permanently with Incognito Mode. It runs on `dt`, not the wall clock: a
+player who closes the tab for a week must not return to a machine that was
+robbed in their absence.
+
+Nothing in it can touch `lifetimeBuzz`, `allTimeBuzz` or `dollarsEarnedTotal`. A
+crisis may cost a wallet; it may never cost permanent progress.
+
+**Mini-games** (`src/core/minigames.js`, `src/ui/minigames.js`). Five of the
+twelve buildings, unlocked by that building's tier-3 upgrade. Every one funnels
+through a single `applyMinigameReward()`, which is what guarantees the two
+economic rules hold: never a permanent multiplier, and never raw Buzz — only a
+timed buff scoped to the building it was played in. Each game reports a
+normalised 0..1 score and knows nothing else about the economy.
+
+**Achievements** (`src/core/achievements.js`). Predicates over ordinary state,
+never stored flags — same rule as cosmetics and goals, so a threshold can be
+re-tuned without a migration and a badge can never get stuck. Only the unlock
+timestamp is persisted.
+
+The portal side is narrow on purpose (`src/ui/crazygames.js`): CrazyGames has no
+achievement API, so the list is entirely ours and only two real hooks are used —
+`happytime()` on exactly three curated moments, and
+`reportGameCompletedPercentage()` behind a five-point step gate. Leaderboards are
+documented and deliberately not wired: they are invite-only.
+
+## The Aero charter is a test
+
+`docs`-level design rules rot. `tests/aeroCharter.test.js` runs the banned-element
+list from the GDD against the source: no pill buttons, no Material elevation, no
+thin fonts, no font stack without Segoe UI/Tahoma, no hamburger, no iOS toggle,
+no raw `prefers-reduced-motion` query that ignores `data-motion`, and the dark
+theme must stay an unlock rather than the default.
+
+Emoji are handled as a **ratchet**: the apps that predate the charter use them
+throughout, and redrawing ~29 glyphs is a real art task. So no *new* file may
+introduce emoji, the debt list may only shrink, and the test fails if the list
+goes stale in either direction.
+
 ## Hardware: flat percentages, derived capacities
 
 A hardware tier contributes a **flat percentage** to its track rather than

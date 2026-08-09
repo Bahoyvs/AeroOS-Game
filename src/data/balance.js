@@ -195,11 +195,17 @@ export const DEFRAG = {
   stopAt: 0,
 
   /**
-   * 0.85 -> 0 in about 85 seconds, which is roughly two orders of magnitude
-   * faster than bloat accrues (a busy desktop gains ~0.0004/s), so a pass
-   * always finishes rather than fighting the machine to a standstill.
+   * 0.85 -> 0 in about 43 seconds, comfortably faster than bloat accrues, so a
+   * pass always finishes rather than fighting the machine to a standstill.
+   *
+   * Raised from 0.01 when the v2 roster landed. Bloat scales with the number of
+   * *open* apps, and the roster went from eight to twelve — enough that a fully
+   * open desktop with 400 buddies dirtied the disk at 0.0012/s and ate most of
+   * the old rate's headroom. A defrag pass that loses that race is strictly
+   * worse than not owning the utility: the machine stays pinned at 85% and pays
+   * the 5% tax forever. `tests/defrag.test.js` asserts the 10× margin.
    */
-  clearPerSecond: 0.01,
+  clearPerSecond: 0.02,
 
   /** What the pass costs while it runs. Small, visible, and never a surprise. */
   productionTax: 0.05,
@@ -578,6 +584,203 @@ export const ADS = {
     minWidth: 300,
     minHeight: 100,
   },
+};
+
+/**
+ * The Legacy layer (v2 §5) — the permanent multiplier, and the one number in
+ * the game that a Format C: cannot touch.
+ *
+ * `divisor` sets where level 1 lands and the cube root does the rest: 1e6
+ * all-time Buzz is level 1, 1e9 is level 10, 1e12 is level 100. The reward is
+ * linear in the level while the level is cubic in the Buzz, which is what keeps
+ * a permanent bonus from outrunning the economy that pays for it.
+ */
+export const LEGACY = {
+  divisor: 1_000_000,
+  perLevel: 0.01, // +1% global production per level, compounding with nothing
+
+  /**
+   * Legacy Slots — the second Dollar sink. Each one carries a single ordinary
+   * building upgrade through the wipe. Three is the cap: past that the player is
+   * no longer prestiging, they are simply keeping their run.
+   */
+  slotCosts: [50, 250, 1200],
+};
+
+/**
+ * "Darknet Breach" (GDD §C) — the crisis system.
+ *
+ * The pattern, borrowed wholesale from Grandmapocalypse: a *ratio* the player
+ * controls, escalating in stages, manageable by paying attention, and switchable
+ * off entirely for anybody who does not want it. What it is emphatically not is
+ * a random punishment — every phase in here is something the player built.
+ *
+ * The ratio is the whole design. Stacking the three risky buildings without
+ * Shield99 behind them is what raises it, so Shield99 stops being the app that
+ * cleans up after LemonWire and becomes a genuine counterweight you invest in.
+ */
+export const BREACH = {
+  /** Risky units per Shield99 licence before pressure starts building. */
+  threshold: 5,
+
+  /**
+   * The ratio is sampled and averaged rather than read live. A player mid-way
+   * through a bulk purchase should not trip a phase transition for the two
+   * seconds before they buy the Shield99 licences they were already buying.
+   */
+  sampleSeconds: 5,
+  historyLength: 12, // a 60-second window
+
+  /** Seconds above the threshold before each phase engages. */
+  phaseAtSeconds: [60, 300, 1200],
+
+  /**
+   * Recovery outruns escalation 3:1. Investing in Shield99 has to *feel* like
+   * it worked, and a de-escalation that takes as long as the climb reads as the
+   * purchase having done nothing.
+   */
+  recoveryRate: 3,
+
+  /** Phase 1 is pure theatre: a warning with no teeth. */
+  phase1: {
+    popupEverySeconds: 45,
+    maxPopups: 3,
+  },
+
+  /**
+   * Phase 2 — Rogue Processes, the Wrinkler analogue. Each one skims a little
+   * production while it lives, and pays a lump when the player kills it. The
+   * payout is deliberately worth more than what it stole: checking in is meant
+   * to be *rewarded*, not merely to stop a loss.
+   */
+  phase2: {
+    maxProcesses: 5,
+    spawnEverySeconds: 45,
+    stealFraction: 0.03, // each, so five of them cost 15% of production
+    popRewardSeconds: 180, // seconds of current production, paid on kill
+  },
+
+  /**
+   * Phase 3 — the full-screen event. Two ways out, and the active one is the
+   * better deal, which is the entire point of offering a choice at all.
+   */
+  phase3: {
+    ransomFraction: 0.25, // of the Buzz on hand; lifetime totals are untouched
+    fightFailFraction: 0.4, // worse than the ransom — the risk has to be real
+    fightRewardSeconds: 900,
+    fightBuffMagnitude: 1, // +100% global...
+    fightBuffSeconds: 600, // ...for ten minutes
+    fightDollars: 5,
+    /** The reaction game itself: catch this many in this long. */
+    targetsToCatch: 8,
+    durationSeconds: 20,
+  },
+
+  /**
+   * Incognito Mode (GDD §C.5) — the Elder Pledge. A permanent, priced opt-out,
+   * not a difficulty setting buried in a menu: it costs Dollars, it taxes the
+   * three buildings that cause the problem, and it silences the system for good.
+   * Nobody should have to play a horror game they did not ask for.
+   */
+  incognito: {
+    cost: 40, // Dollars
+    productionTax: 0.05, // on LemonWire / AdBar / IoT Botnet only
+  },
+
+  /** The buildings that generate risk, and the one that absorbs it. */
+  riskyBuildings: ['lemonwire', 'adbar', 'iotbotnet'],
+  guardBuilding: 'shield99',
+};
+
+/**
+ * Mini-games (GDD §B) — five of the twelve buildings, not all of them.
+ *
+ * Two rules keep this from diluting the idle loop it is attached to. Each game
+ * is unlocked by that building's **tier-3 upgrade**, so it arrives as a reward
+ * for investment rather than as another icon on a fresh desktop; and no game
+ * pays a permanent multiplier — only a timed bonus scoped to its own building,
+ * exactly like every other upgrade in the v2 economy (§4.5).
+ */
+export const MINIGAMES = {
+  /** Which upgrade rung opens the door. Same tier for all five, for legibility. */
+  unlockTier: 3,
+
+  /** Shared cooldown so a mini-game is a treat, not a grind. */
+  cooldownSeconds: 600,
+
+  /**
+   * The reward curve. A perfect score is worth `maxMagnitude`; a bare pass is
+   * worth `minMagnitude`. Scoped to the building it was played in — a good round
+   * of Perfect Burn makes AeroBurn better and nothing else.
+   */
+  minMagnitude: 0.25,
+  maxMagnitude: 1.5,
+  durationSeconds: 300,
+
+  /** Per-game tuning. `id` doubles as the building id it belongs to. */
+  games: {
+    lemonwire: {
+      title: 'Bandwidth Tug-of-War',
+      blurb: 'Hold the upload and download sliders in the green at once.',
+      durationSeconds: 20,
+      /** How fast the target band drifts. Higher is harder. */
+      drift: 0.35,
+      bandWidth: 0.18,
+    },
+    shield99: {
+      title: 'Firewall Defence',
+      blurb: 'Tap the threats before they reach the kernel.',
+      durationSeconds: 25,
+      spawnEverySeconds: 0.8,
+      targetLifetimeSeconds: 2.2,
+    },
+    registrydoctor: {
+      title: 'Fragmentation Puzzle',
+      blurb: 'Slide the disk blocks back into order.',
+      /** A 3×3 sliding puzzle: sixteen tiles is a chore on a phone. */
+      size: 3,
+      shuffleMoves: 40,
+      durationSeconds: 90,
+    },
+    vidchat: {
+      title: 'Latency Sync',
+      blurb: 'Tap in time with the stuttering stream.',
+      beats: 12,
+      beatSeconds: 0.9,
+      /** Seconds either side of the beat that still counts as a hit. */
+      windowSeconds: 0.22,
+    },
+    aeroburn: {
+      title: 'Perfect Burn',
+      blurb: 'Stop the write head in the green band. Three passes.',
+      passes: 3,
+      sweepSeconds: 1.6,
+      bandWidth: 0.16,
+    },
+  },
+};
+
+/**
+ * Achievements (GDD §D) and the portal hooks they drive.
+ *
+ * The list itself is first-party — ours, in our save, in our window — because
+ * the CrazyGames SDK has no achievement API to hang it on. What the SDK does
+ * have is two narrow hooks, and the rules for using them honestly live here.
+ */
+export const ACHIEVEMENTS = {
+  /**
+   * `reportGameCompletedPercentage` is not a telemetry firehose. It is only
+   * called when the blended completion figure has actually moved this far, so a
+   * tick loop can ask about it as often as it likes.
+   */
+  reportStepPercent: 5,
+
+  /** How the completion percentage is blended: buildings opened vs badges won. */
+  completionWeights: { buildings: 0.5, achievements: 0.5 },
+
+  /** Wall-clock gaps that the retention badges are measured against. */
+  returnAfterHours: 24,
+  streakDays: 3,
 };
 
 export const AEROSTUDIO = {
