@@ -237,6 +237,24 @@
     font-size: 0.82rem;
   }
 
+  /**
+   * `.nudge-button` escapes the gadget panel via `position: fixed` above so it
+   * can dock above the taskbar — but a `transform` on any ancestor, even one
+   * only running mid-animation, turns that ancestor into a containing block
+   * for `fixed` descendants. `.gadget.is-nudge-shaking` (desktop.css) puts a
+   * `transform` animation on `.gadget` itself once a streak runs long enough,
+   * which yanked the docked button out of the viewport and into the gadget's
+   * own box near the top of the screen. Shake every child but the button
+   * instead, so `.gadget` never carries a transform in PDA mode.
+   */
+  .gadget.is-nudge-shaking {
+    animation: none;
+  }
+
+  .gadget.is-nudge-shaking > :not(.nudge-button) {
+    animation: gadget-micro-shake 140ms linear infinite;
+  }
+
   .desktop__icons {
     top: calc(var(--gadget-height) + env(safe-area-inset-top) + 12px);
     flex-direction: row;

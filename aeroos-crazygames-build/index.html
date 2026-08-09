@@ -21,8 +21,8 @@
       localStorage and its own audio settings.
     -->
     <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
-    <script type="module" crossorigin src="./assets/index-CfC62hWW.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BGk-i4D0.css">
+    <script type="module" crossorigin src="./assets/index-vmV2zaOW.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BFArXcfm.css">
   </head>
   <body>
     <div id="boot" class="boot">
@@ -39,6 +39,20 @@
     </main>
 
     <nav id="taskbar" aria-label="Taskbar"></nav>
-
+
+    <!--
+      Aero ripple filter (Faz 2.1). One definition, reused by every ripple
+      `spawnTransient` creates — an SVG filter, not a WebGL context, so it
+      costs nothing to have unused and never grows the dependency graph.
+    -->
+    <svg aria-hidden="true" focusable="false" style="position: absolute; width: 0; height: 0; overflow: hidden">
+      <defs>
+        <filter id="aero-ripple" x="-50%" y="-50%" width="200%" height="200%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+
   </body>
 </html>
