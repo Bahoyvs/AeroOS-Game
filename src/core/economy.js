@@ -28,11 +28,25 @@ import { infectionPenalty } from './shield99.js';
  * Everything the player's hardware currently does for them (AO-19). Each stat
  * is the base value scaled by the flat percentages of every tier they own, so
  * "what does this upgrade give me" is always a single number.
+ *
+ * `production` is fed by all five tracks, not just the CPU. CPU is still the
+ * primary lever (its own tiers are the biggest single contribution), but the
+ * idle-game contract is that *every* purchased upgrade moves Buzz/sec — a
+ * track whose only job was a side stat (memory, cooldowns, storage, payout)
+ * would look like a dead purchase to a player who just spent real Dollars on
+ * it. See tests/hardware.test.js for the per-track regression guard.
  */
 export function hardwareEffects(state) {
   const h = state.hardware;
   return {
-    production: HARDWARE_BASE.production * (1 + sumBonus('cpu', h.cpu, 'production')),
+    production:
+      HARDWARE_BASE.production *
+      (1 +
+        sumBonus('cpu', h.cpu, 'production') +
+        sumBonus('ram', h.ram, 'production') +
+        sumBonus('gpu', h.gpu, 'production') +
+        sumBonus('hdd', h.hdd, 'production') +
+        sumBonus('mobo', h.mobo, 'production')),
     click: HARDWARE_BASE.click * (1 + sumBonus('cpu', h.cpu, 'click')),
     cooldown: Math.max(MIN_COOLDOWN, HARDWARE_BASE.cooldown - sumBonus('gpu', h.gpu, 'cooldown')),
     ramMB: Math.round(HARDWARE_BASE.ramMB * (1 + sumBonus('ram', h.ram, 'capacity'))),
@@ -632,13 +646,17 @@ function trackGains(track, next) {
     case 'cpu':
       return [`${pct(next.production)} production`, `${pct(next.click)} click power`];
     case 'ram':
-      return [`${pct(next.capacity)} memory`];
+      return [`${pct(next.capacity)} memory`, `${pct(next.production)} production`];
     case 'gpu':
-      return [`−${Math.round(next.cooldown * 100)}% cooldowns`];
+      return [`−${Math.round(next.cooldown * 100)}% cooldowns`, `${pct(next.production)} production`];
     case 'hdd':
-      return [`${pct(next.offline)} offline cap`, `${pct(next.storage)} storage`];
+      return [
+        `${pct(next.offline)} offline cap`,
+        `${pct(next.storage)} storage`,
+        `${pct(next.production)} production`,
+      ];
     case 'mobo':
-      return [`${pct(next.payout)} Format C: payout`];
+      return [`${pct(next.payout)} Format C: payout`, `${pct(next.production)} production`];
     default:
       return [];
   }

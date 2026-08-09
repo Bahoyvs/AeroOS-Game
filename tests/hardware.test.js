@@ -147,7 +147,7 @@ describe('the shop rows (AO-18)', () => {
     expect(cpu.gains).toEqual(['+25% production', '+50% click power']);
 
     const gpu = econ.hardwareSummary(at({ gpu: 0 })).find((r) => r.track === 'gpu');
-    expect(gpu.gains).toEqual(['−10% cooldowns']);
+    expect(gpu.gains).toEqual(['−10% cooldowns', '+6% production']);
   });
 
   it('previews the upgraded machine so a row can show a delta', () => {
@@ -185,11 +185,31 @@ describe('the shop rows (AO-18)', () => {
   });
 });
 
+describe('every track moves Buzz/sec (AO-19 economy patch)', () => {
+  // Regression guard for the "four of five hardware tracks do nothing for
+  // buzzPerSecond" bug: a track that only ever touched a side stat (memory,
+  // cooldowns, storage, payout) looked like a dead purchase, because none of
+  // that showed up in the number the player actually watches climb.
+  const withBuddies = (patch) => {
+    const s = at(patch);
+    s.chat.bots = 27;
+    s.apps.aerochat.open = true;
+    return s;
+  };
+
+  it.each(HARDWARE_TRACKS)('level 0 -> 1 on the %s track strictly increases buzzPerSecond', (track) => {
+    const before = econ.buzzPerSecond(withBuddies({}), 0);
+    const after = econ.buzzPerSecond(withBuddies({ [track]: 1 }), 0);
+    expect(after).toBeGreaterThan(before);
+  });
+});
+
 describe('save compatibility', () => {
   it('reads old saves unchanged — a tier index still means a tier index', () => {
     // The stored shape never changed, only what the tiers mean.
     const s = at({ cpu: 5, ram: 4, gpu: 3, hdd: 2 });
     expect(econ.ramCapacity(s)).toBe(2048);
-    expect(econ.hardwareEffects(s).production).toBeCloseTo(3.8);
+    // Production is now fed by every track (AO-19 economy patch), not just CPU.
+    expect(econ.hardwareEffects(s).production).toBeCloseTo(4.59);
   });
 });

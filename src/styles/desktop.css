@@ -781,6 +781,12 @@
   opacity: 0.5;
 }
 
+/* Locked apps (carrot-on-a-stick, AO-19 economy patch): visible, not hidden —
+   see .start-menu__item:disabled above for the shared faded/not-allowed look. */
+.start-menu__item.is-locked .start-menu__icon {
+  filter: grayscale(1);
+}
+
 .start-menu__icon {
   width: 32px;
   height: 32px;

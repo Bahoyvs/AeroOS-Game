@@ -29,7 +29,7 @@ export const MIN_COOLDOWN = 0.15;
 
 export const CPU_TIERS = [
   { name: 'Celedon 400', cost: 0, production: 0, click: 0 },
-  { name: 'Pentagon II 733', cost: 12, production: 0.25, click: 0.5 },
+  { name: 'Pentagon II 733', cost: 3, production: 0.25, click: 0.5 },
   { name: 'Pentagon III 1.0', cost: 60, production: 0.35, click: 0.7 },
   { name: 'Athlete XP 2400+', cost: 320, production: 0.5, click: 1.0 },
   { name: 'Pentagon IV HT 3.2', cost: 1800, production: 0.7, click: 1.4 },
@@ -39,31 +39,31 @@ export const CPU_TIERS = [
 ];
 
 export const RAM_TIERS = [
-  { name: '128 MB SDRAM', cost: 0, capacity: 0 },
-  { name: '256 MB SDRAM', cost: 10, capacity: 1 },
-  { name: '512 MB DDR', cost: 55, capacity: 2 },
-  { name: '1 GB DDR', cost: 300, capacity: 4 },
-  { name: '2 GB DDR2', cost: 1700, capacity: 8 },
-  { name: '4 GB DDR2', cost: 10000, capacity: 16 },
-  { name: '8 GB DDR2 (dual channel)', cost: 68000, capacity: 32 },
+  { name: '128 MB SDRAM', cost: 0, capacity: 0, production: 0 },
+  { name: '256 MB SDRAM', cost: 10, capacity: 1, production: 0.06 },
+  { name: '512 MB DDR', cost: 55, capacity: 2, production: 0.08 },
+  { name: '1 GB DDR', cost: 300, capacity: 4, production: 0.11 },
+  { name: '2 GB DDR2', cost: 1700, capacity: 8, production: 0.15 },
+  { name: '4 GB DDR2', cost: 10000, capacity: 16, production: 0.2 },
+  { name: '8 GB DDR2 (dual channel)', cost: 68000, capacity: 32, production: 0.28 },
 ];
 
 export const GPU_TIERS = [
-  { name: 'Integrated Xtreme Graphics', cost: 0, cooldown: 0 },
-  { name: 'GeForged MX 440', cost: 14, cooldown: 0.1 },
-  { name: 'Radium 9600 Pro', cost: 70, cooldown: 0.12 },
-  { name: 'GeForged 6800 GT', cost: 380, cooldown: 0.14 },
-  { name: 'Radium X1900 XT', cost: 2100, cooldown: 0.14 },
-  { name: 'GeForged 8800 GTX', cost: 13000, cooldown: 0.14 },
+  { name: 'Integrated Xtreme Graphics', cost: 0, cooldown: 0, production: 0 },
+  { name: 'GeForged MX 440', cost: 14, cooldown: 0.1, production: 0.06 },
+  { name: 'Radium 9600 Pro', cost: 70, cooldown: 0.12, production: 0.08 },
+  { name: 'GeForged 6800 GT', cost: 380, cooldown: 0.14, production: 0.11 },
+  { name: 'Radium X1900 XT', cost: 2100, cooldown: 0.14, production: 0.15 },
+  { name: 'GeForged 8800 GTX', cost: 13000, cooldown: 0.14, production: 0.2 },
 ];
 
 export const HDD_TIERS = [
-  { name: '20 GB IDE', cost: 0, storage: 0, offline: 0 },
-  { name: '40 GB IDE', cost: 16, storage: 1, offline: 1 },
-  { name: '80 GB IDE', cost: 85, storage: 2, offline: 2 },
-  { name: '250 GB SATA', cost: 450, storage: 8.5, offline: 8 },
-  { name: '500 GB SATA', cost: 2600, storage: 12.5, offline: 6 },
-  { name: '1 TB SATA', cost: 16000, storage: 25, offline: 6 },
+  { name: '20 GB IDE', cost: 0, storage: 0, offline: 0, production: 0 },
+  { name: '40 GB IDE', cost: 16, storage: 1, offline: 1, production: 0.06 },
+  { name: '80 GB IDE', cost: 85, storage: 2, offline: 2, production: 0.08 },
+  { name: '250 GB SATA', cost: 450, storage: 8.5, offline: 8, production: 0.11 },
+  { name: '500 GB SATA', cost: 2600, storage: 12.5, offline: 6, production: 0.15 },
+  { name: '1 TB SATA', cost: 16000, storage: 25, offline: 6, production: 0.2 },
 ];
 
 /**
@@ -84,12 +84,16 @@ export const HDD_TIERS = [
  * *all* lifetime Buzz, so buying a tier makes a pending payout jump on the
  * spot. That is deliberate. It is the moment the mid-game wall comes down, and
  * it cannot run away with the economy because the track is four tiers long.
+ *
+ * It also carries a small `production` bonus like every other track (AO-19
+ * economy patch) — a board is still hardware sitting in the run in front of
+ * you, not only the next one, even though `payout` remains its main job.
  */
 export const MOBO_TIERS = [
-  { name: 'OEM Board (no jumpers)', cost: 0, payout: 0 },
-  { name: 'Pentagon Overclock Kit', cost: 2.5, payout: 0.1 },
-  { name: 'Dual-Core Bus Architecture', cost: 10, payout: 0.2 },
-  { name: 'Quantum Interconnect 500', cost: 50, payout: 0.5 },
+  { name: 'OEM Board (no jumpers)', cost: 0, payout: 0, production: 0 },
+  { name: 'Pentagon Overclock Kit', cost: 2.5, payout: 0.1, production: 0.07 },
+  { name: 'Dual-Core Bus Architecture', cost: 10, payout: 0.2, production: 0.1 },
+  { name: 'Quantum Interconnect 500', cost: 50, payout: 0.5, production: 0.15 },
 ];
 
 export const HARDWARE = {
@@ -102,28 +106,28 @@ export const HARDWARE = {
   ram: {
     label: 'RAM',
     tiers: RAM_TIERS,
-    blurb: 'How many apps you can run at once.',
-    affects: 'Memory budget',
+    blurb: 'How many apps you can run at once — and a little more Buzz besides.',
+    affects: 'Memory budget · Buzz per second',
   },
   gpu: {
     label: 'GPU',
     tiers: GPU_TIERS,
-    blurb: 'Cuts cooldowns on heavy apps.',
-    affects: 'Aero Studio renders',
+    blurb: 'Cuts cooldowns on heavy apps, and a little more Buzz besides.',
+    affects: 'Aero Studio renders · Buzz per second',
   },
   hdd: {
     label: 'HDD',
     tiers: HDD_TIERS,
-    blurb: 'P2P capacity, seed slots and offline earnings cap.',
-    affects: 'Offline Buzz · LemonWire seed slots',
+    blurb: 'P2P capacity, seed slots, offline earnings cap, and a little more Buzz besides.',
+    affects: 'Offline Buzz · LemonWire seed slots · Buzz per second',
   },
-  // Last on the shop page because it is the one row that does nothing for the
-  // run in front of you — it is priced in the next one.
+  // Every track earns a place on the shop page by moving Buzz/sec, this one
+  // included — payout is still its main job, priced in the *next* run.
   mobo: {
     label: 'Mainboard',
     tiers: MOBO_TIERS,
-    blurb: 'Turns the same lifetime Buzz into more Dollars.',
-    affects: 'Format C: payout',
+    blurb: 'Turns the same lifetime Buzz into more Dollars — and a little more Buzz besides.',
+    affects: 'Format C: payout · Buzz per second',
   },
 };
 
