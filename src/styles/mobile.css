@@ -47,8 +47,7 @@
      * the spotlight was pointing at it. A tutorial cannot be allowed to hide
      * the control it is teaching.
      */
-    inset: calc(var(--gadget-height) + env(safe-area-inset-top)) 0
-      calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + var(--coach-height) + 8px) 0 !important;
+    inset: calc(var(--gadget-height) + env(safe-area-inset-top)) 0 calc(var(--nudge-dock-height) + var(--nudge-dock-gap) + var(--coach-height) + 8px) 0 !important;
     width: auto !important;
     height: auto !important;
     max-width: none;
@@ -162,26 +161,33 @@
   .gadget__header {
     grid-area: header;
   }
+
   .gadget__buzz {
     grid-area: buzz;
   }
+
   .gadget__buzz-value {
     font-size: 1.6rem;
   }
+
   .gadget__rate {
     grid-area: rate;
     margin-top: 0;
     text-align: right;
   }
+
   .gadget .meter:nth-of-type(1) {
     grid-area: ram;
   }
+
   .gadget .meter:nth-of-type(2) {
     grid-area: bloat;
   }
+
   .gadget .heat {
     grid-area: heat;
   }
+
   /* Dollars stay in My Computer on small screens. */
   .gadget__dollars {
     display: none;
@@ -251,7 +257,7 @@
     animation: none;
   }
 
-  .gadget.is-nudge-shaking > :not(.nudge-button) {
+  .gadget.is-nudge-shaking> :not(.nudge-button) {
     animation: gadget-micro-shake 140ms linear infinite;
   }
 
