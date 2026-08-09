@@ -42,7 +42,7 @@ describe('the Mainboard track', () => {
 
   it('states the gain as a payout percentage in the shop', () => {
     const row = econ.hardwareSummary(withBoard(0)).find((r) => r.track === 'mobo');
-    expect(row.gains).toEqual(['+10% Format C: payout']);
+    expect(row.gains).toEqual(['+10% Format C: payout', '+7% production']);
     expect(row.cost).toBe(MOBO_TIERS[1].cost);
   });
 

@@ -36,6 +36,38 @@ export function createTaskbar({ root, game, wm, launch }) {
   const menu = el('div', { class: 'start-menu glass', hidden: '' });
   document.body.appendChild(menu);
 
+  /**
+   * A locked app's row (AO-19 economy patch). Unlock thresholds are read
+   * straight off `app.install.unlockAt` — the same field `isAppUnlocked`
+   * already gates on — so this can never drift out of sync with what
+   * actually unlocks the app.
+   */
+  function renderLockedItem(app) {
+    const need = app.install?.unlockAt ?? 0;
+    const have = Math.min(game.state.runBuzz, need);
+    return el(
+      'li',
+      {},
+      el(
+        'button',
+        {
+          type: 'button',
+          class: 'start-menu__item is-locked',
+          disabled: 'disabled',
+          'aria-disabled': 'true',
+          title: `Locked — unlocks at ${formatNumber(need)} Buzz this run`,
+        },
+        [
+          el('img', { class: 'start-menu__icon', 'aria-hidden': 'true', src: app.icon, alt: '' }),
+          el('span', { class: 'start-menu__label' }, [
+            el('strong', { text: app.name }),
+            el('small', { text: `🔒 ${formatNumber(have)} / ${formatNumber(need)} Buzz` }),
+          ]),
+        ],
+      ),
+    );
+  }
+
   function renderStartMenu() {
     clear(menu);
 
@@ -47,9 +79,16 @@ export function createTaskbar({ root, game, wm, launch }) {
     for (const app of ALL_APPS) {
       const entry = game.state.apps[app.id];
       const unlocked = game.econ.isAppUnlocked(game.state, app.id);
-      if (!entry.installed && !unlocked) continue;
       // Matches the desktop: no hardware in the menu until it is revealed.
       if (app.system && !game.state.tutorial.hardwareRevealed) continue;
+
+      // Carrot-on-a-stick (AO-19 economy patch): a locked app still gets a row
+      // — greyed out, unclickable — instead of vanishing, so the player can see
+      // what is coming and how far off it is.
+      if (!entry.installed && !unlocked) {
+        list.appendChild(renderLockedItem(app));
+        continue;
+      }
 
       const cost = app.install?.cost ?? 0;
       const affordable = game.state.buzz >= cost;
