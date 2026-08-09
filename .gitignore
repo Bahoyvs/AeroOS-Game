@@ -2,6 +2,8 @@ node_modules/
 dist/
 .vite/
 coverage/
+/build
+aeroos-crazygames-build/
 
 # OS / editor noise
 .DS_Store
