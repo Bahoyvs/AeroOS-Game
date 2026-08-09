@@ -47,6 +47,18 @@ function withTimeout(promise, ms, fallback = null) {
  * that never appeared — indistinguishable, from the player's side, from a game
  * that does not work, and one of the ways a load ends without any gameplay.
  */
+/**
+ * Mirrors the `sdk` that `boot()` resolves, at module scope.
+ *
+ * `boot()` keeps its own local `sdk` for the rest of its body, but a boot
+ * failure is caught *outside* boot() (see `start()` below) and that catch
+ * handler has no way to reach a variable local to the function that just
+ * threw. Boot failures are exactly the crashes this instrumentation exists
+ * for — a session with zero gameplay — so this is the one piece of portal
+ * state worth keeping a copy of at module scope.
+ */
+let portalSdk = null;
+
 async function initPortalSdk() {
   const sdk = globalThis.CrazyGames?.SDK;
   if (!sdk) {
@@ -65,6 +77,7 @@ async function initPortalSdk() {
     console.warn('[aeroos] CrazyGames SDK did not initialise in time; booting anyway');
     return null;
   }
+  portalSdk = sdk;
   return sdk;
 }
 
@@ -960,7 +973,18 @@ async function boot() {
 }
 
 /** Boot failures are silent otherwise — an async boot() rejects into nothing. */
-const start = () => void boot().catch((err) => reportError('boot-failed', err?.stack ?? err));
+const start = () =>
+  void boot().catch((err) => {
+    reportError('boot-failed', err?.stack ?? err);
+    // Best-effort, and deliberately not routed through `reportContext` further
+    // down this file: that closure never gets built if boot() throws before
+    // reaching it, which is precisely the case here.
+    try {
+      portalSdk?.game?.setGameContext({ errors: crashes.count, lastError: crashes.last ?? '' });
+    } catch (contextErr) {
+      console.warn('[aeroos] portal context report failed', contextErr);
+    }
+  });
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', start, { once: true });
