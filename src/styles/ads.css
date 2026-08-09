@@ -255,10 +255,11 @@
   box-shadow: var(--emboss-well-light);
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .ad-banner__label {
   font-size: 0.62rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
   opacity: 0.55;
 }
 

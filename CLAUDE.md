@@ -27,6 +27,11 @@ most "missing" apps are scheduled, not forgotten.
   `dollarsEarnedTotal`.
 - The Vista/7 visual charter is enforced by `tests/aeroCharter.test.js`, not by review.
   New files must be emoji-free; the debt list in that test may only shrink.
+- Build panels from Win32 parts, not cards: `<fieldset><legend>` group boxes, sunken white
+  list views, `.instruction-primary` headlines, 7.css `.window`/`.title-bar` for dialogs.
+  A translucent rounded rectangle floating on the wallpaper is the thing being avoided.
+- No uppercase letter-spaced micro-labels. The markup already says "Hardware shop"; CSS
+  must not shout it. Tracking is fine on a large display string, never on a caption.
 - 7.css styles bare `button`, including `:focus` at specificity (0,1,1). A control with a
   semantic colour needs its focus/hover states written out, or it turns Aero blue on click.
 - Two clocks, deliberately: things that should keep running while the tab is closed (buffs,

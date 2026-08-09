@@ -495,19 +495,16 @@
     padding: 14px;
   }
 
-  /* --- Achievements: single column list on a phone (§F, item 4) --- */
-  .ach__grid {
-    grid-template-columns: 1fr;
+  /* --- Achievements: the list view stays a list, just tighter (§F, item 4) --- */
+  .ach__badge {
+    /* Drop the state column: "Earned"/"Locked" is already carried by the greyed
+       row and the aria-label, and on a 390px screen it costs a third of the
+       badge name. */
+    grid-template-columns: 26px 1fr;
   }
 
-  .ach__head {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
-  }
-
-  .ach__progress {
-    max-width: none;
+  .ach__state {
+    display: none;
   }
 
   /* --- Building panels stay usable in a full-screen sheet --- */

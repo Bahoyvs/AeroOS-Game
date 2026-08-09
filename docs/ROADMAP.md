@@ -424,6 +424,20 @@ the D1/D7 gap GROWTH.md identified.
 banned-element list against the source, so "no pills, no Material shadows, no
 thin fonts, no dark default" is enforced rather than reviewed.
 
+It caught the first cut of this work red-handed. The building and achievement
+panels had shipped as translucent rounded cards with uppercase letter-spaced
+micro-labels — the vocabulary of a modern analytics dashboard, and precisely
+what §A.1 rejects. Both were rebuilt from the parts Windows actually used:
+`<fieldset><legend>` group boxes, a blue task-dialog headline, sunken white list
+views with banded rows, and Add/Remove-Programs-style rows carrying a tick and a
+real button. Mini-games became genuine 7.css `.window`s with a proper title bar
+instead of modal cards.
+
+The uppercase micro-label was then added to the charter as its own check and
+fixed across the *whole* app, not just the new code — fifteen selectors in
+`apps.css`, `desktop.css` and `ads.css` were shouting text the markup already
+wrote in sentence case.
+
 **DoD:** `npm run check` green (544 tests + build), and the desktop, tray
 popovers, mini-games, breach phases 1-3 and the achievements window verified in
 a real browser at 1280×800 and 390×844. ✅

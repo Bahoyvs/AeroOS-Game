@@ -44,6 +44,14 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
   const bus = createEventBus();
   let state = createInitialState(now);
   let lastSaveAt = now;
+
+  /**
+   * Legacy level-up announcements are batched (see the tick). Wall clock, like
+   * every other "how often may this bother the player" timer.
+   */
+  const LEGACY_ANNOUNCE_MS = 8000;
+  let pendingLegacyFrom = null;
+  let lastLegacyAnnounceAt = now;
   let offlineReport = null;
 
   function grantBuzz(amount, source) {
@@ -211,15 +219,31 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       }
     }
 
-    // A Legacy level-up is silent otherwise — it is a background accumulator
-    // with no purchase attached, so this is the only moment it can announce
-    // itself (patch §3: automatic, but never invisible).
+    /**
+     * A Legacy level-up is silent otherwise — it is a background accumulator
+     * with no purchase attached, so this is the only moment it can announce
+     * itself (patch §3: automatic, but never invisible).
+     *
+     * Coalesced, because "one level" is not a fixed amount of Buzz. A level
+     * costs `3n²+3n+1` million, so early on they arrive minutes apart and in the
+     * late game several can land per second — which as raw events meant a
+     * torrent of toasts and a save write each. The level itself still updates
+     * every tick; only the announcement waits, and it reports the whole jump
+     * rather than the last step of it.
+     */
     const level = legacy.legacyLevel(state);
     if (level !== state.legacy.level) {
-      const from = state.legacy.level;
+      if (pendingLegacyFrom === null) pendingLegacyFrom = state.legacy.level;
       state.legacy.level = level;
-      if (level > from) bus.emit(EVENTS.LEGACY_LEVEL, { from, to: level });
-      save();
+    }
+    if (pendingLegacyFrom !== null && now - lastLegacyAnnounceAt >= LEGACY_ANNOUNCE_MS) {
+      const from = pendingLegacyFrom;
+      pendingLegacyFrom = null;
+      lastLegacyAnnounceAt = now;
+      if (level > from) {
+        bus.emit(EVENTS.LEGACY_LEVEL, { from, to: level });
+        save();
+      }
     }
 
     if (shouldRevealHardware(state, econ.ramUsed(state), econ.ramCapacity(state))) {

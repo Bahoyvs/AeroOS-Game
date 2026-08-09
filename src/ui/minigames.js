@@ -48,25 +48,38 @@ export function openMinigame(id, { game, onFinish = null, title = null } = {}) {
     'aria-label': title ?? config.title,
   });
 
-  const frame = el('div', { class: 'minigame__frame glass' });
-  const head = el('div', { class: 'minigame__head' }, [
-    el('strong', { text: title ?? config.title }),
-    el('button', {
-      type: 'button',
-      class: 'minigame__close',
-      'aria-label': 'Abandon round',
-      text: '✕',
-      onclick: () => finish({ score: 0, abandoned: true }),
-    }),
+  /**
+   * A real 7.css window, not a modal card.
+   *
+   * `.window` + `.title-bar` + `.title-bar-controls` is the genuine Aero frame,
+   * complete with the circular close button the charter asks for (GDD §A.2) —
+   * far better than restyling a `<div>` to look approximately like one.
+   *
+   * The `role`/`aria-modal` pair stays on the *overlay*, deliberately. 7.css
+   * hides `.window[role=dialog]`, so putting the dialog role on the frame would
+   * make the whole mini-game invisible — the trap CLAUDE.md warns about.
+   */
+  const frame = el('div', { class: 'minigame__frame window' });
+  const head = el('div', { class: 'title-bar' }, [
+    el('div', { class: 'title-bar-text', text: title ?? config.title }),
+    el('div', { class: 'title-bar-controls' }, [
+      el('button', {
+        type: 'button',
+        'aria-label': 'Close',
+        onclick: () => finish({ score: 0, abandoned: true }),
+      }),
+    ]),
   ]);
 
+  const body = el('div', { class: 'window-body minigame__body' });
   const blurb = el('p', { class: 'minigame__blurb', text: config.blurb });
   const stage = el('div', { class: 'minigame__stage' });
   const bar = el('div', { class: 'meter__track minigame__timer' }, [
     el('div', { class: 'meter__fill', dataset: { role: 'timer' } }),
   ]);
 
-  frame.append(head, blurb, stage, bar);
+  body.append(blurb, stage, bar);
+  frame.append(head, body);
   overlay.append(frame);
   document.body.appendChild(overlay);
 

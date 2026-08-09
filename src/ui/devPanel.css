@@ -23,6 +23,9 @@
   transform: translateX(0);
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .aero-dev-header {
   background: rgba(0, 255, 213, 0.15);
   padding: 8px 12px;
@@ -30,8 +33,6 @@
   font-weight: 600;
   color: #00ffd5;
   border-bottom: 1px solid rgba(0, 255, 213, 0.2);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .aero-dev-content {

@@ -109,13 +109,14 @@
   text-shadow: 0 1px 2px rgb(0 20 40 / 70%);
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .gadget__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
   opacity: 0.85;
 }
 
@@ -919,12 +920,13 @@
   }
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .coach__head {
   display: flex;
   justify-content: space-between;
   font-size: 0.62rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
   opacity: 0.75;
 }
 

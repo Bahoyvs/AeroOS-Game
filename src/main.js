@@ -500,10 +500,14 @@ async function boot() {
     if (game.state.settings.sfx !== false) audio.play('chime');
   });
 
-  game.bus.on(game.events.LEGACY_LEVEL, ({ to }) => {
+  game.bus.on(game.events.LEGACY_LEVEL, ({ from, to }) => {
+    const jumped = to - from;
     notify({
       title: `Legacy Level ${to}`,
-      body: `Permanent production bonus is now +${to}%.`,
+      body:
+        jumped > 1
+          ? `Up ${jumped} levels. Permanent production bonus is now +${to}%.`
+          : `Permanent production bonus is now +${to}%.`,
       tone: 'success',
     });
   });

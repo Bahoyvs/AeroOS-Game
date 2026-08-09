@@ -116,6 +116,62 @@ describe('the Aero visual charter (GDD §A.1)', () => {
     expect(offenders).toEqual([]);
   });
 
+  /**
+   * Banned: the uppercase, letter-spaced micro-label.
+   *
+   * Not on §A.1's list by name, and it should have been — it is the single
+   * loudest tell of a modern analytics dashboard, and the first build of the
+   * building panel was covered in it ("BUDDIES", "BUZZ/SEC", "UPGRADES").
+   * Windows wrote "Buzz per second" in sentence case at 9pt and put section
+   * names in a group-box legend.
+   *
+   * Tracking on a *large* display string is a different thing and stays legal:
+   * a terminal ransom headline and a scareware alert both genuinely used it.
+   * What is banned is the combination — small, uppercase, tracked, faded.
+   */
+  it('uses no uppercase letter-spaced micro-labels', () => {
+    const offenders = [];
+    for (const { path, text } of cssFiles.map(read)) {
+      for (const block of code(text).split('}')) {
+        if (!/text-transform:\s*uppercase/.test(block)) continue;
+        if (!/letter-spacing:/.test(block)) continue;
+
+        // Only small text: the idiom is a caption pretending to be a label.
+        const size = /font-size:\s*([\d.]+)(rem|pt|px)/.exec(block);
+        if (!size) continue;
+        const [, value, unit] = size;
+        const rem = unit === 'rem' ? +value : unit === 'pt' ? +value / 12 : +value / 16;
+        if (rem >= 0.85) continue;
+
+        offenders.push(`${path}: ${block.split('{')[0].trim()}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Required: the panels the v2 systems added are built from Win32 parts.
+   *
+   * A charter made only of prohibitions can be satisfied by a flat design that
+   * simply avoids the banned tokens. This asserts the positive half — the two
+   * densest new surfaces use group boxes and sunken list wells, which is what
+   * makes them read as Windows rather than as a styled web page.
+   */
+  it('builds the new panels from group boxes and list wells', async () => {
+    const panel = readFileSync(join(SRC, 'ui/buildingPanel.js'), 'utf8');
+    const achievements = readFileSync(join(SRC, 'apps/achievements.js'), 'utf8');
+
+    for (const source of [panel, achievements]) {
+      expect(source).toMatch(/<fieldset|'fieldset'/);
+      expect(source).toMatch(/<legend|'legend'/);
+      expect(source).toMatch(/instruction-primary/);
+    }
+
+    const css = readFileSync(join(SRC, 'styles/retention.css'), 'utf8');
+    // The sunken white well: inset shadow over white with a hard 1px border.
+    expect(css).toMatch(/box-shadow:\s*inset 1px 1px 2px/);
+  });
+
   /** Every font stack has to start from the period-correct system fonts. */
   it('names Segoe UI or Tahoma in every font stack', () => {
     const offenders = [];

@@ -172,12 +172,13 @@
   border-radius: var(--radius-sm);
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .chat__group {
   margin-top: 4px;
   font-size: 0.64rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--aero-blue-deep);
 }
 
@@ -360,11 +361,12 @@
   color: var(--text-muted);
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .sys__heading {
   margin: 4px 0 0;
   font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
   color: var(--text-muted);
 }
 
@@ -794,11 +796,12 @@
   letter-spacing: 0.04em;
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .amp__playlist-genre {
   font-size: 0.64rem;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .amp__playlist-blurb {
@@ -1044,12 +1047,13 @@
   box-shadow: inset -1px 0 0 rgb(0 0 0 / 35%);
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .lw__side-heading {
   margin: 2px 0 0;
   font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: #c9d86a;
 }
 
@@ -1222,11 +1226,12 @@
   box-shadow: inset 0 0 0 1px #d98b84;
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .lw__heading {
   margin: 2px 0 0;
   font-size: 0.68rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: #5c6b73;
 }
 
@@ -1245,11 +1250,12 @@
   align-items: center;
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .lw__columns {
   padding: 2px 4px;
   font-size: 0.6rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: #5c6b73;
   background: linear-gradient(180deg, #fdfdfd, #e6e9ec);
   box-shadow: inset 0 -1px 0 #b8bfc4;
@@ -1667,11 +1673,12 @@
   opacity: 0.6;
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .sh__heading {
   margin: 2px 0 0;
   font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -1749,16 +1756,20 @@
   border-color: #a98fdd;
 }
 
+/**
+ * The threat tier tag. Was an uppercase tracked pill — modern on both counts
+ * (GDD §A.1) — and is now the rectangular bevelled tag Windows used for a
+ * classification label, in the sentence case the markup already supplies.
+ */
 .sh__tier {
-  padding: 1px 6px;
-  font-size: 0.6rem;
+  padding: 0 5px;
+  font-size: 8pt;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: #4a3c10;
-  background: rgb(255 255 255 / 65%);
-  border: 1px solid rgb(0 0 0 / 12%);
-  border-radius: 999px;
+  background: linear-gradient(180deg, #fffdf4, #f0e6c8);
+  border: 1px solid #b8a878;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
 }
 
 .sh__threat-actions {
@@ -2026,11 +2037,12 @@
   color: #2f7a2f;
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .burn__heading {
   margin: 2px 0 0;
   font-size: 0.72rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -2229,11 +2241,12 @@
   100% { opacity: 1; }
 }
 
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .aero-heading {
   margin: 0;
   font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   color: #113355;
   text-shadow: 0 1px 0 #fff;
 }
@@ -2687,12 +2700,13 @@
 }
 
 /* Big, because it is the only decision the app asks for. */
+  /* Sentence case, per the charter (GDD §A.1): the uppercase tracked
+     micro-label is a modern dashboard idiom. The markup already reads
+     "Online (398)" / "Hardware shop" — this simply stops overriding it. */
 .sw__action {
   min-height: 40px;
   font-size: 0.82rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   cursor: pointer;
 }
 
