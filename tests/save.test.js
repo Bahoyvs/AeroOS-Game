@@ -21,7 +21,7 @@ describe('save round-trip', () => {
     state.lifetimeBuzz = 90_000;
     state.dollars = 7.25;
     state.hardware.ram = 2;
-    state.chat.bots = 17;
+    state.buildings.aerochat.units = 17;
 
     expect(saveGame(state, storage)).toBe(true);
     const { state: loaded } = loadGame(storage, 0);
@@ -30,7 +30,7 @@ describe('save round-trip', () => {
     expect(loaded.lifetimeBuzz).toBe(90_000);
     expect(loaded.dollars).toBeCloseTo(7.25);
     expect(loaded.hardware.ram).toBe(2);
-    expect(loaded.chat.bots).toBe(17);
+    expect(loaded.buildings.aerochat.units).toBe(17);
   });
 
   it('returns null when there is nothing stored', () => {
@@ -75,7 +75,7 @@ describe('resilience', () => {
 
     expect(loaded.buzz).toBe(10);
     expect(loaded.apps.aerostudio.installed).toBe(false);
-    expect(loaded.chat.bots).toBe(0);
+    expect(loaded.buildings.aerochat.units).toBe(0);
     expect(loaded.settings.sfx).toBe(true);
     // Including tracks and whole slices added since — a new hardware track and
     // a new utility must cost the player nothing but a default.
@@ -273,7 +273,7 @@ describe('portal storage limits', () => {
   it('accepts a payload just under the limit', () => {
     const storage = createMemoryStorage();
     const state = createInitialState(0);
-    state.chat.note = 'x'.repeat(MAX_SAVE_BYTES - 2000);
+    state.chat.note = 'x'.repeat(MAX_SAVE_BYTES - 8000);
     expect(saveGame(state, storage)).toBe(true);
   });
 });

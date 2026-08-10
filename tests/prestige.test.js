@@ -112,7 +112,7 @@ describe('requesting a Format C: (AO-17)', () => {
   it('the wipe keeps hardware and banks the Dollars it promised', () => {
     const game = rich();
     game.state.hardware.cpu = 2;
-    game.state.chat.bots = 40;
+    game.state.buildings.aerochat.units = 40;
     game.state.apps.retroamp.installed = true;
 
     const promised = game.requestFormat().dollars;
@@ -121,7 +121,7 @@ describe('requesting a Format C: (AO-17)', () => {
     expect(result.dollars).toBeCloseTo(promised);
     expect(game.state.dollars).toBeCloseTo(promised);
     expect(game.state.hardware.cpu).toBe(2);
-    expect(game.state.chat.bots).toBe(0);
+    expect(game.state.buildings.aerochat.units).toBe(0);
     expect(game.state.apps.retroamp.installed).toBe(false);
     expect(game.state.prestigeCount).toBe(1);
   });

@@ -15,7 +15,7 @@ import { STATUS_BONUSES, STATUS_EVENT } from '../src/data/balance.js';
 function chatting(bots = 10) {
   const s = createInitialState(0);
   s.apps.aerochat.open = true;
-  s.chat.bots = bots;
+  s.buildings.aerochat.units = bots;
   return s;
 }
 

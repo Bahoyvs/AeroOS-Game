@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { GOALS, GOAL_COUNT, currentGoal, goalStatus, goalsCompleted } from '../src/core/goals.js';
 import { createInitialState } from '../src/core/state.js';
 import { APPS, getApp } from '../src/data/apps.js';
-import { CHAT_BOT, PRESTIGE } from '../src/data/balance.js';
+import { BUILDING, PRESTIGE } from '../src/data/balance.js';
+import { getBuilding } from '../src/data/buildings.js';
+
+const AEROCHAT = getBuilding('aerochat');
+const FIRST_MILESTONE = BUILDING.milestones[1];
 
 const fresh = () => createInitialState(0);
 
@@ -13,7 +17,7 @@ describe('the goal tracker', () => {
 
   it('reports progress towards the first buddy in Buzz', () => {
     const state = fresh();
-    state.buzz = CHAT_BOT.baseCost / 2;
+    state.buzz = AEROCHAT.baseCost / 2;
     expect(goalStatus(state).progress).toBeCloseTo(0.5);
   });
 
@@ -27,10 +31,10 @@ describe('the goal tracker', () => {
 
   it('moves on once a goal is met', () => {
     const state = fresh();
-    state.chat.bots = 1;
+    state.buildings.aerochat.units = 1;
     expect(currentGoal(state).id).toBe('ten-buddies');
 
-    state.chat.bots = 10;
+    state.buildings.aerochat.units = 10;
     // Ten buddies cost far more than RetroAmp's unlock threshold, so a player
     // who got here has earned the right to be shown it.
     state.runBuzz = getApp('retroamp').install.unlockAt;
@@ -44,10 +48,10 @@ describe('the goal tracker', () => {
    */
   it('skips an app the run has not unlocked yet', () => {
     const state = fresh();
-    state.chat.bots = 10;
+    state.buildings.aerochat.units = 10;
     state.apps.retroamp.installed = true;
     state.retroamp.playlist = 'soft-signals';
-    state.chat.bots = CHAT_BOT.milestoneEvery;
+    state.buildings.aerochat.units = FIRST_MILESTONE.at;
     state.runBuzz = 0;
 
     // LemonWire is next on the list but unreachable, so the tracker moves past
@@ -61,14 +65,14 @@ describe('the goal tracker', () => {
   it('counts completed goals rather than the current index', () => {
     const state = fresh();
     expect(goalsCompleted(state)).toBe(0);
-    state.chat.bots = 10;
+    state.buildings.aerochat.units = 10;
     // first-buddy and ten-buddies are both behind the player now.
     expect(goalsCompleted(state)).toBe(2);
   });
 
   it('measures the first Format C: against the prestige threshold', () => {
     const state = fresh();
-    state.chat.bots = CHAT_BOT.maxPerRun;
+    state.buildings.aerochat.units = 500;
     state.apps.retroamp.installed = true;
     state.retroamp.playlist = 'soft-signals';
     state.runBuzz = 0; // nothing else is unlocked
@@ -82,7 +86,7 @@ describe('the goal tracker', () => {
   it('completes the first-hardware goal on a mainboard-only purchase', () => {
     const state = fresh();
     state.tutorial.hardwareRevealed = true;
-    state.chat.bots = 10;
+    state.buildings.aerochat.units = 10;
     state.hardware.mobo = 1;
 
     const goal = GOALS.find((g) => g.id === 'first-hardware');
@@ -94,7 +98,7 @@ describe('the goal tracker', () => {
     const state = fresh();
     state.apps.retroamp.installed = true;
     state.retroamp.playlist = 'soft-signals';
-    state.chat.bots = CHAT_BOT.milestoneEvery;
+    state.buildings.aerochat.units = FIRST_MILESTONE.at;
     state.prestigeCount = 1;
     state.hardware.cpu = 1;
     state.tutorial.hardwareRevealed = true;

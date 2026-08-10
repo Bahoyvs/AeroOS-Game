@@ -53,7 +53,7 @@ describe('Auto-Defrag, while somebody is watching', () => {
     // A pass that loses the race would leave the machine pinned at 85% with a
     // permanent 5% tax on it — strictly worse than not owning the utility.
     const s = owning(DEFRAG.startAt);
-    s.chat.bots = 400;
+    s.buildings.aerochat.units = 400;
     for (const app of Object.values(s.apps)) app.open = true;
     expect(DEFRAG.clearPerSecond).toBeGreaterThan(econ.bloatGain(s, 1) * 10);
   });
@@ -67,7 +67,7 @@ describe('Auto-Defrag, while somebody is watching', () => {
 
   it('the tax is inside the rate the player is shown', () => {
     const s = owning(DEFRAG.startAt);
-    s.chat.bots = 20;
+    s.buildings.aerochat.units = 20;
     s.apps.aerochat.open = true;
 
     const before = econ.buzzPerSecond(s, 0);
@@ -108,7 +108,7 @@ describe('Auto-Defrag, while nobody is', () => {
 
   it('a long absence leaves a machine that is still playable', () => {
     const s = owning(0.2);
-    s.chat.bots = 120;
+    s.buildings.aerochat.units = 120;
     s.apps.aerochat.open = true;
     s.apps.lemonwire.open = true;
 
@@ -126,7 +126,7 @@ describe('Auto-Defrag, while nobody is', () => {
     const storage = createMemoryStorage();
     const seed = createInitialState(0);
     seed.defrag.owned = true;
-    seed.chat.bots = 50;
+    seed.buildings.aerochat.units = 50;
     seed.apps.aerochat.open = true;
     seed.buzz = 1000;
     storage.setItem(SAVE.key, serialize(seed));

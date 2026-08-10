@@ -1,5 +1,6 @@
-import { LEMONWIRE, SAVE } from '../data/balance.js';
-import { hasApp } from '../data/apps.js';
+import { AEROSTUDIO, LEMONWIRE, SAVE } from '../data/balance.js';
+import { getApp, hasApp } from '../data/apps.js';
+import { BUILDINGS, hasBuilding } from '../data/buildings.js';
 import { hasFile } from '../data/files.js';
 import { SAVE_VERSION, createInitialState } from './state.js';
 
@@ -137,7 +138,96 @@ const MIGRATIONS = {
       version: 3,
     };
   },
+
+  /**
+   * 3 -> 4: the Master Redesign (GDD v2). One migration, not the four the
+   * intermediate design drafts described — none of those ever shipped, so there
+   * is no save in the wild that needs the chain.
+   *
+   * Three things happen here:
+   *
+   * 1. AeroChat stops being a special case. `chat.bots` becomes
+   *    `buildings.aerochat.units`, and eleven siblings appear alongside it.
+   * 2. `allTimeBuzz` is seeded from `lifetimeBuzz`. A player who has already
+   *    earned ten million Buzz starts the Legacy layer where their history says
+   *    they should, not at zero — the two counters only diverge from here on,
+   *    when Format C: settles one and not the other.
+   * 3. Shield99, AeroBurn and Aero Studio are retired, and what was spent on
+   *    them is refunded (GDD §11).
+   *
+   * On the refund: the GDD's draft reads `app.units ?? app.bots`, but none of
+   * these three ever had a unit count — they were one-off installs with their
+   * own sub-economies, so that expression is 0 for every save in existence and
+   * the "your investment was refunded" screen would show a zero. What players
+   * actually spent is refunded instead: the install price of each one they
+   * bought, Aero Studio's per-upgrade spend, and the Buzz still sitting on
+   * AeroBurn discs they never played. Erring generous is deliberate — this is
+   * compensation for progress being taken away, and the alternative to a
+   * slightly large number is a player who feels robbed.
+   */
+  3: (data) => {
+    const { shield99, aeroburn, aerostudio, ...rest } = data;
+
+    let refund = 0;
+    for (const id of ['shield99', 'aeroburn', 'aerostudio']) {
+      if (data.apps?.[id]?.installed && hasApp(id)) refund += getApp(id).install?.cost ?? 0;
+    }
+    for (const [id, tier] of Object.entries(aerostudio?.upgrades ?? {})) {
+      refund += aerostudioUpgradeSpend(id, tier);
+    }
+    // Discs are a store of Buzz the player put in and has not taken out; the
+    // one in the drive counts too, because it is Buzz already spent.
+    for (const disc of aeroburn?.discs ?? []) refund += disc?.spent ?? 0;
+    refund += aeroburn?.burning?.spent ?? 0;
+
+    const buildings = {};
+    for (const building of BUILDINGS) {
+      buildings[building.id] = {
+        units: building.id === 'aerochat' ? Math.max(0, Math.floor(data.chat?.bots ?? 0)) : 0,
+      };
+    }
+
+    const { bots, ...chat } = data.chat ?? {};
+
+    return {
+      ...rest,
+      buzz: (data.buzz ?? 0) + refund,
+      // Read once by the diegetic "System Updating…" screen (GDD §11), then
+      // cleared — it is a message, not a balance.
+      sunsetRefund: refund,
+      allTimeBuzz: data.lifetimeBuzz ?? 0,
+      legacy: { level: 0 },
+      buildings,
+      chat,
+      achievements: { unlocked: {} },
+      event: {
+        feedRatioHistory: [],
+        overflowPhase: 0,
+        ghostNotifications: [],
+        airplaneModeOwned: false,
+      },
+      crazyGames: { lastReportedCompletion: 0 },
+      version: 4,
+    };
+  },
 };
+
+/**
+ * What a player put into one Aero Studio upgrade track to reach `tier`, priced
+ * off the same table the shop charged from. Local to the migration because it
+ * is the last thing that will ever need it — the module it prices is being
+ * deleted in the next phase.
+ */
+function aerostudioUpgradeSpend(id, tier) {
+  const upgrade = AEROSTUDIO.upgrades?.[id];
+  const owned = Math.max(0, Math.floor(tier ?? 0));
+  if (!upgrade || owned === 0) return 0;
+  let total = 0;
+  for (let i = 0; i < owned; i += 1) {
+    total += Math.ceil(upgrade.baseCost * upgrade.costGrowth ** i);
+  }
+  return total;
+}
 
 export function migrate(data) {
   let current = data;
@@ -180,6 +270,17 @@ export function deserialize(raw, now = Date.now()) {
    */
   for (const id of Object.keys(state.apps)) {
     if (!hasApp(id)) delete state.apps[id];
+  }
+
+  /**
+   * The same tidy-up for the building roster. Nothing walks `state.buildings`
+   * by key today — production iterates the roster — so a stale entry is inert
+   * rather than fatal. It is still dead weight in a save with a 1 MB ceiling,
+   * and the first piece of code that does iterate the map would inherit the
+   * `state.apps` bug rather than find it already fixed.
+   */
+  for (const id of Object.keys(state.buildings ?? {})) {
+    if (!hasBuilding(id)) delete state.buildings[id];
   }
 
   // Windows never survive a reload as "open with no window on screen".

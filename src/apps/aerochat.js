@@ -1,4 +1,4 @@
-import { CHAT_BOT, STATUS_EVENT } from '../data/balance.js';
+import { BUILDING, STATUS_EVENT } from '../data/balance.js';
 import { ambientStatus, buddyAt, isAway } from '../data/buddies.js';
 import { activeBuffs, remainingSeconds } from '../core/buffs.js';
 import { claimSecondsLeft, getBonus } from '../core/statusEvents.js';
@@ -55,7 +55,7 @@ export function mount(body, { game }) {
         Max<small data-role="cost-max">—</small>
       </button>
     </div>
-    <p class="chat__hint" data-role="hint">Buddies chat while this window is open. Closing AeroChat stops the Buzz.</p>
+    <p class="chat__hint" data-role="hint">Buddies keep chatting whether or not this window is open. Closing it only frees the memory.</p>
   `;
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
@@ -65,13 +65,13 @@ export function mount(body, { game }) {
 
   for (const button of body.querySelectorAll('[data-buy]')) {
     button.addEventListener('click', () => {
-      const amount = button.dataset.buy === 'max' ? CHAT_BOT.maxPerRun : Number(button.dataset.buy);
-      const result = game.buyBots(amount);
+      const amount = button.dataset.buy === 'max' ? BUILDING.maxUnits : Number(button.dataset.buy);
+      const result = game.buyUnits('aerochat', amount);
       if (!result.ok) {
         game.notify(
-          result.reason === 'buddy-list-full' ? 'Buddy list is full' : 'Not enough Buzz',
-          result.reason === 'buddy-list-full'
-            ? `${CHAT_BOT.maxPerRun} buddies is the cap for this run.`
+          result.reason === 'full' ? 'Buddy list is full' : 'Not enough Buzz',
+          result.reason === 'full'
+            ? `${BUILDING.maxUnits} buddies is as many as the list holds.`
             : 'Nudge a few more times.',
           'warn',
         );
@@ -135,8 +135,9 @@ export function mount(body, { game }) {
 
   function renderList(force = false) {
     const s = game.state;
+    const bots = game.econ.buddyCount(s);
     const epoch = Math.floor(Date.now() / (STATUS_EVENT.ambientRotationSeconds * 1000));
-    const key = `${s.chat.bots}|${epoch}|${s.chat.event?.bonusId ?? ''}|${s.chat.event?.index ?? ''}`;
+    const key = `${bots}|${epoch}|${s.chat.event?.bonusId ?? ''}|${s.chat.event?.index ?? ''}`;
     if (!force && key === listKey) return;
     listKey = key;
 
@@ -144,7 +145,7 @@ export function mount(body, { game }) {
 
     if (s.chat.event) list.appendChild(hotRow(s.chat.event));
 
-    if (s.chat.bots === 0) {
+    if (bots === 0) {
       list.appendChild(
         el('li', { class: 'chat__empty', text: 'Nobody online yet. Add your first buddy.' }),
       );
@@ -155,15 +156,15 @@ export function mount(body, { game }) {
     // Group headers count the whole buddy list, not the drawn slice — showing
     // "Online (12)" next to "28 buddies" reads as if the other 16 vanished.
     let onlineTotal = 0;
-    for (let i = 0; i < s.chat.bots; i += 1) if (!isAway(i, epoch)) onlineTotal += 1;
-    const awayTotal = s.chat.bots - onlineTotal;
+    for (let i = 0; i < bots; i += 1) if (!isAway(i, epoch)) onlineTotal += 1;
+    const awayTotal = bots - onlineTotal;
 
     // Newest buddies first — the list reads as "who just signed in".
-    const shown = Math.min(s.chat.bots, VISIBLE_BUDDIES);
+    const shown = Math.min(bots, VISIBLE_BUDDIES);
     const online = [];
     const away = [];
     for (let i = 0; i < shown; i += 1) {
-      const index = s.chat.bots - 1 - i;
+      const index = bots - 1 - i;
       (isAway(index, epoch) ? away : online).push(index);
     }
 
@@ -175,8 +176,8 @@ export function mount(body, { game }) {
       list.appendChild(el('li', { class: 'chat__group', text: `Away (${awayTotal})` }));
       for (const index of away) list.appendChild(buddyRow(index, epoch));
     }
-    if (s.chat.bots > shown) {
-      list.appendChild(el('li', { class: 'chat__more', text: `+${s.chat.bots - shown} more buddies online` }));
+    if (bots > shown) {
+      list.appendChild(el('li', { class: 'chat__more', text: `+${bots - shown} more buddies online` }));
     }
 
     list.appendChild(fillRow());
@@ -188,6 +189,11 @@ export function mount(body, { game }) {
    * Shows the working behind the rate. Only factors that are actually doing
    * something are listed, so a clean system reads "28 × 0.5 = 14 / sec" and a
    * bloated one explains where the missing Buzz went.
+   *
+   * This one is AeroChat-specific and stays on `rateBreakdown`. A building
+   * window that wants its own working uses `getProductionBreakdown` instead —
+   * this panel is the machine's summary, drawn in the window that has been the
+   * whole machine since the first minute of the game.
    */
   function renderBreakdown(bd) {
     const parts = [
@@ -202,6 +208,9 @@ export function mount(body, { game }) {
         ? [el('span', { class: 'is-boost', text: `×${bd.playlist.toFixed(2)} playlist` })]
         : []),
       ...(bd.cpu !== 1 ? [el('span', { class: 'is-boost', text: `×${bd.cpu.toFixed(2)} CPU` })] : []),
+      ...(bd.legacy !== 1
+        ? [el('span', { class: 'is-boost', text: `×${bd.legacy.toFixed(2)} legacy` })]
+        : []),
       ...(bd.bloat !== 1
         ? [el('span', { class: 'is-drag', text: `×${bd.bloat.toFixed(2)} bloat` })]
         : []),
@@ -209,6 +218,11 @@ export function mount(body, { game }) {
       // showing it as a factor would misreport where the Buzz comes from.
       ...(bd.seeds > 0
         ? [el('span', { class: 'is-boost', text: `+ ${formatNumber(bd.seeds)} seeding` })]
+        : []),
+      // ...and so is every other building. One line for all eleven: this panel
+      // shows AeroChat's working, not the machine's.
+      ...(bd.others > 0
+        ? [el('span', { class: 'is-boost', text: `+ ${formatNumber(bd.others)} elsewhere` })]
         : []),
       el('span', { class: 'is-total', text: `= ${formatNumber(bd.total)} / sec` }),
     ];
@@ -254,24 +268,27 @@ export function mount(body, { game }) {
     const name = s.username || 'Guest';
     if (ref('me-name').textContent !== name) ref('me-name').textContent = name;
 
-    ref('rate').textContent = `${formatNumber(econ.buzzPerSecond(s, now))} / sec`;
-    ref('bot-count').textContent = `${s.chat.bots} ${s.chat.bots === 1 ? 'buddy' : 'buddies'}`;
+    // One accessor, per GDD §2.8: the window translates these numbers into
+    // buddy-list language and never computes one of its own.
+    const bd = econ.getProductionBreakdown(s, 'aerochat', now);
 
-    const milestone = econ.nextChatMilestone(s);
-    const multiplier = econ.chatMilestoneMultiplier(s);
+    ref('rate').textContent = `${formatNumber(econ.buzzPerSecond(s, now))} / sec`;
+    ref('bot-count').textContent = `${bd.units} ${bd.units === 1 ? 'buddy' : 'buddies'}`;
+
+    const milestone = bd.milestone;
+    const multiplier = bd.milestoneMultiplier;
     if (milestone) {
-      ref('milestone-text').textContent = `×${multiplier.toFixed(2)} · ${milestone.remaining} to +${Math.round(milestone.bonus * 100)}%`;
-      const span = CHAT_BOT.milestoneEvery;
-      setBar(ref('milestone-bar'), (span - milestone.remaining) / span, { warn: 2, critical: 2 });
+      ref('milestone-text').textContent = `×${multiplier} · ${milestone.remaining} to ×${milestone.multiplier}`;
+      setBar(ref('milestone-bar'), milestone.ratio, { warn: 2, critical: 2 });
     } else {
-      ref('milestone-text').textContent = `×${multiplier.toFixed(2)} · buddy list full`;
+      ref('milestone-text').textContent = `×${multiplier} · every buddy online`;
       setBar(ref('milestone-bar'), 1, { warn: 2, critical: 2 });
     }
 
     for (const button of body.querySelectorAll('[data-buy]')) {
       const raw = button.dataset.buy;
-      const amount = raw === 'max' ? CHAT_BOT.maxPerRun : Number(raw);
-      const { count, cost } = econ.affordableBots(s, amount);
+      const amount = raw === 'max' ? BUILDING.maxUnits : Number(raw);
+      const { count, cost } = econ.affordableUnits(s, 'aerochat', amount);
       button.disabled = count === 0;
       const costNode = ref(`cost-${raw}`);
       if (costNode) {
@@ -280,7 +297,7 @@ export function mount(body, { game }) {
             ? count > 0
               ? `${count} · ${formatNumber(cost)}`
               : '—'
-            : formatNumber(econ.botCostBulk(s.chat.bots, amount));
+            : formatNumber(econ.unitCostBulk('aerochat', bd.units, amount));
       }
     }
 

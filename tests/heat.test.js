@@ -69,7 +69,7 @@ describe('system heat (AO-27)', () => {
 describe('the offline report (AO-28)', () => {
   const producing = () => {
     const s = createInitialState(0);
-    s.chat.bots = 100;
+    s.buildings.aerochat.units = 100;
     s.apps.aerochat.open = true;
     return s;
   };

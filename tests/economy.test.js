@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import * as econ from '../src/core/economy.js';
 import { addBuff } from '../src/core/buffs.js';
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
-import { BLOAT, CHAT_BOT, OFFLINE, PRESTIGE } from '../src/data/balance.js';
+import { BLOAT, BUILDING, OFFLINE, PRESTIGE } from '../src/data/balance.js';
+import { getBuilding } from '../src/data/buildings.js';
+
+const AEROCHAT = getBuilding('aerochat');
+const FIRST_MILESTONE = BUILDING.milestones[1];
 import { CPU_TIERS, GPU_TIERS, HARDWARE_BASE, HDD_TIERS, RAM_TIERS } from '../src/data/hardware.js';
 
 const stateWith = (patch = {}) => ({ ...createInitialState(0), ...patch });
@@ -38,46 +42,50 @@ describe('memory budget', () => {
   });
 });
 
-describe('chat bots', () => {
+describe('unit pricing', () => {
   it('grows the price geometrically', () => {
-    expect(econ.botCost(0)).toBe(CHAT_BOT.baseCost);
-    expect(econ.botCost(1)).toBe(Math.ceil(CHAT_BOT.baseCost * CHAT_BOT.costGrowth));
-    expect(econ.botCost(10)).toBeGreaterThan(econ.botCost(9));
+    expect(econ.unitCost('aerochat', 0)).toBe(AEROCHAT.baseCost);
+    expect(econ.unitCost('aerochat', 1)).toBe(Math.ceil(AEROCHAT.baseCost * BUILDING.costGrowth));
+    expect(econ.unitCost('aerochat', 10)).toBeGreaterThan(econ.unitCost('aerochat', 9));
   });
 
   it('bulk cost equals the sum of individual costs', () => {
-    const sum = econ.botCost(0) + econ.botCost(1) + econ.botCost(2);
-    expect(econ.botCostBulk(0, 3)).toBe(sum);
+    const sum = econ.unitCost('aerochat', 0) + econ.unitCost('aerochat', 1) + econ.unitCost('aerochat', 2);
+    expect(econ.unitCostBulk('aerochat', 0, 3)).toBe(sum);
   });
 
-  it('affordableBots never overspends', () => {
+  it('affordableUnits never overspends', () => {
     const s = stateWith({ buzz: 100 });
-    const { count, cost } = econ.affordableBots(s, 50);
+    const { count, cost } = econ.affordableUnits(s, 'aerochat', 50);
     expect(cost).toBeLessThanOrEqual(100);
-    expect(econ.botCostBulk(0, count + 1)).toBeGreaterThan(100);
+    expect(econ.unitCostBulk('aerochat', 0, count + 1)).toBeGreaterThan(100);
   });
 
-  it('affordableBots returns nothing when broke', () => {
-    expect(econ.affordableBots(stateWith({ buzz: 0 })).count).toBe(0);
+  it('affordableUnits returns nothing when broke', () => {
+    expect(econ.affordableUnits(stateWith({ buzz: 0 }), 'aerochat', 10).count).toBe(0);
   });
 });
 
 describe('production', () => {
-  it('produces nothing while AeroChat is closed', () => {
-    const s = stateWith({ chat: { bots: 10 } });
-    expect(econ.baseBuzzPerSecond(s)).toBe(0);
+  it('keeps producing while AeroChat is closed', () => {
+    // The redesign's rule (GDD §5): a building pays whether or not its window
+    // is on screen. RAM bounds what can be *shown*, not what earns.
+    const s = createInitialState(0);
+    s.buildings.aerochat.units = 10;
+    s.apps.aerochat.open = false;
+    expect(econ.baseBuzzPerSecond(s)).toBeCloseTo(10 * AEROCHAT.baseProduction);
   });
 
-  it('scales with bots when AeroChat is open', () => {
+  it('scales with bots', () => {
     const s = createInitialState(0);
-    s.chat.bots = 10;
+    s.buildings.aerochat.units = 10;
     s.apps.aerochat.open = true;
-    expect(econ.baseBuzzPerSecond(s)).toBeCloseTo(10 * CHAT_BOT.baseRate);
+    expect(econ.baseBuzzPerSecond(s)).toBeCloseTo(10 * AEROCHAT.baseProduction);
   });
 
   it('applies the CPU tick rate as a global multiplier', () => {
     const s = createInitialState(0);
-    s.chat.bots = 10;
+    s.buildings.aerochat.units = 10;
     s.apps.aerochat.open = true;
     const base = econ.buzzPerSecond(s);
     s.hardware.cpu = 1;
@@ -114,7 +122,7 @@ describe('bloat', () => {
 describe('offline earnings', () => {
   const producing = () => {
     const s = createInitialState(0);
-    s.chat.bots = 100;
+    s.buildings.aerochat.units = 100;
     s.apps.aerochat.open = true;
     return s;
   };
@@ -181,14 +189,14 @@ describe('prestige', () => {
   it('keeps hardware and Dollars but wipes software', () => {
     const s = stateWith({ lifetimeBuzz: 1_000_000, buzz: 999, dollars: 5 });
     s.hardware.cpu = 2;
-    s.chat.bots = 42;
+    s.buildings.aerochat.units = 42;
     s.apps.retroamp.installed = true;
 
     const after = resetForPrestige(s, 10, 0);
     expect(after.hardware.cpu).toBe(2);
     expect(after.dollars).toBe(15);
     expect(after.buzz).toBe(0);
-    expect(after.chat.bots).toBe(0);
+    expect(after.buildings.aerochat.units).toBe(0);
     expect(after.apps.retroamp.installed).toBe(false);
     expect(after.apps.aerochat.installed).toBe(true);
     expect(after.lifetimeBuzz).toBe(1_000_000);
@@ -205,49 +213,47 @@ describe('prestige', () => {
 describe('buddy milestones', () => {
   const withBots = (bots) => {
     const s = createInitialState(0);
-    s.chat.bots = bots;
+    s.buildings.aerochat.units = bots;
     s.apps.aerochat.open = true;
     return s;
   };
 
   it('is neutral below the first milestone', () => {
-    expect(econ.chatMilestoneMultiplier(withBots(CHAT_BOT.milestoneEvery - 1))).toBe(1);
+    expect(econ.milestoneMultiplier(FIRST_MILESTONE.at - 1)).toBe(1);
   });
 
-  it('adds a flat bonus per milestone', () => {
-    const s = withBots(CHAT_BOT.milestoneEvery * 3);
-    expect(econ.chatMilestoneCount(s)).toBe(3);
-    expect(econ.chatMilestoneMultiplier(s)).toBeCloseTo(1 + 3 * CHAT_BOT.milestoneBonus);
+  it('steps to the next tier exactly on the threshold', () => {
+    expect(econ.milestoneMultiplier(FIRST_MILESTONE.at)).toBe(FIRST_MILESTONE.multiplier);
   });
 
   it('reports how far the next milestone is', () => {
-    const next = econ.nextChatMilestone(withBots(CHAT_BOT.milestoneEvery + 4));
-    expect(next.at).toBe(CHAT_BOT.milestoneEvery * 2);
-    expect(next.remaining).toBe(CHAT_BOT.milestoneEvery - 4);
+    const next = econ.nextMilestone(FIRST_MILESTONE.at + 4);
+    expect(next.at).toBe(BUILDING.milestones[2].at);
+    expect(next.remaining).toBe(BUILDING.milestones[2].at - FIRST_MILESTONE.at - 4);
   });
 
-  it('has no next milestone once the buddy list is full', () => {
-    expect(econ.nextChatMilestone(withBots(CHAT_BOT.maxPerRun))).toBeNull();
+  it('has no next milestone at the top tier', () => {
+    expect(econ.nextMilestone(BUILDING.milestones.at(-1).at)).toBeNull();
   });
 
   it('raises production', () => {
-    const before = econ.buzzPerSecond(withBots(CHAT_BOT.milestoneEvery - 1), 0);
-    const after = econ.buzzPerSecond(withBots(CHAT_BOT.milestoneEvery), 0);
+    const before = econ.buzzPerSecond(withBots(FIRST_MILESTONE.at - 1), 0);
+    const after = econ.buzzPerSecond(withBots(FIRST_MILESTONE.at), 0);
     // One more buddy plus the milestone: strictly more than the linear step.
-    expect(after / before).toBeGreaterThan(CHAT_BOT.milestoneEvery / (CHAT_BOT.milestoneEvery - 1));
+    expect(after / before).toBeGreaterThan(FIRST_MILESTONE.at / (FIRST_MILESTONE.at - 1));
   });
 });
 
 describe('rate breakdown', () => {
   const producing = (bots) => {
     const s = createInitialState(0);
-    s.chat.bots = bots;
+    s.buildings.aerochat.units = bots;
     s.apps.aerochat.open = true;
     return s;
   };
 
   it('factors multiply back to the total', () => {
-    const s = producing(CHAT_BOT.milestoneEvery * 2 + 3);
+    const s = producing(FIRST_MILESTONE.at * 2 + 3);
     s.hardware.cpu = 2;
     s.bloat = 0.4;
     addBuff(s, { id: 'b', kind: 'chat', magnitude: 0.25, durationSeconds: 60, label: 'b' }, 0);
@@ -259,10 +265,9 @@ describe('rate breakdown', () => {
 
     const bd = econ.rateBreakdown(s, 0);
     expect(bd.playlist).toBeGreaterThan(1);
-    expect(bd.base * bd.milestone * bd.buffs * bd.playlist * bd.cpu * bd.bloat).toBeCloseTo(
-      bd.total,
-      6,
-    );
+    expect(
+      bd.base * bd.milestone * bd.buffs * bd.playlist * bd.cpu * bd.legacy * bd.bloat,
+    ).toBeCloseTo(bd.total, 6);
   });
 
   it('reports the plain case with every factor neutral', () => {
@@ -271,33 +276,33 @@ describe('rate breakdown', () => {
     expect(bd.total).toBeCloseTo(bd.base);
   });
 
-  it('shows bloat as the factor cancelling the milestone', () => {
-    // The case from the bug report: the advertised x1.08 looked like it did
-    // nothing because bloat quietly ate it.
+  it('shows bloat as a factor eating into the milestone', () => {
+    // The shape of the original bug report: an advertised multiplier that looks
+    // like it did nothing, because bloat quietly cancels part of it. The step
+    // table is far too big for bloat to erase now, but the breakdown still has
+    // to *show* the drag rather than let the player infer it.
     const s = producing(28);
     s.bloat = 0.11; // the value on screen when it was reported
     const bd = econ.rateBreakdown(s, 0);
 
-    expect(bd.milestone).toBeCloseTo(1.08);
+    expect(bd.milestone).toBe(FIRST_MILESTONE.multiplier);
     expect(bd.bloat).toBeCloseTo(0.945);
-    // Net effect ~x1.02: the advertised milestone is all but cancelled, which
-    // is exactly why the breakdown has to be visible in the UI.
-    expect(bd.total).toBeCloseTo(bd.base, 0);
+    expect(bd.total).toBeLessThan(bd.base * bd.milestone);
   });
 
-  it('reports zero while AeroChat is closed', () => {
+  it('keeps reporting the rate while AeroChat is closed', () => {
     const s = producing(10);
     s.apps.aerochat.open = false;
     const bd = econ.rateBreakdown(s, 0);
     expect(bd.open).toBe(false);
-    expect(bd.total).toBe(0);
+    expect(bd.total).toBeGreaterThan(0);
   });
 });
 
 describe('buff integration', () => {
   const producing = () => {
     const s = createInitialState(0);
-    s.chat.bots = 10;
+    s.buildings.aerochat.units = 10;
     s.apps.aerochat.open = true;
     return s;
   };

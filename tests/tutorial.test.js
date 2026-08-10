@@ -11,7 +11,7 @@ import {
   stepNumber,
 } from '../src/core/tutorial.js';
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
-import { botCost } from '../src/core/economy.js';
+import { unitCost } from '../src/core/economy.js';
 import { getApp } from '../src/data/apps.js';
 import { PLAYLISTS, getPlaylist } from '../src/data/playlists.js';
 import { TUTORIAL } from '../src/data/balance.js';
@@ -23,7 +23,7 @@ function progressTo(state, id) {
   const target = TUTORIAL_STEPS.findIndex((s) => s.id === id);
   const doIt = {
     nudge: () => (state.stats.nudges = 1),
-    'first-buddy': () => (state.chat.bots = 1),
+    'first-buddy': () => (state.buildings.aerochat.units = 1),
     'install-retroamp': () => (state.apps.retroamp.installed = true),
     'load-playlist': () => (state.retroamp.playlist = 'soft-signals'),
     bottleneck: () => (state.tutorial.hardwareRevealed = true),
@@ -97,15 +97,15 @@ describe('affordability gates', () => {
 
     const gate = stepGate(s);
     expect(gate.stepId).toBe('first-buddy');
-    expect(gate.needed).toBe(botCost(0));
+    expect(gate.needed).toBe(unitCost('aerochat', 0));
     expect(gate.have).toBe(1);
-    expect(gate.short).toBe(botCost(0) - 1);
-    expect(gate.progress).toBeCloseTo(1 / botCost(0));
+    expect(gate.short).toBe(unitCost('aerochat', 0) - 1);
+    expect(gate.progress).toBeCloseTo(1 / unitCost('aerochat', 0));
   });
 
   it('lifts once the Buzz is there', () => {
     const s = progressTo(fresh(), 'first-buddy');
-    s.buzz = botCost(0);
+    s.buzz = unitCost('aerochat', 0);
     expect(stepGate(s)).toBeNull();
   });
 
@@ -135,7 +135,7 @@ describe('affordability gates', () => {
     s.buzz = 0;
     expect(stepGate(s)).not.toBeNull();
 
-    s.chat.bots = 1; // bought with Buzz that has since been spent
+    s.buildings.aerochat.units = 1; // bought with Buzz that has since been spent
     advanceTutorial(s);
     expect(currentStep(s).id).toBe('install-retroamp');
   });
@@ -148,12 +148,12 @@ describe('affordability gates', () => {
 
   it('prices the gate off the live cost, not a constant', () => {
     const s = progressTo(fresh(), 'first-buddy');
-    s.chat.bots = 0;
+    s.buildings.aerochat.units = 0;
     s.buzz = 0;
     const first = stepGate(s).needed;
 
     // A player who bought and lost buddies faces the curve, not the sticker.
-    s.chat.bots = 5;
+    s.buildings.aerochat.units = 5;
     expect(stepGate(s).needed).toBeGreaterThan(first);
   });
 });
@@ -176,7 +176,7 @@ describe('advancing', () => {
   it('skips over several steps at once if the player got ahead', () => {
     const s = fresh();
     s.stats.nudges = 5;
-    s.chat.bots = 3;
+    s.buildings.aerochat.units = 3;
     s.apps.retroamp.installed = true;
     const completed = advanceTutorial(s);
     expect(completed.map((c) => c.id)).toEqual(['nudge', 'first-buddy', 'install-retroamp']);
@@ -269,7 +269,7 @@ describe('resuming a save', () => {
 
   it('treats a big buddy list as experience', () => {
     const s = fresh();
-    s.chat.bots = TUTORIAL.experiencedBuddies;
+    s.buildings.aerochat.units = TUTORIAL.experiencedBuddies;
     resumeTutorial(s);
     expect(s.tutorial.done).toBe(true);
   });

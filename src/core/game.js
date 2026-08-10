@@ -1,6 +1,8 @@
-import { ADS, CHAT_BOT, CLICK, DEFRAG, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { ADS, BUILDING, CLICK, DEFRAG, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
+import { hasBuilding } from '../data/buildings.js';
+import { applyLegacyLevel } from './legacy.js';
 import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
 import { getPlaylist } from '../data/playlists.js';
@@ -44,6 +46,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     state.buzz += amount;
     state.runBuzz += amount;
     state.lifetimeBuzz += amount;
+    // The Legacy accumulator (GDD §2.6). Every Buzz the player has ever earned
+    // passes through here exactly once, which is what makes it trustworthy —
+    // and unlike `lifetimeBuzz`, nothing ever settles against it.
+    state.allTimeBuzz += amount;
     bus.emit(EVENTS.BUZZ_GAINED, { amount, source });
   }
 
@@ -250,27 +256,53 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true };
   }
 
-  /** Buy chat buddies — the core spending sink (AO-9). */
-  function buyBots(amount = 1) {
-    const { count, cost } = econ.affordableBots(state, amount);
+  /**
+   * Buy units of a building — the core spending sink, and the only one there is
+   * (GDD §2.2: the manual upgrade shops are gone).
+   *
+   * Every one of the twelve goes through this single action. A window dresses
+   * the purchase up as whatever its era would have called it — an Add Contact
+   * wizard, a `[+ ADD]` button, a `> execute payload.exe` prompt — but there is
+   * one code path underneath, so no building can drift into having its own
+   * pricing rules.
+   */
+  function buyUnits(buildingId, amount = 1) {
+    if (!hasBuilding(buildingId)) return { ok: false, reason: 'unknown-building' };
+    if (!econ.isBuildingUnlocked(state, buildingId)) return { ok: false, reason: 'locked' };
+
+    const { count, cost } = econ.affordableUnits(state, buildingId, amount);
     if (count === 0) {
-      const reason = state.chat.bots >= CHAT_BOT.maxPerRun ? 'buddy-list-full' : 'too-expensive';
+      const reason = econ.unitsOf(state, buildingId) >= BUILDING.maxUnits ? 'full' : 'too-expensive';
       return { ok: false, reason };
     }
 
-    const milestonesBefore = econ.chatMilestoneCount(state);
+    const before = econ.unitsOf(state, buildingId);
     state.buzz -= cost;
-    state.chat.bots += count;
-    bus.emit(EVENTS.BOT_BOUGHT, { count, cost });
+    state.buildings[buildingId].units = before + count;
+    const after = state.buildings[buildingId].units;
+    bus.emit(EVENTS.UNITS_BOUGHT, { id: buildingId, count, cost, units: after });
 
-    // Crossing a milestone is the reason to buy in bulk, so it gets announced.
-    if (econ.chatMilestoneCount(state) > milestonesBefore) {
+    /**
+     * Crossing a milestone is the reason to buy in bulk, so it gets announced —
+     * and under the redesign it is also the *only* thing a purchase can trigger,
+     * since there is nothing to decide afterwards. The window turns this into
+     * its 2-3 second celebration (GDD §2.3); the simulation just says it landed.
+     */
+    if (econ.crossedMilestone(before, after)) {
       bus.emit(EVENTS.MILESTONE, {
-        at: econ.chatMilestoneCount(state) * CHAT_BOT.milestoneEvery,
-        multiplier: econ.chatMilestoneMultiplier(state),
+        id: buildingId,
+        at: BUILDING.milestones[econ.milestoneIndex(after)].at,
+        multiplier: econ.milestoneMultiplier(after),
+        // Same threshold, so a building with a mini-game opens it on this beat.
+        minigameUnlocked: econ.hasMinigame(state, buildingId) && !hasMinigameAt(before, buildingId),
       });
     }
-    return { ok: true, count, cost };
+    return { ok: true, count, cost, units: after };
+  }
+
+  /** Did this building already have its mini-game open at `units`? */
+  function hasMinigameAt(units, buildingId) {
+    return econ.hasMinigame({ buildings: { [buildingId]: { units } } }, buildingId);
   }
 
   /* ------------------------------------------------------------- RetroAmp */
@@ -843,9 +875,20 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       : 0;
 
     state = resetForPrestige(state, dollars, Date.now(), { bonusDollars: bonus });
-    bus.emit(EVENTS.PRESTIGE, { dollars, bonus });
+
+    /**
+     * The Legacy Level applies the moment the wipe completes, with nothing to
+     * buy and nothing to confirm (GDD §2.6). The multiplier does not actually
+     * wait for this — it is derived from `allTimeBuzz` on every read — so what
+     * happens here is that the number is *stamped and reported*, which is what
+     * lets the POST sequence say "Legacy Level 3 applied" and be telling the
+     * truth rather than performing a purchase the player never made.
+     */
+    const legacy = applyLegacyLevel(state);
+
+    bus.emit(EVENTS.PRESTIGE, { dollars, bonus, legacy });
     save();
-    return { ok: true, dollars, bonus };
+    return { ok: true, dollars, bonus, legacy };
   }
 
   /** Player settings (sound, motion). Persisted immediately — it is a promise. */
@@ -908,7 +951,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     openApp,
     closeApp,
     installApp,
-    buyBots,
+    buyUnits,
     claimStatusBonus,
     loadPlaylist,
     ejectPlaylist,

@@ -105,7 +105,7 @@ describe('the capacities players actually see', () => {
 describe('what the stats are wired into', () => {
   const producing = (patch) => {
     const s = at(patch);
-    s.chat.bots = 10;
+    s.buildings.aerochat.units = 10;
     s.apps.aerochat.open = true;
     return s;
   };

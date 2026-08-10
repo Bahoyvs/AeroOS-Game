@@ -1,5 +1,10 @@
 import { STATUS_BONUSES, STATUS_EVENT } from '../data/balance.js';
 import { addBuff } from './buffs.js';
+// Straight from the mechanic rather than through `economy.js`: this module only
+// needs the buddy count, and economy is the module that composes everything.
+import { unitsOf } from './buildings.js';
+
+const buddyCount = (state) => unitsOf(state, 'aerochat');
 
 /**
  * Rotating status-message bonus events (AO-10).
@@ -37,7 +42,7 @@ export function rollInterval(rng = Math.random) {
 }
 
 function canSpawn(state) {
-  return state.apps.aerochat?.open === true && state.chat.bots >= STATUS_EVENT.minBuddies;
+  return state.apps.aerochat?.open === true && buddyCount(state) >= STATUS_EVENT.minBuddies;
 }
 
 /**
@@ -76,7 +81,7 @@ export function updateStatusEvents(state, dt, rng = Math.random) {
   if (chat.nextEventIn <= 0) {
     const bonus = rollBonus(rng);
     chat.event = {
-      index: Math.floor(rng() * chat.bots),
+      index: Math.floor(rng() * buddyCount(state)),
       bonusId: bonus.id,
       secondsLeft: STATUS_EVENT.claimWindowSeconds,
     };

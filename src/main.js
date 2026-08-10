@@ -6,6 +6,7 @@ import { createGame } from './core/game.js';
 import { createGameLoop } from './core/loop.js';
 import { formatDuration, formatNumber } from './core/format.js';
 import { getApp } from './data/apps.js';
+import { getBuilding } from './data/buildings.js';
 import { buddyAt } from './data/buddies.js';
 import { getBonus } from './core/statusEvents.js';
 import { ADS, HEAT } from './data/balance.js';
@@ -405,7 +406,7 @@ async function boot() {
 
   // One place for every sound the simulation triggers (AO-26).
   const SOUNDS = {
-    [game.events.BOT_BOUGHT]: 'buy',
+    [game.events.UNITS_BOUGHT]: 'buy',
     [game.events.APP_INSTALLED]: 'hdd',
     [game.events.APP_OPENED]: 'click',
     [game.events.OUT_OF_MEMORY]: 'error',
@@ -769,10 +770,19 @@ async function boot() {
     });
   });
 
-  game.bus.on(game.events.MILESTONE, ({ at, multiplier }) => {
+  /**
+   * A milestone is the only thing a purchase can announce now (GDD §2.3), so
+   * this is the hook the per-building celebrations will hang off in Phase 2.
+   * Until they exist it stays a balloon — but a balloon in the building's own
+   * language, counting the building's own unit, not AeroChat's buddies.
+   */
+  game.bus.on(game.events.MILESTONE, ({ id, at, multiplier, minigameUnlocked }) => {
+    const building = getBuilding(id);
     notify({
-      title: `${at} buddies online`,
-      body: `AeroChat production is now ×${multiplier.toFixed(2)}.`,
+      title: `${at} ${building.units}`,
+      body: minigameUnlocked
+        ? `${building.name} is now ×${multiplier} — and ${building.minigame.title} is unlocked.`
+        : `${building.name} production is now ×${multiplier}.`,
       tone: 'success',
     });
   });
@@ -907,12 +917,12 @@ async function boot() {
     const reportContext = () => {
       const hwTotal = game.state.hardware.cpu + game.state.hardware.ram + game.state.hardware.hdd;
       let percentage = (hwTotal / 30) * 100;
-      if (hwTotal === 0) percentage = Math.min(10, (game.state.chat.bots / 100) * 10);
+      if (hwTotal === 0) percentage = Math.min(10, (game.econ.buddyCount(game.state) / 100) * 10);
       percentage = Math.floor(Math.min(100, Math.max(0, percentage)));
 
       sdk.game.reportGameCompletedPercentage(percentage);
       sdk.game.setGameContext({
-        bots: game.state.chat.bots,
+        bots: game.econ.buddyCount(game.state),
         prestige: game.state.prestigeCount,
         cpu: game.state.hardware.cpu,
         ram: game.state.hardware.ram,

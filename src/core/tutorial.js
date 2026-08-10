@@ -1,7 +1,7 @@
 import { TUTORIAL } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
 import { getPlaylist } from '../data/playlists.js';
-import { botCost } from './economy.js';
+import { unitCost, unitsOf } from './economy.js';
 
 // Read the playlist names rather than repeating them. They have been renamed
 // once already — "IRON OVERDRIVE" is "P2P DOWNLOADER" now — and a tutorial
@@ -45,9 +45,9 @@ export const TUTORIAL_STEPS = [
     title: 'Get someone online',
     hint: 'Add a buddy in AeroChat. Buddies keep chatting while you idle.',
     cta: 'Add your first buddy',
-    cost: (state) => botCost(state.chat.bots),
+    cost: (state) => unitCost('aerochat', unitsOf(state, 'aerochat')),
     shortOf: (needed) => `A buddy costs ${needed} Buzz. Keep nudging until you can afford one.`,
-    isDone: (state) => state.chat.bots >= 1,
+    isDone: (state) => unitsOf(state, 'aerochat') >= 1,
   },
   {
     id: 'install-retroamp',
@@ -193,7 +193,7 @@ export function resumeTutorial(state) {
     state.prestigeCount > 0 ||
     state.dollarsEarnedTotal > 0 ||
     state.lifetimeBuzz >= TUTORIAL.experiencedBuzz ||
-    state.chat.bots >= TUTORIAL.experiencedBuddies;
+    unitsOf(state, 'aerochat') >= TUTORIAL.experiencedBuddies;
 
   if (experienced) skipTutorial(state);
   else advanceTutorial(state);

@@ -11,7 +11,7 @@ const newGame = () => createGame({ storage: createMemoryStorage() });
 
 /** A machine that actually produces something, so rewards are non-zero. */
 function producing(game, bots = 50) {
-  game.state.chat.bots = bots;
+  game.state.buildings.aerochat.units = bots;
   game.state.apps.aerochat.open = true; // buddies only pay while the window is open
   return game;
 }

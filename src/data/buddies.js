@@ -1,7 +1,7 @@
 /**
  * Buddy identities (AO-8).
  *
- * Buddies are *derived*, never stored: `state.chat.bots` is a count, and every
+ * Buddies are *derived*, never stored: `buildings.aerochat.units` is a count, and every
  * visual detail — nickname, display picture, ambient status, away state — is a
  * pure function of the buddy's index. That keeps saves tiny and identities
  * stable across reloads, and means 500 buddies cost nothing until they are drawn.

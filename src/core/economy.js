@@ -1,5 +1,6 @@
-import { BLOAT, CHAT_BOT, CLICK, HEAT, LEMONWIRE, OFFLINE, PRESTIGE, SWEEPER } from '../data/balance.js';
+import { BLOAT, CLICK, HEAT, LEMONWIRE, OFFLINE, PRESTIGE, SWEEPER } from '../data/balance.js';
 import { getApp } from '../data/apps.js';
+import { getBuilding } from '../data/buildings.js';
 import {
   HARDWARE,
   HARDWARE_BASE,
@@ -11,6 +12,24 @@ import {
 } from '../data/hardware.js';
 import { getPlaylist } from '../data/playlists.js';
 import { buffMultiplier } from './buffs.js';
+import {
+  affordableUnits,
+  buildingProduction,
+  crossedMilestone,
+  hasMinigame,
+  isBuildingUnlocked,
+  milestoneIndex,
+  milestoneMultiplier,
+  nextMilestone,
+  nextUnlock,
+  totalBuildingProduction,
+  totalUnits,
+  unitCost,
+  unitCostBulk,
+  unitsOf,
+  unlockedBuildings,
+} from './buildings.js';
+import { legacyLevel, legacyMultiplier, legacyProgress } from './legacy.js';
 import { canBurn } from './aeroburn.js';
 import { defragPenalty, defragProgress, isDefragging, offlineBloat } from './defrag.js';
 import { canSeed, connectionAt, seedWeight, storageUsedGB } from './lemonwire.js';
@@ -178,11 +197,18 @@ export function canLoadPlaylist(state, id, now = Date.now()) {
 
 /* ------------------------------------------------------------------- bloat */
 
-/** Bloat accrued in `seconds` of uptime, given what is currently running. */
+/**
+ * Bloat accrued in `seconds` of uptime, given what is currently running.
+ *
+ * The per-unit term counts every building's units, not just AeroChat's — a
+ * machine running nine programs' worth of them is not a clean machine, and
+ * leaving the term on buddies alone would have made the phase-1 buildings the
+ * only ones with a downside.
+ */
 export function bloatGain(state, seconds) {
   const openApps = Object.values(state.apps).filter((a) => a.open).length;
   const perMinute =
-    openApps * BLOAT.perOpenAppPerMinute + state.chat.bots * BLOAT.perBotPerMinute;
+    openApps * BLOAT.perOpenAppPerMinute + totalUnits(state) * BLOAT.perBotPerMinute;
   return (perMinute * seconds) / 60;
 }
 
@@ -228,66 +254,61 @@ export function bloatLevel(state) {
   return 'ok';
 }
 
-/* --------------------------------------------------------------- chat bots */
+/* --------------------------------------------------------------- buildings */
 
-/** Geometric price curve for the nth bot (0-indexed count already owned). */
-export function botCost(owned) {
-  return Math.ceil(CHAT_BOT.baseCost * CHAT_BOT.costGrowth ** owned);
-}
-
-/** Total cost of buying `amount` more bots from the current count. */
-export function botCostBulk(owned, amount) {
-  let total = 0;
-  for (let i = 0; i < amount; i += 1) total += botCost(owned + i);
-  return total;
-}
-
-/** How many bots the player can afford right now, capped by the run limit. */
-export function affordableBots(state, max = 100) {
-  let count = 0;
-  let spent = 0;
-  while (count < max && state.chat.bots + count < CHAT_BOT.maxPerRun) {
-    const next = spent + botCost(state.chat.bots + count);
-    if (next > state.buzz) break;
-    spent = next;
-    count += 1;
-  }
-  return { count, cost: spent };
-}
+/**
+ * The building layer (GDD v2 §2), re-exported so the UI has one import for
+ * every derived number — the same front door `defragPenalty` and `canBurnDisc`
+ * go through. The mechanic itself is in core/buildings.js.
+ */
+export {
+  affordableUnits,
+  buildingProduction,
+  crossedMilestone,
+  hasMinigame,
+  isBuildingUnlocked,
+  legacyLevel,
+  legacyMultiplier,
+  legacyProgress,
+  milestoneIndex,
+  milestoneMultiplier,
+  nextMilestone,
+  nextUnlock,
+  totalBuildingProduction,
+  totalUnits,
+  unitCost,
+  unitCostBulk,
+  unitsOf,
+  unlockedBuildings,
+};
 
 /* -------------------------------------------------------------- production */
 
 /**
- * Buddy-count milestones (AO-9): every `milestoneEvery` buddies permanently
- * boosts AeroChat for the rest of the run, so buying in bulk has a visible goal.
+ * AeroChat's buddies, which are building #1's units and nothing special. Kept
+ * as a named accessor because a great deal of the game still talks about
+ * buddies by name — the tutorial, the goal chain, the status events — and
+ * `unitsOf(state, 'aerochat')` at all of those call sites reads like a
+ * refactor that lost the plot.
  */
-export function chatMilestoneCount(state) {
-  return Math.floor(state.chat.bots / CHAT_BOT.milestoneEvery);
+export function buddyCount(state) {
+  return unitsOf(state, 'aerochat');
 }
 
-export function chatMilestoneMultiplier(state) {
-  return 1 + chatMilestoneCount(state) * CHAT_BOT.milestoneBonus;
-}
-
-/** Buddies still needed for the next milestone, and what it is worth. */
-export function nextChatMilestone(state) {
-  const next = (chatMilestoneCount(state) + 1) * CHAT_BOT.milestoneEvery;
-  if (next > CHAT_BOT.maxPerRun) return null;
-  return {
-    at: next,
-    remaining: next - state.chat.bots,
-    bonus: CHAT_BOT.milestoneBonus,
-  };
-}
-
-/** AeroChat's own multiplier stack: milestones × chat-kind buffs. */
+/**
+ * AeroChat's own multiplier stack: its milestone tier × chat-kind buffs.
+ *
+ * The chat-kind buff is AeroChat's alone and always has been — status-message
+ * bonuses come from the buddy list, so they pay the buddy list. Every other
+ * building multiplies through `globalMultiplier`.
+ */
 export function chatMultiplier(state, now = Date.now()) {
-  return chatMilestoneMultiplier(state) * buffMultiplier(state, 'chat', now);
+  return milestoneMultiplier(buddyCount(state)) * buffMultiplier(state, 'chat', now);
 }
 
-/** AeroChat's contribution on its own, before the window check. */
+/** AeroChat's contribution on its own, before any global modifier. */
 function chatRate(state, now = Date.now()) {
-  return state.chat.bots * CHAT_BOT.baseRate * chatMultiplier(state, now);
+  return buildingProduction(state, 'aerochat') * buffMultiplier(state, 'chat', now);
 }
 
 /**
@@ -313,16 +334,31 @@ export function seedBuzzPerSecond(state, now = Date.now()) {
   );
 }
 
-/** Buzz/sec before global modifiers. Apps only produce while they are open. */
+/**
+ * Buzz/sec before global modifiers: the twelve buildings, plus the seed slots.
+ *
+ * Production is *not* gated on a window being open (GDD §5). It used to be, for
+ * AeroChat — and with twelve buildings that rule would mean the RAM budget
+ * silently decides how much of the game is switched on, which is a memory
+ * management puzzle nobody asked for. RAM still bounds how much of the desktop
+ * can be on screen at once; it no longer bounds income.
+ *
+ * The exception is LemonWire's seed slots, which keep their own open-window
+ * rule until Phase 2 folds them into LemonWire's unit count — the slots are a
+ * thing the player is tending, not a thing they installed.
+ */
 export function baseBuzzPerSecond(state, now = Date.now()) {
-  let rate = 0;
-  if (state.apps.aerochat?.open) rate += chatRate(state, now);
-  rate += seedBuzzPerSecond(state, now);
-  // RetroAmp is not a producer — it multiplies, via globalMultiplier.
-  return rate;
+  // The chat-kind buff belongs to AeroChat's units alone, so it is applied here
+  // rather than folded into the eleven siblings' total.
+  const buildings =
+    totalBuildingProduction(state) +
+    buildingProduction(state, 'aerochat') * (buffMultiplier(state, 'chat', now) - 1);
+  // RetroAmp's units produce like any other building; its *playlists* are a
+  // separate axis and multiply, via globalMultiplier.
+  return buildings + seedBuzzPerSecond(state, now);
 }
 
-/** Global multiplier from hardware, system health and global-kind buffs. */
+/** Global multiplier from hardware, system health, legacy and global-kind buffs. */
 export function globalMultiplier(state, now = Date.now()) {
   const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   return (
@@ -331,6 +367,9 @@ export function globalMultiplier(state, now = Date.now()) {
     infectionPenalty(state) *
     retroampMultiplier(state, now) *
     buffMultiplier(state, 'global', now) *
+    // Everything the player has ever earned, in one number (GDD §2.6). It is
+    // the only factor in this chain that a Format C: cannot take away.
+    legacyMultiplier(state) *
     // A defrag pass is disk-bound and the machine knows it. Small, and only
     // while it runs — the bloat it is clearing costs far more.
     defragPenalty(state) *
@@ -349,27 +388,74 @@ export function buzzPerSecond(state, now = Date.now()) {
  * The factors multiply to `total` — see tests/economy.test.js.
  */
 export function rateBreakdown(state, now = Date.now()) {
-  const base = state.chat.bots * CHAT_BOT.baseRate;
+  const bots = buddyCount(state);
+  const base = bots * getBuilding('aerochat').baseProduction;
   const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
-  // Seeding is a second producer, not a factor on the first, so it is reported
-  // as its own line rather than folded into the chain — the factors below still
-  // multiply to the AeroChat rate exactly (tests/economy.test.js).
-  const seeds = seedBuzzPerSecond(state, now) * globalMultiplier(state, now);
+  // Seeding and the other eleven buildings are separate producers, not factors
+  // on the first, so they are reported as their own lines rather than folded
+  // into the chain — the factors below still multiply to the AeroChat rate
+  // exactly (tests/economy.test.js).
+  const global = globalMultiplier(state, now);
+  const seeds = seedBuzzPerSecond(state, now) * global;
+  const others = (totalBuildingProduction(state) - buildingProduction(state, 'aerochat')) * global;
   return {
     seeds,
-    bots: state.chat.bots,
-    perBot: CHAT_BOT.baseRate,
+    others,
+    bots,
+    perBot: getBuilding('aerochat').baseProduction,
     base,
-    milestone: chatMilestoneMultiplier(state),
+    milestone: milestoneMultiplier(bots),
     buffs: buffMultiplier(state, 'chat', now) * buffMultiplier(state, 'global', now),
     playlist: retroampMultiplier(state, now),
     virus: infectionPenalty(state),
     cpu: hardwareEffects(state).production,
+    legacy: legacyMultiplier(state),
     bloat: bloatPenalty(state),
     defrag: defragPenalty(state),
     render: renderPenalty,
     open: state.apps.aerochat?.open === true,
     total: buzzPerSecond(state, now),
+  };
+}
+
+/**
+ * Everything behind one building's contribution (GDD §2.8) — the single
+ * accessor every building window reads.
+ *
+ * The rule this exists to enforce: a window may translate these numbers into
+ * whatever fiction it likes (five green connection bars, an unread counter, a
+ * spectrum analyser), but it may never *compute* one. If a window needs a
+ * factor that is not on this object, the factor belongs here first.
+ *
+ * `base × milestoneMultiplier × globalMultiplier === total`, exactly. The
+ * `legacyMultiplier` and `hardwareMultiplier` fields are the two slices of
+ * `globalMultiplier` the player is most likely to ask about; they are reported
+ * for display and are already inside it, so multiplying them in again would
+ * double-count.
+ */
+export function getProductionBreakdown(state, buildingId, now = Date.now()) {
+  const units = unitsOf(state, buildingId);
+  const building = getBuilding(buildingId);
+  const milestone = milestoneMultiplier(units);
+  const global = globalMultiplier(state, now);
+  const own = buildingProduction(state, buildingId);
+  const total = own * global;
+  return {
+    id: buildingId,
+    units,
+    base: units * building.baseProduction,
+    perUnit: building.baseProduction,
+    milestoneMultiplier: milestone,
+    legacyMultiplier: legacyMultiplier(state),
+    hardwareMultiplier: hardwareEffects(state).production,
+    globalMultiplier: global,
+    /** Before global modifiers — what the building itself makes. */
+    own,
+    total,
+    /** 0..1 of the machine's whole output — how much of the game this window is. */
+    share: buzzPerSecond(state, now) > 0 ? total / buzzPerSecond(state, now) : 0,
+    nextCost: unitCost(buildingId, units),
+    milestone: nextMilestone(units),
   };
 }
 

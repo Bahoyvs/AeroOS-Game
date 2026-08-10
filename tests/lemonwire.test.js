@@ -52,14 +52,14 @@ describe('the file list', () => {
 describe('what a slot earns', () => {
   it('pays on a fresh machine, before a single buddy is bought', () => {
     const s = wired();
-    expect(s.chat.bots).toBe(0);
+    expect(s.buildings.aerochat.units).toBe(0);
     expect(econ.seedRate(s, 'wallpapers', 0)).toBeGreaterThan(0);
   });
 
   it('keeps up as the buddy list grows', () => {
     const quiet = wired();
     const busy = wired();
-    busy.chat.bots = 200;
+    busy.buildings.aerochat.units = 200;
     expect(econ.seedRate(busy, 'wallpapers', 0)).toBeGreaterThan(
       econ.seedRate(quiet, 'wallpapers', 0),
     );
@@ -98,7 +98,7 @@ describe('what a slot earns', () => {
 
   it('is reported as its own line in the rate breakdown, not as a factor', () => {
     const s = wired();
-    s.chat.bots = 20;
+    s.buildings.aerochat.units = 20;
     s.apps.aerochat.open = true;
     seed(s, 'battlefront');
 
@@ -236,7 +236,7 @@ describe('through the game', () => {
     game.state.apps.lemonwire.installed = true;
     game.openApp('aerochat');
     game.state.buzz = 1e6;
-    game.buyBots(20);
+    game.buyUnits('aerochat', 20);
     game.openApp('lemonwire');
     return game;
   };

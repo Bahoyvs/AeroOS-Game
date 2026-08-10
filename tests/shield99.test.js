@@ -221,7 +221,7 @@ describe('through the game', () => {
     game.state.apps.shield99.installed = guarded;
     game.openApp('aerochat');
     game.state.buzz = 1e6;
-    game.buyBots(20);
+    game.buyUnits('aerochat', 20);
     game.openApp('lemonwire');
     if (guarded) game.openApp('shield99');
     game.startSeeding('speed-boost');

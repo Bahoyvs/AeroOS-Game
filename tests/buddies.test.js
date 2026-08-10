@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUDDY_NICK_COUNT, ambientStatus, buddyAt, isAway } from '../src/data/buddies.js';
-import { CHAT_BOT } from '../src/data/balance.js';
+
 
 describe('derived buddy identities', () => {
   it('is stable for the same index', () => {
@@ -8,7 +8,7 @@ describe('derived buddy identities', () => {
   });
 
   it('gives every buddy a name and an avatar', () => {
-    for (let i = 0; i < CHAT_BOT.maxPerRun; i += 1) {
+    for (let i = 0; i < 500; i += 1) {
       const buddy = buddyAt(i);
       expect(buddy.name).toBeTruthy();
       expect(buddy.avatar).toBeTruthy();

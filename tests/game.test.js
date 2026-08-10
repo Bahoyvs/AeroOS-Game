@@ -1,7 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGame } from '../src/core/game.js';
 import { createMemoryStorage } from '../src/core/save.js';
-import { CHAT_BOT, PRESTIGE, STATUS_BONUSES } from '../src/data/balance.js';
+import { BUILDING, PRESTIGE, STATUS_BONUSES } from '../src/data/balance.js';
+import { getBuilding } from '../src/data/buildings.js';
+
+const AEROCHAT = getBuilding('aerochat');
+const FIRST_MILESTONE = BUILDING.milestones[1];
 import { getApp } from '../src/data/apps.js';
 
 const newGame = () => createGame({ storage: createMemoryStorage(), now: 0 });
@@ -42,16 +46,16 @@ describe('buying', () => {
   it('spends Buzz on bots', () => {
     const game = newGame();
     game.state.buzz = 1000;
-    const result = game.buyBots(3);
+    const result = game.buyUnits('aerochat', 3);
     expect(result.ok).toBe(true);
-    expect(game.state.chat.bots).toBe(3);
+    expect(game.state.buildings.aerochat.units).toBe(3);
     expect(game.state.buzz).toBeCloseTo(1000 - result.cost);
   });
 
   it('refuses bots the player cannot afford', () => {
     const game = newGame();
-    expect(game.buyBots(1)).toEqual({ ok: false, reason: 'too-expensive' });
-    expect(game.state.chat.bots).toBe(0);
+    expect(game.buyUnits('aerochat', 1)).toEqual({ ok: false, reason: 'too-expensive' });
+    expect(game.state.buildings.aerochat.units).toBe(0);
   });
 
   it('installs an unlocked app and charges for it', () => {
@@ -89,7 +93,7 @@ describe('ticking', () => {
     const game = newGame();
     game.openApp('aerochat');
     game.state.buzz = 10_000;
-    game.buyBots(5);
+    game.buyUnits('aerochat', 5);
 
     const before = game.state.buzz;
     for (let i = 0; i < 10; i += 1) game.tick(1);
@@ -111,14 +115,14 @@ describe('buddy milestones', () => {
   it('emits a milestone event when the threshold is crossed', () => {
     const game = newGame();
     game.state.buzz = 1e9;
-    game.buyBots(CHAT_BOT.milestoneEvery - 1);
+    game.buyUnits('aerochat', FIRST_MILESTONE.at - 1);
 
     let milestone = null;
     game.bus.on(game.events.MILESTONE, (payload) => (milestone = payload));
-    game.buyBots(1);
+    game.buyUnits('aerochat', 1);
 
-    expect(milestone).toMatchObject({ at: CHAT_BOT.milestoneEvery });
-    expect(milestone.multiplier).toBeCloseTo(1 + CHAT_BOT.milestoneBonus);
+    expect(milestone).toMatchObject({ id: 'aerochat', at: FIRST_MILESTONE.at });
+    expect(milestone.multiplier).toBe(FIRST_MILESTONE.multiplier);
   });
 
   it('does not emit when no threshold is crossed', () => {
@@ -126,15 +130,28 @@ describe('buddy milestones', () => {
     game.state.buzz = 1e9;
     let fired = 0;
     game.bus.on(game.events.MILESTONE, () => (fired += 1));
-    game.buyBots(2);
+    game.buyUnits('aerochat', 2);
     expect(fired).toBe(0);
   });
 
-  it('refuses to exceed the buddy cap', () => {
+  it('refuses to exceed the unit rail', () => {
     const game = newGame();
     game.state.buzz = Infinity;
-    game.state.chat.bots = CHAT_BOT.maxPerRun;
-    expect(game.buyBots(1)).toEqual({ ok: false, reason: 'buddy-list-full' });
+    game.state.buildings.aerochat.units = BUILDING.maxUnits;
+    expect(game.buyUnits('aerochat', 1)).toEqual({ ok: false, reason: 'full' });
+  });
+
+  it('refuses a building the run has not unlocked yet', () => {
+    const game = newGame();
+    game.state.buzz = Infinity;
+    game.state.runBuzz = 0;
+    expect(game.buyUnits('thehive', 1)).toEqual({ ok: false, reason: 'locked' });
+  });
+
+  it('refuses an id that is not on the roster', () => {
+    const game = newGame();
+    game.state.buzz = Infinity;
+    expect(game.buyUnits('shield99', 1)).toEqual({ ok: false, reason: 'unknown-building' });
   });
 });
 
@@ -149,7 +166,7 @@ describe('status-message bonuses', () => {
     const game = createGame({ storage: createMemoryStorage(), rng: () => 0 });
     game.openApp('aerochat');
     game.state.buzz = 1e6;
-    game.buyBots(20);
+    game.buyUnits('aerochat', 20);
     return game;
   };
 
@@ -157,7 +174,7 @@ describe('status-message bonuses', () => {
     const game = readyGame();
     const event = runUntilEvent(game);
     expect(event).not.toBeNull();
-    expect(event.index).toBeLessThan(game.state.chat.bots);
+    expect(event.index).toBeLessThan(game.state.buildings.aerochat.units);
   });
 
   it('claiming applies the buff and raises production', () => {
@@ -228,7 +245,7 @@ describe('status-message bonuses', () => {
     const first = createGame({ storage, rng: () => 0 });
     first.openApp('aerochat');
     first.state.buzz = 1e6;
-    first.buyBots(20);
+    first.buyUnits('aerochat', 20);
     runUntilEvent(first);
     first.save();
 
@@ -249,13 +266,13 @@ describe('Format C:', () => {
     const game = newGame();
     game.state.lifetimeBuzz = PRESTIGE.minLifetimeBuzz * 100;
     game.state.buzz = 5000;
-    game.state.chat.bots = 20;
+    game.state.buildings.aerochat.units = 20;
 
     const result = game.formatC();
     expect(result.ok).toBe(true);
     expect(game.state.dollars).toBeCloseTo(result.dollars);
     expect(game.state.buzz).toBe(0);
-    expect(game.state.chat.bots).toBe(0);
+    expect(game.state.buildings.aerochat.units).toBe(0);
     expect(game.state.prestigeCount).toBe(1);
   });
 });
@@ -265,19 +282,19 @@ describe('persistence', () => {
     const storage = createMemoryStorage();
     const first = createGame({ storage, now: 0 });
     first.state.buzz = 4321;
-    first.state.chat.bots = 9;
+    first.state.buildings.aerochat.units = 9;
     first.save();
 
     const second = createGame({ storage, now: 0 });
     expect(second.load().loaded).toBe(true);
-    expect(second.state.chat.bots).toBe(9);
+    expect(second.state.buildings.aerochat.units).toBe(9);
     expect(second.state.buzz).toBeGreaterThanOrEqual(4321);
   });
 
   it('grants offline Buzz for a long absence', () => {
     const storage = createMemoryStorage();
     const first = createGame({ storage, now: 0 });
-    first.state.chat.bots = CHAT_BOT.maxPerRun;
+    first.state.buildings.aerochat.units = 500;
     first.state.apps.aerochat.open = true;
     first.save();
 

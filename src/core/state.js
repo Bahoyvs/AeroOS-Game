@@ -1,5 +1,6 @@
 import { ALL_APPS } from '../data/apps.js';
 import { LEMONWIRE, SWEEPER } from '../data/balance.js';
+import { BUILDINGS } from '../data/buildings.js';
 import { DEFAULT_COSMETICS } from '../data/cosmetics.js';
 import { carryDiscsThroughPrestige } from './aeroburn.js';
 
@@ -7,7 +8,7 @@ import { carryDiscsThroughPrestige } from './aeroburn.js';
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
  * cannot satisfy, and add a migration in src/core/save.js.
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** Apps the player boots with on a fresh install. */
 const PREINSTALLED = new Set(['system', 'aerochat']);
@@ -22,6 +23,15 @@ export function createInitialState(now = Date.now()) {
     };
   }
 
+  /**
+   * One entry per building (GDD v2 §1), and nothing in it but the unit count —
+   * there is no `upgrades` field because there are no manual upgrades to buy.
+   * The milestone multiplier, the mini-game gate and the unlock are all derived
+   * from `units` and `runBuzz`, so they cannot desync from what they describe.
+   */
+  const buildings = {};
+  for (const building of BUILDINGS) buildings[building.id] = { units: 0 };
+
   return {
     version: SAVE_VERSION,
     username: null, // set on boot from CrazyGames or randomly if guest
@@ -29,6 +39,12 @@ export function createInitialState(now = Date.now()) {
     // Currencies (GDD 4)
     buzz: 0,
     lifetimeBuzz: 0, // never reset; drives Format C: payout
+    /**
+     * ...and this one is never reset *or* settled. `lifetimeBuzz` is a ledger
+     * the Mainboard re-prices and Format C: pays against; Legacy Level needs a
+     * monument instead, so it gets its own accumulator (GDD §2.6).
+     */
+    allTimeBuzz: 0,
     runBuzz: 0, // reset on prestige; drives unlocks within a run
     dollars: 0,
     dollarsEarnedTotal: 0, // never reset; prestige pays out the difference
@@ -41,15 +57,48 @@ export function createInitialState(now = Date.now()) {
     hardware: { cpu: 0, ram: 0, gpu: 0, hdd: 0, mobo: 0 },
     prestigeCount: 0,
 
+    /**
+     * Legacy Level (GDD §2.6). Derived from `allTimeBuzz` on every read — this
+     * is stored only so the Format C: sequence can show what changed. If the
+     * two ever disagree, `allTimeBuzz` is right (core/legacy.js).
+     */
+    legacy: { level: 0 },
+
     // Software
     apps,
+    buildings,
     chat: {
-      bots: 0,
       // Rotating status-message event: { index, bonusId, secondsLeft } or null.
-      // Both counters are in simulation seconds, not wall-clock time.
+      // Both counters are in simulation seconds, not wall-clock time. The buddy
+      // *count* is not here any more — AeroChat is building #1, and its units
+      // live in `buildings.aerochat` with the other eleven.
       event: null,
       nextEventIn: 0, // rolled on the first tick with AeroChat open
     },
+
+    /**
+     * Achievements (GDD §8.2). First-party: an id -> unlock timestamp map, so a
+     * newly added achievement simply is not in it yet and needs no migration.
+     */
+    achievements: { unlocked: {} },
+
+    /**
+     * The Buffer Overflow crisis system (GDD §7). Named `event` to match the
+     * documented save schema. `airplaneModeOwned` is the Dollar-priced opt-out,
+     * so it survives Format C: the way every other Dollar purchase does.
+     */
+    event: {
+      feedRatioHistory: [],
+      overflowPhase: 0,
+      ghostNotifications: [],
+      airplaneModeOwned: false,
+    },
+
+    /**
+     * What has already been reported to the portal, so `reportGameCompletedPercentage`
+     * is called on change rather than on every tick (GDD §8.3).
+     */
+    crazyGames: { lastReportedCompletion: 0 },
 
     // LemonWire seeds instead of downloading: a file in a slot pays Buzz for as
     // long as it is shared. `maxSeedSlots` is the *base* count — the effective
@@ -250,6 +299,22 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
      */
     ads: { ...state.ads, formatBoost: false },
     lifetimeBuzz: state.lifetimeBuzz,
+    /**
+     * The Legacy layer is the one thing a wipe may never touch (GDD §2.6) —
+     * that is what makes it a legacy rather than a run bonus. The level itself
+     * is re-derived by `applyLegacyLevel` right after this returns, so what
+     * carries through is the accumulator; the stored level just follows it.
+     */
+    allTimeBuzz: state.allTimeBuzz ?? 0,
+    legacy: { ...state.legacy },
+    achievements: { ...state.achievements, unlocked: { ...state.achievements?.unlocked } },
+    crazyGames: { ...state.crazyGames },
+    /**
+     * Airplane Mode (GDD §7.3) is bought with Dollars, so it outlives the wipe
+     * for the same reason Auto-Defrag does. Everything else about the crisis
+     * system is *this run's* pressure and starts again from nothing.
+     */
+    event: { ...fresh.event, airplaneModeOwned: state.event?.airplaneModeOwned === true },
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
     aeroburn: fresh.aeroburn,

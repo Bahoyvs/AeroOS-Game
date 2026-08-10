@@ -6,17 +6,88 @@
 
 export const TICK_MS = 100; // simulation step; render is decoupled (rAF)
 
-export const CHAT_BOT = {
-  baseCost: 10, // Buzz for the first bot
-  costGrowth: 1.15, // geometric price curve, standard idle pacing
-  baseRate: 0.5, // Buzz/sec per bot before multipliers
-  maxPerRun: 500,
+/**
+ * The building model (GDD v2 §2). One cost curve and one milestone table for all
+ * twelve — the per-building numbers (base cost, base production, unlock) live in
+ * src/data/buildings.js, because those are a roster, and these are a rule.
+ */
+export const BUILDING = {
+  /**
+   * Geometric price curve, `unitCost = ceil(baseCost × costGrowth^owned)`.
+   *
+   * 1.15 is AeroChat's proven rate, kept for every building on purpose. It is
+   * also the reason no bulk-buy button can break the economy: 100 units costs
+   * ~5,500× the first one, so "buy Max" is a convenience, never an exploit.
+   */
+  costGrowth: 1.15,
 
-  // Buddy-count milestones: every `milestoneEvery` buddies adds a flat
-  // `milestoneBonus` to the AeroChat multiplier (additive, so 500 buddies is
-  // ×2.6 rather than an exponential blow-up).
-  milestoneEvery: 25,
-  milestoneBonus: 0.08,
+  /**
+   * Milestone multiplier — a step function of units *owned*, not a purchase
+   * (GDD §2.2). The player never opens a shop for this; crossing a threshold
+   * is a celebration, not a decision.
+   *
+   * Doubling per tier, and the same table for every building: the shape a
+   * player learns on AeroChat at 25 buddies is the shape they can still read on
+   * The Hive at 500 offerings. `at` must stay ascending — `milestoneMultiplier`
+   * walks it and takes the last one reached.
+   */
+  milestones: [
+    { at: 0, multiplier: 1 },
+    { at: 25, multiplier: 2 },
+    { at: 50, multiplier: 4 },
+    { at: 100, multiplier: 8 },
+    { at: 250, multiplier: 16 },
+    { at: 500, multiplier: 32 },
+  ],
+
+  /**
+   * A rail, not a design goal. The top milestone tier is "500+", so there is no
+   * balance reason to stop — but an unbounded counter in a save is how a bulk
+   * buy with a bad argument becomes an unreadable number and a 1 MB write. Well
+   * clear of the last threshold.
+   */
+  maxUnits: 10_000,
+
+  /**
+   * Where a building's mini-game opens (GDD §6) — the same threshold as the
+   * first milestone, so the celebration and the unlock land as one moment.
+   * Derived state: `units >= this`, never stored.
+   */
+  minigameAt: 25,
+};
+
+/**
+ * Legacy Level — the prestige layer (GDD §2.6).
+ *
+ * `level = floor((allTimeBuzz / divisor)^(1/3))`, worth `perLevel` each. The
+ * cube root is the whole mechanism: the reward is linear in level and the cost
+ * is cubic, so the gap between levels widens by itself and prestige never needs
+ * a hand-tuned schedule.
+ *
+ * `divisor` is provisional (GDD §14.1 has every number down for simulation
+ * calibration) and it is sized off the *endgame*, which is the one end of this
+ * curve that cannot be argued with:
+ *
+ *   all twelve buildings at the top milestone produce ~8e14 Buzz/sec, so a
+ *   player who finishes the content accumulates ~1e20-1e21 all-time Buzz.
+ *   At 1e13 that is level 215-464, worth +215% to +464%.
+ *
+ * A first simulation pass (400k ticks of optimal buying) was run at 50,000 and
+ * reached **legacy level 183,799 — a ×1,839 multiplier that dwarfed every other
+ * factor in the chain combined**. The economy spans twenty orders of magnitude;
+ * a cube root of it still spans seven, so the divisor has to be sized for the
+ * top of that range or the layer swallows the game.
+ *
+ * The cost of that choice, and it is a real one for design to settle: the first
+ * level now lands in phase 3 rather than on the second or third Format C:, so
+ * early wipes report "Legacy Level 0". A cube root with a linear reward cannot
+ * serve both ends of a range this wide — making the first prestige pay a level
+ * needs either a higher `PRESTIGE.minLifetimeBuzz` or a second term in the
+ * reward curve. See docs/REDESIGN-PLAN.md, "Calibration findings".
+ */
+export const LEGACY = {
+  divisor: 1e13,
+  perLevel: 0.01,
 };
 
 /**

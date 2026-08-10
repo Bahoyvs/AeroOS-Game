@@ -323,7 +323,7 @@ describe('a finished round, through the game', () => {
     const s = arcade();
     expect(econ.sweeperTokenCost(s)).toBe(SWEEPER.minTokenCost);
 
-    s.chat.bots = 400;
+    s.buildings.aerochat.units = 400;
     s.apps.aerochat.open = true;
     const busy = econ.sweeperTokenCost(s);
     expect(busy).toBeGreaterThan(SWEEPER.minTokenCost);

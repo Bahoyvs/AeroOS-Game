@@ -10,6 +10,8 @@ index.html
     │   ├── game.js           the only mutable state; actions emit events
     │   ├── state.js          save shape + prestige reset
     │   ├── economy.js        every derived number (pure functions)
+    │   ├── buildings.js      the 12 buildings: unit cost, milestones, production
+    │   ├── legacy.js         Legacy Level: the cube-root prestige multiplier
     │   ├── loop.js           fixed-timestep tick + rAF render
     │   ├── buffs.js          typed, expiring, stacking multipliers
     │   ├── statusEvents.js   rotating status-message bonuses (spawn/claim/lapse)
@@ -27,6 +29,7 @@ index.html
     │   └── format.js         number/time formatting
     ├── data/                 tuning — designers edit these, not the code
     │   ├── balance.js        rates, costs, caps, thresholds, the Shield99 loot table
+    │   ├── buildings.js      the 12-building roster (cost, production, unlock)
     │   ├── apps.js           software roster (RAM cost, price, roadmap day)
     │   ├── buddies.js        derived buddy identities (never stored)
     │   ├── playlists.js      RetroAmp playlists (multiplier, RAM, burn-out)
@@ -111,7 +114,7 @@ Two ways to multiply production, and the choice is about persistence:
 - **Buffs** (`core/buffs.js`) are timed and stored as a list with wall-clock expiry — status
   bonuses, and the rewarded-ad payouts from Shield99's quarantine. They are meant to run out.
 - **Derived multipliers** are computed from durable state: buddy milestones from
-  `chat.bots`, the playlist from `retroamp.playlist`. They survive a reload because there is
+  `buildings.<id>.units`, the playlist from `retroamp.playlist`. They survive a reload because there is
   nothing to expire — a permanent playlist stored as an `Infinity` buff would not, since
   `JSON.stringify(Infinity)` is `null`.
 

@@ -1,4 +1,5 @@
-import { CHAT_BOT, PRESTIGE } from '../data/balance.js';
+import { BUILDING, PRESTIGE } from '../data/balance.js';
+import { getBuilding } from '../data/buildings.js';
 import { getApp } from '../data/apps.js';
 
 /**
@@ -50,23 +51,32 @@ function installGoal(id, why) {
  * the whole design here: two goals on screen is a menu, and a menu is a
  * decision the player has to make before they are equipped to make it.
  */
+/**
+ * AeroChat's units, by the name the goal chain talks about them in. The first
+ * milestone is read off the shared table rather than restated, so retuning the
+ * table cannot leave the coach promising a threshold that no longer exists.
+ */
+const buddies = (state) => state.buildings?.aerochat?.units ?? 0;
+const FIRST_BUDDY_COST = getBuilding('aerochat').baseCost;
+const FIRST_MILESTONE = BUILDING.milestones[1];
+
 export const GOALS = [
   {
     id: 'first-buddy',
-    isDone: (state) => state.chat.bots >= 1,
+    isDone: (state) => buddies(state) >= 1,
     title: 'Get someone online',
     hint: 'Buddies keep chatting — and keep paying — while you idle.',
-    progress: (state) => ratio(state.buzz, CHAT_BOT.baseCost),
+    progress: (state) => ratio(state.buzz, FIRST_BUDDY_COST),
     detail: (state, { formatNumber }) =>
-      `${formatNumber(Math.min(state.buzz, CHAT_BOT.baseCost))} / ${formatNumber(CHAT_BOT.baseCost)} Buzz`,
+      `${formatNumber(Math.min(state.buzz, FIRST_BUDDY_COST))} / ${formatNumber(FIRST_BUDDY_COST)} Buzz`,
   },
   {
     id: 'ten-buddies',
-    isDone: (state) => state.chat.bots >= 10,
+    isDone: (state) => buddies(state) >= 10,
     title: 'Ten buddies online',
     hint: 'Every buddy adds to the idle rate. Ten is where it starts running itself.',
-    progress: (state) => ratio(state.chat.bots, 10),
-    detail: (state) => `${state.chat.bots} / 10 buddies`,
+    progress: (state) => ratio(buddies(state), 10),
+    detail: (state) => `${buddies(state)} / 10 buddies`,
   },
   installGoal('retroamp', 'A playlist multiplies everything you earn, forever.'),
   {
@@ -80,13 +90,11 @@ export const GOALS = [
   },
   {
     id: 'first-milestone',
-    isDone: (state) => state.chat.bots >= CHAT_BOT.milestoneEvery,
-    title: `${CHAT_BOT.milestoneEvery} buddies`,
-    hint: `Every ${CHAT_BOT.milestoneEvery} buddies adds +${Math.round(
-      CHAT_BOT.milestoneBonus * 100,
-    )}% to the whole buddy list.`,
-    progress: (state) => ratio(state.chat.bots, CHAT_BOT.milestoneEvery),
-    detail: (state) => `${state.chat.bots} / ${CHAT_BOT.milestoneEvery} buddies`,
+    isDone: (state) => buddies(state) >= FIRST_MILESTONE.at,
+    title: `${FIRST_MILESTONE.at} buddies`,
+    hint: `${FIRST_MILESTONE.at} buddies multiplies the whole buddy list by ${FIRST_MILESTONE.multiplier}.`,
+    progress: (state) => ratio(buddies(state), FIRST_MILESTONE.at),
+    detail: (state) => `${buddies(state)} / ${FIRST_MILESTONE.at} buddies`,
   },
   installGoal('lemonwire', 'Seeded files pay Buzz around the clock, with no clicking.'),
   installGoal('shield99', 'Seeding attracts threats. Shield99 turns them into loot.'),
