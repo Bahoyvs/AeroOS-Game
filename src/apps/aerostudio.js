@@ -3,7 +3,9 @@ import { getSpeedMultiplier, getUpgradeCost } from '../core/aerostudio.js';
 import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 import { createBuildingView } from './../ui/buildingView.js';
-import { groupBox, menuBar, spinner, statusBar, tabStrip } from './../ui/win32.js';
+import {
+  buyList, buyTile, explainedValue, groupBox, helpButton, menuBar, spinner, statusBar, tabStrip,
+} from './../ui/win32.js';
 
 /**
  * Aero Studio — the render suite.
@@ -136,6 +138,7 @@ export function mount(body, { game, ads = null }) {
   );
 
   let rackKey = null;
+  let insertTiles = [];
 
   /**
    * One rack slot. The power LED is the state at a glance — lit means the
@@ -170,6 +173,8 @@ export function mount(body, { game, ads = null }) {
     if (key === rackKey) return;
     rackKey = key;
 
+    for (const tile of insertTiles) tile.destroy();
+    insertTiles = [];
     clear(rackRoot);
 
     // The levelled plugins: always authorised, upgraded rather than bought.
@@ -206,44 +211,65 @@ export function mount(body, { game, ads = null }) {
     rackRoot.appendChild(el('div', { class: 'aero-rack__divider', text: 'Licensed inserts' }));
 
     /**
-     * The v2 building upgrades, as licensed inserts. "Authorise" rather than
-     * "Buy": a plugin in 2004 came with a serial you entered, and that is a
-     * verb this fiction already owns.
+     * The v2 building upgrades, as licensed inserts — drawn as purchase tiles.
+     *
+     * "Authorise" is the right verb for a 2004 plugin, but on its own it did not
+     * read as a transaction. The tile keeps the verb in the name and adds the
+     * signals a purchase needs: what it does to throughput, the price, and how
+     * close the wallet is.
      */
-    for (const upgrade of snapshot.upgrades) {
-      const owned = upgrade.state === 'owned';
-      rackRoot.appendChild(
-        pluginSlot({
+    const insertHost = buyList(
+      snapshot.upgrades.map((upgrade) => {
+        const owned = upgrade.state === 'owned';
+        const now = snapshot.production;
+        const tile = buyTile({
+          icon: 'plugin',
           name: upgrade.name,
-          vendor: 'Aero Studio',
-          category: upgrade.kind === 'synergy' ? 'Send' : upgrade.kind === 'cross' ? 'Sidechain' : 'Insert',
-          blurb: upgrade.blurb,
-          level: owned ? 'Authorised' : null,
-          lit: owned,
-          requirement: upgrade.requirement,
-          action: owned
-            ? el('span', { class: 'aero-slot__ok', text: 'Licensed' })
-            : el('button', {
-              type: 'button',
-              class: 'aero-slot__act',
-              disabled: upgrade.state === 'buyable' ? null : '',
-              text: `Authorise — ${formatNumber(upgrade.cost)}`,
-              onclick: () => {
-                view.buyUpgrade(upgrade.id);
-                rackKey = null;
-                renderRack();
-                update();
-              },
-            }),
-        }),
-      );
-    }
+          effect: owned
+            ? 'Authorised and processing'
+            : upgrade.state === 'gated'
+              ? (upgrade.requirement ?? 'Not yet available')
+              : `${formatNumber(now)} \u2192 ${formatNumber(now * 2)}/sec`,
+          cost: formatNumber(upgrade.cost),
+          progress: upgrade.cost > 0 ? s.buzz / upgrade.cost : 0,
+          state: owned
+            ? 'owned'
+            : upgrade.state === 'gated'
+              ? 'locked'
+              : upgrade.state === 'buyable'
+                ? 'buyable'
+                : 'unaffordable',
+          tooltip: {
+            title: upgrade.name,
+            body: owned
+              ? 'Licensed. This insert processes every frame the farm renders.'
+              : 'A plugin licence for the render chain. Authorising it multiplies what every blade earns.',
+            gain: owned
+              ? 'Already licensed.'
+              : `${formatNumber(now)}/sec \u2192 ${formatNumber(now * 2)}/sec`,
+            rows: [
+              ['Cost', `${formatNumber(upgrade.cost)} Buzz`],
+              ['You have', `${formatNumber(s.buzz)} Buzz`],
+              ...(upgrade.requirement ? [['Requires', upgrade.requirement]] : []),
+            ],
+          },
+          onSelect: () => {
+            view.buyUpgrade(upgrade.id);
+            rackKey = null;
+            renderRack();
+            update();
+          },
+        });
+        insertTiles.push(tile);
+        return tile.el;
+      }),
+    );
+    rackRoot.appendChild(insertHost);
   }
 
   /* ------------------------------------------------------ tab: render farm */
 
   const bladeGrid = el('div', { class: 'aero-blades', 'aria-hidden': 'true' });
-  const throughputList = el('ul', { class: 'w32-list aero-throughput' });
 
   const allocateCount = spinner({
     value: 1,
@@ -253,8 +279,10 @@ export function mount(body, { game, ads = null }) {
     onChange: () => refreshAllocateCost(),
   });
 
-  const allocateCost = el('b', { class: 'aero-alloc__cost', text: '—' });
+  const allocateCost = el('b', { class: 'aero-alloc__cost', text: '\u2014' });
+  // Kept as the action's implementation; the visible control is the buy tile.
   const allocateButton = el('button', {
+    hidden: '',
     type: 'button',
     class: 'aero-alloc__go',
     text: 'Allocate',
@@ -274,6 +302,7 @@ export function mount(body, { game, ads = null }) {
   });
 
   const fillButton = el('button', {
+    hidden: '',
     type: 'button',
     text: 'Fill chassis',
     onclick: () => {
@@ -291,15 +320,46 @@ export function mount(body, { game, ads = null }) {
     allocateCost.textContent = `${formatNumber(view.costOf(allocateCount.value))} Buzz`;
   }
 
+  /**
+   * The allocation tile. The spinner still sets an arbitrary blade count — that
+   * is the period-correct control and better than fixed steps — but the tile
+   * beside it is what makes the transaction legible: what the blades will earn,
+   * the price, and how close the wallet is.
+   */
+  const allocTile = buyTile({
+    icon: 'blade',
+    name: 'Allocate blades',
+    effect: '',
+    cost: '',
+    onSelect: () => allocateButton.click(),
+  });
+
+  const fillTile = buyTile({
+    icon: 'blade',
+    name: 'Fill chassis',
+    effect: '',
+    cost: '',
+    onSelect: () => fillButton.click(),
+  });
+
   tabs.panels.farm.append(
     groupBox('Hardware configuration', [
+      el('div', { class: 'aero-farm__head' }, [
+        el('strong', { text: 'Render farm' }),
+        helpButton(() => ({
+          title: 'Aero Studio render farm',
+          body: 'Each blade renders around the clock and earns Buzz, open window or not. Plugins in the Effects Rack multiply what every blade earns.',
+          gain: `Currently earning ${formatNumber(view.read()?.production ?? 0)} Buzz/sec`,
+        })),
+      ]),
       el('p', { class: 'aero-farm__stat' }, [
         el('span', { text: 'Render blades installed' }),
         el('b', { dataset: { role: 'blade-count' }, text: '0' }),
       ]),
       el('p', { class: 'aero-farm__stat' }, [
         el('span', { text: 'Farm throughput' }),
-        el('b', { dataset: { role: 'blade-rate' }, text: '0' }),
+        // The Throughput list moved into this figure's tooltip.
+        el('b', { dataset: { role: 'blade-rate-host' } }),
       ]),
       bladeGrid,
       el('p', { class: 'aero-farm__lock', dataset: { role: 'farm-lock' }, hidden: '' }),
@@ -308,12 +368,9 @@ export function mount(body, { game, ads = null }) {
       el('div', { class: 'aero-alloc' }, [
         el('label', { class: 'aero-alloc__label', text: 'Blades:' }),
         allocateCount.el,
-        allocateButton,
-        fillButton,
       ]),
-      el('p', { class: 'aero-alloc__line' }, [el('span', { text: 'Estimated cost' }), allocateCost]),
+      buyList([allocTile.el, fillTile.el]),
     ]),
-    groupBox('Throughput', throughputList),
   );
 
   /** The chassis. Each cell is a blade bay; filled bays carry a lit edge. */
@@ -324,13 +381,25 @@ export function mount(body, { game, ads = null }) {
   const bladeCells = [...bladeGrid.children];
   let drawnBlades = -1;
 
-  let throughputKey = null;
+  let rateNode = null;
 
   function renderFarm(snapshot) {
     if (!snapshot) return;
 
     ref('blade-count').textContent = `${snapshot.units} of ${BAYS}`;
-    ref('blade-rate').textContent = `${formatNumber(snapshot.production)} Buzz/sec`;
+
+    const rateHost = ref('blade-rate-host');
+    if (!rateNode) {
+      rateNode = explainedValue('', () => ({
+        title: 'Farm throughput',
+        body: 'What the blades earn, and everything currently shaping it.',
+        gain: `${formatNumber(view.read()?.production ?? 0)} Buzz/sec`,
+        rows: view.read()?.lines.map((l) => [l.label, l.value]) ?? [],
+      }));
+      clear(rateHost);
+      rateHost.appendChild(rateNode);
+    }
+    rateNode.textContent = `${formatNumber(snapshot.production)} Buzz/sec`;
 
     // Only touch the bays that actually changed — 150 class writes per frame is
     // the kind of thing that shows up on a phone.
@@ -355,19 +424,61 @@ export function mount(body, { game, ads = null }) {
     fillButton.disabled = snapshot.maxed || !snapshot.unlocked;
     refreshAllocateCost();
 
-    const key = snapshot.lines.map((l) => `${l.key}=${l.value}`).join('|');
-    if (key !== throughputKey) {
-      throughputKey = key;
-      clear(throughputList);
-      for (const line of snapshot.lines) {
-        throughputList.appendChild(
-          el('li', { class: `aero-throughput__row${line.key === 'total' ? ' is-total' : ''}` }, [
-            el('span', { text: line.label }),
-            el('b', { text: line.value }),
-          ]),
-        );
-      }
-    }
+    /* ------------------------------------------------ the purchase tiles */
+    const perUnit = snapshot.raw.perUnit;
+    const chain = snapshot.units > 0 ? snapshot.production / (snapshot.units * perUnit) : 1;
+
+    const want = allocateCount.value;
+    const wantCost = view.costOf(want);
+    const wantGain = want * perUnit * chain;
+
+    allocTile.update({
+      name: `Allocate ${want} ${want === 1 ? 'blade' : 'blades'}`,
+      effect: snapshot.maxed
+        ? 'Chassis is full'
+        : `+${formatNumber(wantGain)} Buzz/sec`,
+      cost: formatNumber(wantCost),
+      progress: wantCost > 0 ? game.state.buzz / wantCost : 0,
+      state: snapshot.maxed
+        ? 'maxed'
+        : !snapshot.unlocked
+          ? 'locked'
+          : game.state.buzz >= wantCost
+            ? 'buyable'
+            : 'unaffordable',
+      tooltip: {
+        title: 'Allocate render blades',
+        body: 'Installs blades into the chassis. Each blade renders around the clock; the price rises with every one you own.',
+        gain: `+${formatNumber(wantGain)} Buzz/sec`,
+        rows: [
+          ['Cost', `${formatNumber(wantCost)} Buzz`],
+          ['You have', `${formatNumber(game.state.buzz)} Buzz`],
+          ['Chassis', `${snapshot.units} of ${BAYS} bays`],
+        ],
+      },
+    });
+
+    const { count: canFit, cost: fillCost } = view.affordable();
+    fillTile.update({
+      effect: snapshot.maxed
+        ? 'Chassis is full'
+        : canFit > 0
+          ? `+${formatNumber(canFit * perUnit * chain)} Buzz/sec \u00b7 ${canFit} blades`
+          : 'Not enough Buzz yet',
+      cost: canFit > 0 ? formatNumber(fillCost) : '\u2014',
+      progress: canFit > 0 ? 1 : 0,
+      state: snapshot.maxed ? 'maxed' : canFit > 0 ? 'buyable' : 'unaffordable',
+      tooltip: {
+        title: 'Fill chassis',
+        body: 'Installs as many blades as your Buzz will cover, in one operation.',
+        gain: canFit > 0 ? `+${formatNumber(canFit * perUnit * chain)} Buzz/sec` : 'Nothing affordable yet.',
+        rows: [
+          ['Blades', String(canFit)],
+          ['Cost', canFit > 0 ? `${formatNumber(fillCost)} Buzz` : '\u2014'],
+          ['You have', `${formatNumber(game.state.buzz)} Buzz`],
+        ],
+      },
+    });
   }
 
   /* ----------------------------------------------------------- menu bar */
@@ -565,6 +676,9 @@ export function mount(body, { game, ads = null }) {
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
+    for (const tile of insertTiles) tile.destroy();
+    allocTile.destroy();
+    fillTile.destroy();
     menus.destroy();
     clear(rackRoot);
     body.classList.remove('app-aerostudio', 'is-rendering', 'is-reward-ready', 'is-collecting');

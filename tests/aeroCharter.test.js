@@ -79,26 +79,67 @@ describe('the Aero visual charter (GDD §A.1)', () => {
   });
 
   /**
-   * Banned: Material-style soft drop shadows on chrome.
+   * Banned: the *Material* elevation signature. Aero's own shadows are fine.
    *
-   * The tell is a large blur with no offset and no inset companion — Aero's
-   * shadows are tight and directional, and every raised surface pairs its
-   * shadow with an `inset` bevel. The `--emboss*` tokens already encode this,
-   * which is why the charter says not to go outside them.
+   * The first version of this rule was too broad — it rejected soft shadows
+   * outright, which would have blocked the Frutiger Aero gloss the design
+   * calls for. Aero absolutely used shadow and glow; what it never did was
+   * float a flat surface on a big blurry cloud.
+   *
+   * So the test now distinguishes them by structure rather than by softness:
+   *
+   * - **Allowed unconditionally: any declaration containing `inset`.** An Aero
+   *   surface pairs its outer shadow with an inner highlight — that pairing is
+   *   what makes it read as a lit, bevelled object rather than a card hovering
+   *   over a page. If the inset is there, the surface has thickness.
+   * - **Allowed: directional shadows.** A non-zero vertical offset means light
+   *   is coming from somewhere, which is the whole idea.
+   * - **Allowed: tight rim glows** (blur <= 12px), the Aero focus/hover halo.
+   * - **Rejected: blur >= 16px with no offset and no inset anywhere in the
+   *   declaration** — a centred cloud under a flat shape, which is the Material
+   *   tell and nothing else.
    */
-  it('uses no blurry Material-style elevation shadows', () => {
+  it('uses no Material-style elevation shadows', () => {
     const offenders = [];
     for (const { path, text } of cssFiles.map(read)) {
       for (const match of code(text).matchAll(/box-shadow:\s*([^;]+);/g)) {
         const value = match[1];
+        // An inset companion means this is a lit surface, not an elevation.
         if (value.includes('inset')) continue;
-        // 0 0 <big>: a glow with no direction. Aero glows exist (focus rings,
-        // the breach), but a *chrome* one is the Material tell.
-        const soft = /\b0\s+0\s+(\d{2,})px/.exec(value);
-        if (soft && Number(soft[1]) >= 40) offenders.push(`${path}: ${value.trim()}`);
+
+        for (const layer of value.split(/,(?![^(]*\))/)) {
+          const lengths = [...layer.matchAll(/(-?[\d.]+)px/g)].map((m) => Number(m[1]));
+          if (lengths.length < 3) continue;
+          const [x, y, blur] = lengths;
+          if (blur < 16) continue; // tight shadow or rim glow: Aero's own
+          if (Math.abs(y) > 0 || Math.abs(x) > 0) continue; // directional: lit
+          offenders.push(`${path}: ${layer.trim()}`);
+        }
       }
     }
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Required: purchases look like purchases.
+   *
+   * The counterpart to the visual rules — a screen can satisfy every "no modern
+   * pattern" check and still fail as a game by making transactions invisible.
+   * The buy tile carries four redundant signals (icon, effect, cart glyph, the
+   * literal word BUY) and an affordability sliver, and this asserts they are
+   * all still there.
+   */
+  it('makes purchases unmistakable', () => {
+    const css = readFileSync(join(SRC, 'styles/win32.css'), 'utf8');
+    for (const part of ['.w32-buy__cart', '.w32-buy__badge', '.w32-buy__effect', '.w32-buy__sliver']) {
+      expect(css).toContain(part);
+    }
+
+    const js = readFileSync(join(SRC, 'ui/win32.js'), 'utf8');
+    // The word itself, not a text-transform — a caps label the CSS cannot lose.
+    expect(js).toContain("'BUY'");
+    // And every tile is wired to the shared tooltip.
+    expect(js).toMatch(/attachTooltip\(node, \(\) => current\?\.tooltip/);
   });
 
   /**

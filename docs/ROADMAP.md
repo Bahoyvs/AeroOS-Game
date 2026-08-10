@@ -464,6 +464,14 @@ nav, features with On/Off indicators, licences as a subscription).
 VidChat, Registry Doctor, GeoPage, and the three tray popovers (AdBar, IoT
 Botnet, Cloud Mainframe).
 
+Purchases use the shared `buyTile`: icon, name, the gain in Buzz/sec, a cart
+glyph, the word BUY, the price, and an affordability sliver that fills as your
+Buzz approaches the cost — so "can I afford this yet" is a glance, not a
+subtraction. All maths moved into the shared tooltip, and each app carries a
+`[?]` explaining what it does in the economy. The first pass had been
+period-accurate and unreadable: it optimised for "is this what Norton looked
+like" and never asked "can a player tell this is a purchase".
+
 Each converted app also writes its own copy for upgrade descriptions. The
 view-model's fallback is phrased in economy terms ("doubles this building's
 output"), which is right for the model and wrong in every window — MSN never

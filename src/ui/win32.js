@@ -438,6 +438,227 @@ export function categoryList(categories, { onSelect = null } = {}) {
   return { el: root, pages, select };
 }
 
+/* --------------------------------------------------------------- tooltip */
+
+/**
+ * One tooltip for the whole shell.
+ *
+ * Every purchase, upgrade and derived number attaches to this. It exists
+ * because the apps had drifted into being *simulations* rather than game
+ * screens: production breakdowns and multiplier chains were printed on the
+ * page, which is period-accurate and unreadable. The rule now is that the
+ * screen shows the final number and the tooltip shows the working.
+ *
+ * `getContent()` is called on each show, not once at attach time, so a tooltip
+ * always reflects the tick it was opened on.
+ */
+let tipEl = null;
+let tipOwner = null;
+
+function ensureTip() {
+  if (tipEl) return tipEl;
+  tipEl = el('div', { class: 'w32-tip', role: 'tooltip', hidden: '' });
+  document.body.appendChild(tipEl);
+  return tipEl;
+}
+
+function hideTip() {
+  if (!tipEl) return;
+  tipEl.hidden = true;
+  tipOwner = null;
+}
+
+/**
+ * Render and place the tooltip against `anchor`.
+ *
+ * Prefers below-right, flips above or left when that would leave the viewport.
+ * A tooltip that hangs off a 390px screen is worse than no tooltip.
+ */
+function showTip(anchor, content) {
+  if (!content) return;
+  const tip = ensureTip();
+  clear(tip);
+
+  if (content.title) tip.appendChild(el('strong', { class: 'w32-tip__title', text: content.title }));
+  if (content.body) tip.appendChild(el('p', { class: 'w32-tip__body', text: content.body }));
+  if (content.gain) tip.appendChild(el('p', { class: 'w32-tip__gain', text: content.gain }));
+
+  if (content.rows?.length) {
+    tip.appendChild(
+      el('dl', { class: 'w32-tip__rows' },
+        content.rows.flatMap(([k, v]) => [el('dt', { text: k }), el('dd', { text: v })])),
+    );
+  }
+  if (content.note) tip.appendChild(el('p', { class: 'w32-tip__note', text: content.note }));
+
+  tip.hidden = false;
+  tipOwner = anchor;
+
+  const a = anchor.getBoundingClientRect();
+  const t = tip.getBoundingClientRect();
+  const margin = 8;
+
+  let left = a.left;
+  if (left + t.width > window.innerWidth - margin) left = window.innerWidth - t.width - margin;
+  if (left < margin) left = margin;
+
+  let top = a.bottom + 6;
+  if (top + t.height > window.innerHeight - margin) top = a.top - t.height - 6;
+  if (top < margin) top = margin;
+
+  tip.style.left = `${left}px`;
+  tip.style.top = `${top}px`;
+}
+
+/**
+ * Attach the shared tooltip to an element.
+ *
+ * Pointer *and* focus, so a keyboard player gets the same explanation, and
+ * `touchstart` is deliberately not bound: on a phone the tap is the purchase,
+ * and a tooltip that eats the first tap would make every tile need two.
+ */
+export function attachTooltip(node, getContent) {
+  const show = () => showTip(node, getContent());
+  const hide = () => {
+    if (tipOwner === node) hideTip();
+  };
+  node.addEventListener('pointerenter', show);
+  node.addEventListener('pointerleave', hide);
+  node.addEventListener('focus', show);
+  node.addEventListener('blur', hide);
+  node.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') hide();
+  });
+  return () => {
+    hide();
+    node.removeEventListener('pointerenter', show);
+    node.removeEventListener('pointerleave', hide);
+    node.removeEventListener('focus', show);
+    node.removeEventListener('blur', hide);
+  };
+}
+
+/**
+ * A number with its working hidden behind it: the value, a dotted underline,
+ * and the whole derivation in the tooltip.
+ */
+export function explainedValue(text, getContent, { className = '' } = {}) {
+  const node = el('span', {
+    class: `w32-explain ${className}`.trim(),
+    // Focusable so a keyboard reaches the explanation, but deliberately *not*
+    // `role="button"`: it performs no action, and 7.css styles `[role=button]`
+    // as a full raised control — which turned this figure into a grey box.
+    tabindex: '0',
+    'aria-label': `${text} — show details`,
+    text,
+  });
+  attachTooltip(node, getContent);
+  return node;
+}
+
+/**
+ * The `[?]` helper: a small round glass button beside an app's headline that
+ * says, in two sentences, what this app is *for* in the economy. New players
+ * were being handed twelve programs and no explanation of any of them.
+ */
+export function helpButton(getContent) {
+  const node = el('button', {
+    type: 'button',
+    class: 'w32-help',
+    'aria-label': 'What does this app do?',
+    text: '?',
+    onclick: (e) => {
+      e.preventDefault();
+      if (tipOwner === node) hideTip();
+      else showTip(node, getContent());
+    },
+  });
+  attachTooltip(node, getContent);
+  return node;
+}
+
+/* -------------------------------------------------------------- buy tile */
+
+/**
+ * The purchase tile — the control that makes an idle-game transaction legible.
+ *
+ * Text links failed the only job that mattered: a player could not tell that
+ * "Import a contact list" was a purchase. Every tile now carries the same four
+ * signals, so a transaction is recognisable before a single word is read:
+ *
+ *   [icon] [name + what it gives you]        [cart · BUY · price]
+ *   ▁▁▁▁▁▁▁▁▁▁▁▁▁▁ affordability sliver ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+ *
+ * The sliver is the piece doing the most work. It fills as your Buzz
+ * approaches the price, so "can I afford this yet" is answered at a glance
+ * without reading any number — and it reads as an ordinary progress bar, so it
+ * costs nothing in period accuracy.
+ *
+ * `spec` is `{ icon, name, effect, cost, progress, state, tooltip, onSelect }`
+ * where `state` is 'buyable' | 'unaffordable' | 'locked' | 'maxed' | 'owned'.
+ */
+export function buyTile(spec) {
+  const icon = el('span', { class: 'w32-buy__icon', 'aria-hidden': 'true' });
+  const name = el('strong', { class: 'w32-buy__name' });
+  const effect = el('span', { class: 'w32-buy__effect' });
+  const cost = el('b', { class: 'w32-buy__cost' });
+  const verb = el('span', { class: 'w32-buy__verb' });
+  const fill = el('i', { class: 'w32-buy__fill' });
+
+  const node = el('button', { type: 'button', class: 'w32-buy' }, [
+    icon,
+    el('span', { class: 'w32-buy__text' }, [name, effect]),
+    el('span', { class: 'w32-buy__badge' }, [
+      el('span', { class: 'w32-buy__cart', 'aria-hidden': 'true' }),
+      el('span', { class: 'w32-buy__badge-text' }, [verb, cost]),
+    ]),
+    el('span', { class: 'w32-buy__sliver', 'aria-hidden': 'true' }, fill),
+  ]);
+
+  let current = null;
+  const detach = attachTooltip(node, () => current?.tooltip ?? null);
+
+  function update(next) {
+    current = { ...current, ...next };
+    const { state = 'buyable' } = current;
+
+    if (current.icon) icon.dataset.icon = current.icon;
+    if (current.name != null) name.textContent = current.name;
+    if (current.effect != null) effect.textContent = current.effect;
+
+    const label =
+      state === 'owned' ? 'OWNED' : state === 'maxed' ? 'FULL' : state === 'locked' ? 'LOCKED' : 'BUY';
+    verb.textContent = label;
+    cost.textContent = state === 'owned' || state === 'maxed' ? '' : (current.cost ?? '');
+
+    node.disabled = state !== 'buyable';
+    node.dataset.state = state;
+    // The sliver is meaningless once a thing is owned or capped, so it empties
+    // rather than sitting full and implying there is something left to reach.
+    fill.style.setProperty(
+      '--fill',
+      String(state === 'buyable' || state === 'unaffordable' ? Math.min(1, Math.max(0, current.progress ?? 0)) : 0),
+    );
+
+    node.setAttribute(
+      'aria-label',
+      `${current.name}. ${current.effect ?? ''} ${
+        state === 'owned' ? 'Already owned.' : state === 'maxed' ? 'At maximum.' : `Costs ${current.cost}.`
+      }`,
+    );
+  }
+
+  node.addEventListener('click', () => spec.onSelect?.());
+  update(spec);
+
+  return { el: node, update, destroy: detach };
+}
+
+/** A group of buy tiles with consistent spacing. */
+export function buyList(tiles = []) {
+  return el('div', { class: 'w32-buys' }, tiles);
+}
+
 /**
  * The task pane — XP's "I want to..." list, and the control MSN Messenger put
  * its verbs in.

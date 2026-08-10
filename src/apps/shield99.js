@@ -3,7 +3,9 @@ import { adCooldownLeft, getThreat, scanProgress } from '../core/shield99.js';
 import { formatDuration, formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 import { createBuildingView } from './../ui/buildingView.js';
-import { categoryList, groupBox, menuBar, statusBar, taskPane } from './../ui/win32.js';
+import {
+  buyList, buyTile, categoryList, explainedValue, groupBox, helpButton, menuBar, statusBar,
+} from './../ui/win32.js';
 
 /**
  * Shield99 (AO-22) — the antivirus, and the game's lootbox.
@@ -126,37 +128,43 @@ export function mount(body, { game, ads = null }) {
   /* --------------------------------------------- Subscription (units) */
 
   /**
-   * Licence seats. A boxed antivirus sold you a subscription for N computers
-   * and nagged you to renew it, so that is exactly what this page is — seats,
-   * an expiry, and a renew action carrying the price.
+   * Licence seats, sold the way a boxed antivirus sold them — but drawn as
+   * purchase tiles, because a player could not tell that "Add a licence seat"
+   * was a transaction at all.
    */
   const seatTasks = [
-    { id: 1, label: 'Add a licence seat', icon: 'add' },
-    { id: 10, label: 'Add a 10-seat pack', icon: 'import' },
-    { id: 100, label: 'Upgrade to Small Business', icon: 'mail' },
-    { id: 'max', label: 'Upgrade to Enterprise Site Licence', icon: 'globe' },
+    { id: 1, label: 'Add a licence seat', icon: 'shield', per: 1 },
+    { id: 10, label: 'Add a 10-seat pack', icon: 'import', per: 10 },
+    { id: 100, label: 'Upgrade to Small Business', icon: 'mail', per: 100 },
+    { id: 'max', label: 'Upgrade to Enterprise Site Licence', icon: 'globe', per: null },
   ];
 
-  const seats = taskPane({
-    title: 'Subscription tasks',
-    items: seatTasks.map((t) => ({
-      ...t,
-      hint: '',
-      onSelect: () => {
-        const result = view.buy(t.id);
-        if (!result.ok) {
-          game.notify(
-            result.reason === 'maxed' ? 'Site licence is full' : 'Not enough Buzz',
-            result.reason === 'maxed'
-              ? 'This licence covers as many seats as it ever will.'
-              : 'Subscriptions are paid in Buzz.',
-            'warn',
-          );
-        }
-        update();
-      },
-    })),
-  });
+  const seatTiles = new Map();
+  const seatHost = buyList(
+    seatTasks.map((task) => {
+      const tile = buyTile({
+        icon: task.icon,
+        name: task.label,
+        effect: '',
+        cost: '',
+        onSelect: () => {
+          const result = view.buy(task.id);
+          if (!result.ok) {
+            game.notify(
+              result.reason === 'maxed' ? 'Site licence is full' : 'Not enough Buzz',
+              result.reason === 'maxed'
+                ? 'This licence covers as many seats as it ever will.'
+                : 'Subscriptions are paid in Buzz.',
+              'warn',
+            );
+          }
+          update();
+        },
+      });
+      seatTiles.set(task.id, tile);
+      return tile.el;
+    }),
+  );
 
   nav.pages.subscription.append(
     groupBox('Subscription status', [
@@ -166,7 +174,8 @@ export function mount(body, { game, ads = null }) {
       ]),
       el('p', { class: 'sh__sub-line' }, [
         el('span', { text: 'Protection revenue' }),
-        el('b', { dataset: { role: 'seat-rate' }, text: '0' }),
+        // The Coverage list moved into this value's tooltip.
+        el('b', { dataset: { role: 'seat-rate-host' } }),
       ]),
       el('p', { class: 'sh__sub-line' }, [
         el('span', { text: 'Definitions expire' }),
@@ -174,8 +183,16 @@ export function mount(body, { game, ads = null }) {
       ]),
       el('p', { class: 'sh__expiry', dataset: { role: 'seat-lock' }, hidden: '' }),
     ]),
-    seats.el,
-    groupBox('Coverage', el('ul', { class: 'w32-list', dataset: { role: 'coverage' } })),
+    el('div', { class: 'sh__buy-head' }, [
+      el('strong', { text: 'Extend your subscription' }),
+      helpButton(() => ({
+        title: 'Shield99 licences',
+        body: 'Each licensed seat is a machine paying you a subscription. Seats earn whether or not this window is open.',
+        gain: `Currently earning ${formatNumber(view.read()?.production ?? 0)} Buzz/sec`,
+        note: 'Protection features are on the Status page.',
+      })),
+    ]),
+    seatHost,
   );
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
@@ -229,73 +246,129 @@ export function mount(body, { game, ads = null }) {
    * exactly that shape, so they are drawn that way — an unowned feature reads
    * "Off" with a *Turn On* action carrying its price, never "buy".
    */
+  const featureTiles = new Map();
   let featureKey = null;
 
   function renderFeatures(snapshot) {
-    const key = snapshot.upgrades.map((u) => `${u.id}:${u.state}`).join('|');
-    if (key === featureKey) return;
-    featureKey = key;
+    const key = snapshot.upgrades.map((u) => u.id).join('|');
+    if (key !== featureKey) {
+      featureKey = key;
+      for (const tile of featureTiles.values()) tile.destroy();
+      featureTiles.clear();
 
-    const host = ref('features');
-    clear(host);
-    host.appendChild(
-      groupBox(
-        'Protection features',
-        el('ul', { class: 'w32-list' }, snapshot.upgrades.map((u) => {
-          const on = u.state === 'owned';
-          return el('li', { class: `w32-row sh__feature${u.state === 'gated' ? ' is-disabled' : ''}` }, [
-            el('span', { class: `sh__led${on ? ' is-on' : ''}`, 'aria-hidden': 'true' }),
-            el('span', { class: 'w32-row__text' }, [
-              el('strong', { text: u.name }),
-              el('small', { text: FEATURE_COPY[u.id] ?? u.blurb }),
-              u.requirement ? el('em', { class: 'w32-req', text: u.requirement }) : null,
-            ]),
-            on
-              ? el('span', { class: 'sh__on', text: 'On' })
-              : el('button', {
-                type: 'button',
-                class: 'sh__turn-on',
-                disabled: u.state === 'buyable' ? null : '',
-                text: `Turn On \u2014 ${formatNumber(u.cost)}`,
-                onclick: () => { view.buyUpgrade(u.id); featureKey = null; update(); },
-              }),
-          ]);
-        })),
-      ),
-    );
+      const host = ref('features');
+      clear(host);
+      host.appendChild(
+        groupBox('Protection features', [
+          el('p', {
+            class: 'sh__feature-note',
+            text: 'Each feature multiplies what your licences earn.',
+          }),
+          buyList(
+            snapshot.upgrades.map((u) => {
+              const tile = buyTile({
+                icon: 'shield',
+                name: u.name,
+                effect: '',
+                cost: '',
+                onSelect: () => { view.buyUpgrade(u.id); update(); },
+              });
+              featureTiles.set(u.id, tile);
+              return tile.el;
+            }),
+          ),
+        ]),
+      );
+    }
+
+    // Values refresh each pass; the tiles themselves are not rebuilt.
+    for (const u of snapshot.upgrades) {
+      const owned = u.state === 'owned';
+      const now = snapshot.production;
+      featureTiles.get(u.id)?.update({
+        effect: owned
+          ? 'Running'
+          : u.state === 'gated'
+            ? (u.requirement ?? 'Not yet available')
+            : `${formatNumber(now)} \u2192 ${formatNumber(now * 2)}/sec`,
+        cost: formatNumber(u.cost),
+        progress: u.cost > 0 ? game.state.buzz / u.cost : 0,
+        state: owned
+          ? 'owned'
+          : u.state === 'gated'
+            ? 'locked'
+            : u.state === 'buyable'
+              ? 'buyable'
+              : 'unaffordable',
+        tooltip: {
+          title: u.name,
+          body: FEATURE_COPY[u.id] ?? u.blurb,
+          gain: owned
+            ? 'Already running.'
+            : `${formatNumber(now)}/sec \u2192 ${formatNumber(now * 2)}/sec`,
+          rows: [
+            ['Cost', `${formatNumber(u.cost)} Buzz`],
+            ['You have', `${formatNumber(game.state.buzz)} Buzz`],
+            ...(u.requirement ? [['Requires', u.requirement]] : []),
+          ],
+        },
+      });
+    }
   }
-
-  /** The seats page: counters, prices and what the licence currently covers. */
-  let coverageKey = null;
+  /** The seats page. The breakdown lives in the revenue figure's tooltip. */
+  let rateNode = null;
 
   function renderSubscription(snapshot) {
     ref('seat-count').textContent = `${snapshot.units} of ${snapshot.maxPerRun}`;
-    ref('seat-rate').textContent = `${formatNumber(snapshot.production)} Buzz/sec`;
+
+    const host = ref('seat-rate-host');
+    if (!rateNode) {
+      rateNode = explainedValue('', () => ({
+        title: 'Protection revenue',
+        body: 'What your licensed seats earn, and everything currently shaping it.',
+        gain: `${formatNumber(view.read()?.production ?? 0)} Buzz/sec`,
+        rows: view.read()?.lines.map((l) => [l.label, l.value]) ?? [],
+      }));
+      clear(host);
+      host.appendChild(rateNode);
+    }
+    rateNode.textContent = `${formatNumber(snapshot.production)} Buzz/sec`;
 
     const lock = ref('seat-lock');
     lock.hidden = snapshot.unlocked;
     if (!snapshot.unlocked) lock.textContent = snapshot.lockText ?? '';
 
+    const perUnit = snapshot.raw.perUnit;
+    const chain = snapshot.units > 0 ? snapshot.production / (snapshot.units * perUnit) : 1;
+
     for (const task of seatTasks) {
       const step = snapshot.steps.find((x) => x.step === task.id);
-      seats.update(task.id, {
-        hint: snapshot.maxed ? 'Full' : step ? formatNumber(step.cost) : '\u2014',
-        disabled: !step || step.disabled,
-      });
-    }
+      const count = step?.count ?? 0;
+      const gain = count * perUnit * chain;
 
-    const key = snapshot.lines.map((l) => `${l.key}=${l.value}`).join('|');
-    if (key === coverageKey) return;
-    coverageKey = key;
-    const list = ref('coverage');
-    clear(list);
-    for (const line of snapshot.lines) {
-      list.appendChild(
-        el('li', { class: `sh__cover${line.key === 'total' ? ' is-total' : ''}` }, [
-          el('span', { text: line.label }),
-          el('b', { text: line.value }),
-        ]),
-      );
+      seatTiles.get(task.id)?.update({
+        effect: snapshot.maxed
+          ? 'Licence is full'
+          : count > 0
+            ? `+${formatNumber(gain)} Buzz/sec \u00b7 ${count} ${count === 1 ? 'seat' : 'seats'}`
+            : 'Not enough Buzz yet',
+        cost: step ? formatNumber(step.cost) : '\u2014',
+        progress: step && step.cost > 0 ? game.state.buzz / step.cost : 0,
+        state: snapshot.maxed ? 'maxed' : step && !step.disabled ? 'buyable' : 'unaffordable',
+        tooltip: {
+          title: task.label,
+          body:
+            task.id === 1
+              ? 'One more machine covered by the subscription.'
+              : `Licenses ${task.per ?? 'as many seats as you can afford'} at once. Each seat costs more than the last.`,
+          gain: snapshot.maxed ? 'Licence is full.' : `+${formatNumber(gain)} Buzz/sec`,
+          rows: [
+            ['Cost', step ? `${formatNumber(step.cost)} Buzz` : '\u2014'],
+            ['You have', `${formatNumber(game.state.buzz)} Buzz`],
+            ['Seats', `${snapshot.units} of ${snapshot.maxPerRun}`],
+          ],
+        },
+      });
     }
   }
 
@@ -543,6 +616,8 @@ export function mount(body, { game, ads = null }) {
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
+    for (const tile of featureTiles.values()) tile.destroy();
+    for (const tile of seatTiles.values()) tile.destroy();
     menus.destroy();
     delete body.dataset.status;
     body.classList.remove('app-shield');

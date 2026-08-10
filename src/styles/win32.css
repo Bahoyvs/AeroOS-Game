@@ -537,6 +537,455 @@
   opacity: 1;
 }
 
+/* --------------------------------------------------------------- tooltip */
+
+/**
+ * The shared tooltip: Aero glass over a dark plate.
+ *
+ * This is where every production breakdown, multiplier chain and "what am I
+ * actually buying" explanation now lives. The screens print the final number;
+ * this prints the working. Dark rather than the usual pale yellow because it
+ * has to read over both a bright app body and the wallpaper, and because a
+ * glass overlay is the most Aero surface in the whole system.
+ */
+.w32-tip {
+  position: fixed;
+  z-index: 9800;
+  max-width: 280px;
+  padding: 9px 11px;
+  pointer-events: none;
+  color: #eaf6ff;
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 16%), rgb(255 255 255 / 4%) 46%, rgb(0 0 0 / 6%) 54%),
+    linear-gradient(180deg, #2a4f6e, #16304a);
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 4px;
+  /* Directional, with an inset highlight — the Aero shadow, not a Material
+     elevation blur. See the note in tests/aeroCharter.test.js. */
+  box-shadow:
+    0 4px 12px rgb(4 20 36 / 55%),
+    inset 0 1px 0 rgb(255 255 255 / 45%);
+}
+
+.w32-tip[hidden] {
+  display: none !important;
+}
+
+.w32-tip__title {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 9pt;
+  color: #fff;
+}
+
+.w32-tip__body {
+  margin: 0 0 5px;
+  font-size: 8.5pt;
+  color: #c9e2f5;
+}
+
+/* The one line that says what this does *in game terms*. */
+.w32-tip__gain {
+  margin: 0 0 6px;
+  font-size: 9pt;
+  font-weight: 700;
+  color: #9dffc0;
+}
+
+.w32-tip__rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  padding-top: 5px;
+  margin: 0;
+  font-size: 8.5pt;
+  border-top: 1px solid rgb(255 255 255 / 20%);
+}
+
+.w32-tip__rows dt {
+  color: #a8c6de;
+}
+
+.w32-tip__rows dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.w32-tip__note {
+  margin: 6px 0 0;
+  font-size: 8pt;
+  color: #a8c6de;
+}
+
+/* A number whose derivation is one hover away. Text, not a control. */
+.w32-explain {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: help;
+  background: none;
+  border: 0;
+  border-bottom: 1px dotted currentcolor;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.w32-explain:focus-visible {
+  outline: 1px dotted currentcolor;
+  outline-offset: 2px;
+}
+
+/* The `[?]` helper: a small glass orb beside an app headline. */
+.w32-help {
+  display: inline-grid;
+  place-items: center;
+  width: 17px;
+  min-width: 0;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: #0a4d8c;
+  cursor: help;
+  background: linear-gradient(180deg, #fdfeff, #dcecf9 48%, #c2ddf0 52%, #eaf6fd);
+  border: 1px solid #7da2ce;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), 0 1px 2px rgb(10 50 90 / 25%);
+  animation: none;
+}
+
+.w32-help:hover,
+.w32-help:focus {
+  background: linear-gradient(180deg, #fff, #e8f4fd 48%, #cfe8fa 52%, #f4fbff);
+  border-color: #4b90c4;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 95%),
+    0 0 6px rgb(120 200 255 / 70%);
+  animation: none;
+}
+
+/* -------------------------------------------------------------- buy tile */
+
+.w32-buys {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/**
+ * The purchase tile.
+ *
+ * Glossy, raised and unmistakably pressable: a vertical gradient with a hard
+ * highlight at the 48% mark (Aero's signature two-stop glass), a bright inner
+ * top edge, and a directional drop shadow. Hover adds the Aero glow; press
+ * inverts the gradient and sinks the bevel.
+ */
+.w32-buys .w32-buy {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  /* Comfortably past the 44px touch floor, and roomy enough to breathe. */
+  min-height: 58px;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+  font-size: 9pt;
+  text-align: left;
+  cursor: pointer;
+  background: linear-gradient(180deg, #ffffff 0%, #eaf3fb 47%, #d5e7f6 53%, #f2f9ff 100%);
+  border: 1px solid #8fb0cd;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 95%),
+    inset 0 -1px 0 rgb(255 255 255 / 50%),
+    0 1px 2px rgb(10 50 90 / 22%);
+  animation: none;
+}
+
+.w32-buys .w32-buy:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff 0%, #f0f8ff 47%, #dbeeff 53%, #f8fcff 100%);
+  border-color: #4b90c4;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 100%),
+    0 0 8px rgb(120 200 255 / 65%),
+    0 2px 4px rgb(10 50 90 / 25%);
+}
+
+.w32-buys .w32-buy:active:not(:disabled) {
+  background: linear-gradient(180deg, #cfe2f2 0%, #dceaf7 50%, #eef6fd 100%);
+  box-shadow: inset 0 2px 3px rgb(10 40 70 / 28%);
+}
+
+.w32-buys .w32-buy:focus-visible {
+  outline: 1px dotted #0a3d68;
+  outline-offset: -4px;
+}
+
+/* Unaffordable: still legible, visibly not ready. */
+.w32-buys .w32-buy[data-state='unaffordable'],
+.w32-buys .w32-buy[data-state='locked'] {
+  cursor: default;
+  background: linear-gradient(180deg, #fbfcfd 0%, #eef1f4 47%, #e2e7eb 53%, #f6f8fa 100%);
+  border-color: #b8c4ce;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%);
+}
+
+.w32-buys .w32-buy[data-state='owned'],
+.w32-buys .w32-buy[data-state='maxed'] {
+  cursor: default;
+  background: linear-gradient(180deg, #f4fff6 0%, #dff5e4 47%, #cfeed8 53%, #f0fff4 100%);
+  border-color: #7cb98c;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%);
+}
+
+/* -------- icon slot: placeholder art, to be replaced with real icons ------ */
+
+.w32-buy__icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(180deg, #dff0ff, #7fb6d8 55%, #2f6a8e);
+  border: 1px solid #2b5f80;
+  border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%), 0 1px 2px rgb(10 40 70 / 30%);
+}
+
+.w32-buy__icon[data-icon='add'] {
+  background:
+    linear-gradient(#fff, #fff) 50% 50% / 14px 4px no-repeat,
+    linear-gradient(#fff, #fff) 50% 50% / 4px 14px no-repeat,
+    linear-gradient(180deg, #b9f5c8, #3fae56 55%, #1c6b28);
+  border-color: #17572a;
+}
+
+.w32-buy__icon[data-icon='import'] {
+  background: linear-gradient(180deg, #fff3c4, #f0b93b 55%, #a97c14);
+  border-color: #7d5a0a;
+}
+
+.w32-buy__icon[data-icon='mail'] {
+  background: linear-gradient(180deg, #fdfefe, #cfe0ee 55%, #8ba5bd);
+  border-color: #5f7d97;
+}
+
+.w32-buy__icon[data-icon='globe'] {
+  background: radial-gradient(circle at 38% 30%, #d6f2ff, #2b7fc4 62%, #14567f);
+  border-radius: 50%;
+}
+
+.w32-buy__icon[data-icon='shield'] {
+  background: linear-gradient(180deg, #ffe9a8, #e0a72c 55%, #a35c05);
+  border-color: #7a4404;
+  border-radius: 4px 4px 10px 10px;
+}
+
+.w32-buy__icon[data-icon='plugin'] {
+  background: linear-gradient(180deg, #e8dcff, #9a5cd8 55%, #5c2b8a);
+  border-color: #431f66;
+}
+
+.w32-buy__icon[data-icon='blade'] {
+  background:
+    repeating-linear-gradient(180deg, rgb(255 255 255 / 45%) 0 2px, transparent 2px 6px),
+    linear-gradient(180deg, #9fd0ea, #2f6a8e);
+  border-color: #1d4d68;
+  border-radius: 2px;
+}
+
+/* ------------------------------------------------------------ tile text */
+
+.w32-buy__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.w32-buy__name {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #12324e;
+}
+
+/* What you get, in game terms. The reason the tile is worth pressing. */
+.w32-buy__effect {
+  font-size: 8.5pt;
+  font-weight: 700;
+  color: #1c7a3a;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__name,
+.w32-buy[data-state='locked'] .w32-buy__name {
+  color: #6a7681;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__effect,
+.w32-buy[data-state='locked'] .w32-buy__effect {
+  color: #7d8a94;
+}
+
+/* ----------------------------------------------------------- cost badge */
+
+/**
+ * The transaction signal: a cart glyph, the word BUY, and the price. Three
+ * redundant cues on purpose — the player should not have to infer that this
+ * is a purchase from context or from the word "Import".
+ */
+.w32-buy__badge {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 8px;
+  background: linear-gradient(180deg, #fffdf2 0%, #ffe9a8 47%, #f5cf62 53%, #fff6d4 100%);
+  border: 1px solid #b8901f;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), 0 1px 1px rgb(80 60 0 / 20%);
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__badge,
+.w32-buy[data-state='locked'] .w32-buy__badge {
+  background: linear-gradient(180deg, #fbfcfd, #e5eaee 50%, #f4f7f9);
+  border-color: #b0bcc6;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 80%);
+}
+
+.w32-buy[data-state='owned'] .w32-buy__badge,
+.w32-buy[data-state='maxed'] .w32-buy__badge {
+  background: linear-gradient(180deg, #f6fff8, #cfeed8 50%, #eefff2);
+  border-color: #6fae80;
+}
+
+/* A shopping-cart silhouette in CSS: basket, handle, one wheel. */
+.w32-buy__cart {
+  position: relative;
+  width: 13px;
+  height: 12px;
+  border: 1.5px solid #6b5307;
+  border-top: 0;
+  border-radius: 0 0 2px 3px;
+}
+
+.w32-buy__cart::before {
+  position: absolute;
+  top: -5px;
+  left: -4px;
+  width: 6px;
+  height: 6px;
+  content: '';
+  border-top: 1.5px solid #6b5307;
+  border-left: 1.5px solid #6b5307;
+  border-radius: 2px 0 0;
+  opacity: 1;
+  transform: skewX(-12deg);
+}
+
+.w32-buy__cart::after {
+  position: absolute;
+  right: 1px;
+  bottom: -4px;
+  width: 3px;
+  height: 3px;
+  content: '';
+  background: #6b5307;
+  border-radius: 50%;
+  opacity: 1;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__cart,
+.w32-buy[data-state='locked'] .w32-buy__cart {
+  border-color: #8d99a3;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__cart::before,
+.w32-buy[data-state='locked'] .w32-buy__cart::before {
+  border-color: #8d99a3;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__cart::after,
+.w32-buy[data-state='locked'] .w32-buy__cart::after {
+  background: #8d99a3;
+}
+
+.w32-buy[data-state='owned'] .w32-buy__cart,
+.w32-buy[data-state='maxed'] .w32-buy__cart {
+  display: none;
+}
+
+.w32-buy__badge-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.w32-buy__verb {
+  font-size: 7.5pt;
+  font-weight: 700;
+  color: #6b5307;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__verb,
+.w32-buy[data-state='locked'] .w32-buy__verb {
+  color: #7d8a94;
+}
+
+.w32-buy[data-state='owned'] .w32-buy__verb,
+.w32-buy[data-state='maxed'] .w32-buy__verb {
+  color: #1c6b28;
+}
+
+.w32-buy__cost {
+  font-size: 9pt;
+  font-variant-numeric: tabular-nums;
+  color: #3f2f02;
+}
+
+.w32-buy[data-state='unaffordable'] .w32-buy__cost,
+.w32-buy[data-state='locked'] .w32-buy__cost {
+  color: #6a7681;
+}
+
+/* ------------------------------------------------- affordability sliver */
+
+/**
+ * How close the wallet is to the price, as a bar along the tile's foot.
+ *
+ * The single most useful thing on the tile: "can I afford this yet" becomes a
+ * glance rather than a subtraction. It reads as an ordinary progress bar, so it
+ * costs nothing in period accuracy — Windows had these everywhere.
+ */
+.w32-buy__sliver {
+  grid-column: 1 / -1;
+  height: 3px;
+  margin: 2px -10px -10px;
+  background: rgb(20 50 80 / 12%);
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 18%);
+}
+
+.w32-buy__fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(180deg, #b9e6ff, #2f8fd0 60%, #1a6ba3);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 55%);
+  transform: scaleX(var(--fill, 0));
+  transform-origin: left center;
+  /* Shorter than the 200ms tick that rewrites it — a longer transition would
+     restart forever and never arrive. See ARCHITECTURE.md on bars. */
+  transition: transform 150ms linear;
+}
+
+.w32-buy[data-state='buyable'] .w32-buy__fill {
+  background: linear-gradient(180deg, #d6ffe2, #3fae56 60%, #1c6b28);
+}
+
+[data-motion='reduced'] .w32-buy__fill {
+  transition: none;
+}
+
 /* ------------------------------------------------------------- status bar */
 
 .w32-status {
@@ -793,6 +1242,15 @@
     min-height: 44px;
   }
 
+  .w32-buys .w32-buy {
+    min-height: 64px;
+    padding: 10px 10px 12px;
+  }
+
+  .w32-tip {
+    max-width: calc(100vw - 24px);
+  }
+
   .w32-tasks .w32-tasks__header {
     min-height: 40px;
   }
@@ -802,13 +1260,28 @@
 
 /**
  * Contacts are AeroChat's units, so the purchase surface is the client's own
- * verb list — the "I want to..." pane Messenger kept under the contact list,
- * with "Add a Contact" at the top of it.
+ * verb list — the "I want to..." pane Messenger kept under the contact list —
+ * but each row is a *buy tile*, so a purchase looks like a purchase.
  */
 .app-aerochat .chat__actions {
-  display: block;
-  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 2px 2px;
   border: 0;
+  border-top: 1px solid #c8d7e4;
+}
+
+.app-aerochat .chat__tasks-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 9pt;
+  color: #1a3d63;
+}
+
+.app-aerochat .chat__tasks-head strong {
+  font-size: 9pt;
 }
 
 /* --- Tools > Options ----------------------------------------------------- */
@@ -1054,9 +1527,11 @@
  * how a real blade enclosure is laid out and keeps 150 bays readable at a
  * glance without a number.
  */
+/* Fifteen across rather than ten: a wider, shorter chassis leaves the
+   allocation controls visible without scrolling in the default window. */
 .aero-blades {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(15, 1fr);
   gap: 2px;
   padding: 5px;
   margin-top: 6px;
@@ -1066,7 +1541,7 @@
 }
 
 .aero-blade {
-  height: 9px;
+  height: 6px;
   background: linear-gradient(180deg, #3a4a55, #24313a);
   border: 1px solid #1a242b;
   border-radius: 1px;
@@ -1106,22 +1581,22 @@
   color: #0a3d68;
 }
 
-.aero-throughput__row {
+/* Headings that carry a `[?]` beside them. */
+.aero-farm__head,
+.sh__buy-head,
+.chat__tasks-head {
   display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  padding: 3px 8px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
   font-size: 9pt;
+  color: #1a3d63;
 }
 
-.aero-throughput__row b {
-  font-variant-numeric: tabular-nums;
-}
-
-.aero-throughput__row.is-total {
-  font-weight: 700;
-  background: #eaf1f7;
-  border-top: 1px solid #c4d3df;
+.sh__feature-note {
+  margin: 0 0 6px;
+  font-size: 8.5pt;
+  color: #4a5560;
 }
 
 @media (max-width: 820px) {
@@ -1130,7 +1605,7 @@
   }
 
   .aero-blades {
-    grid-template-columns: repeat(15, 1fr);
+    grid-template-columns: repeat(10, 1fr);
   }
 
   .aero-alloc__go,

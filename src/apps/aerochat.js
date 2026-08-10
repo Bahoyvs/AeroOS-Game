@@ -5,7 +5,10 @@ import { claimSecondsLeft, getBonus } from '../core/statusEvents.js';
 import { formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 import { createBuildingView } from './../ui/buildingView.js';
-import { categoryList, dialog, groupBox, menuBar, statusBar, taskPane } from './../ui/win32.js';
+import {
+  attachTooltip, buyList, buyTile, categoryList, dialog, explainedValue,
+  groupBox, helpButton, menuBar, statusBar,
+} from './../ui/win32.js';
 
 /**
  * AeroChat — the core idle engine (AO-5, AO-8, AO-9, AO-10).
@@ -20,10 +23,11 @@ import { categoryList, dialog, groupBox, menuBar, statusBar, taskPane } from './
  * foot. It is gone. Buddies are AeroChat's *units*, so buying them is the thing
  * MSN Messenger already had a verb for: **adding a contact**.
  *
- * - **Units** live in the `I want to...` task pane, which is where Messenger put
- *   its verbs. "Add a Contact" with a price beside it is a sentence; "Buy ×10"
- *   is a shop. The bulk imports a real client offered — a contact list, a
- *   Hotmail address book — are rows in the same list.
+ * - **Units** live in the `I want to...` pane, which is where Messenger put its
+ *   verbs — but each row is a *buy tile*, not a text link. Players could not
+ *   tell that "Import a contact list" was a purchase, so every row now carries
+ *   an icon, what it gives you in Buzz/sec, a cart glyph, the word BUY, the
+ *   price, and a sliver showing how close you are to affording it.
  * - **Upgrades** live in `Tools ▸ Options…`, the MSN options dialog, filed under
  *   the category each one belongs to. They read as features you switch on, not
  *   as items in a shop.
@@ -100,8 +104,6 @@ export function mount(body, { game }) {
       <div class="meter__track"><div class="meter__fill" data-role="milestone-bar"></div></div>
     </div>
 
-    <p class="chat__breakdown" data-role="breakdown"></p>
-
     <div class="chat__buffs" data-role="buffs" aria-live="polite"></div>
 
     <ul class="chat__list" data-role="list" aria-label="Buddy list"></ul>
@@ -113,7 +115,12 @@ export function mount(body, { game }) {
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
   const list = ref('list');
   const buffsRoot = ref('buffs');
-  const breakdown = ref('breakdown');
+
+  // The header rate is the one number on screen; its derivation is a hover away.
+  const rateNode = ref('rate');
+  rateNode.classList.add('w32-explain');
+  rateNode.tabIndex = 0;
+  const detachRateTip = attachTooltip(rateNode, rateTooltip);
 
   const view = createBuildingView(game, 'aerochat');
 
@@ -144,21 +151,45 @@ export function mount(body, { game }) {
   }
 
   /**
-   * The verbs, as Messenger listed them. `id` doubles as the step passed to
-   * the view-model, so the pane's rows and the economy stay in one mapping.
+   * The verbs, as Messenger listed them — drawn as purchase tiles.
+   *
+   * `id` doubles as the step passed to the view-model, so the pane's rows and
+   * the economy stay in one mapping.
    */
   const TASKS = [
-    { id: 1, label: 'Add a Contact', icon: 'add' },
-    { id: 10, label: 'Import a contact list', icon: 'import' },
-    { id: 100, label: 'Import Hotmail address book', icon: 'mail' },
-    { id: 'max', label: 'Import everything', icon: 'globe' },
+    { id: 1, label: 'Add a Contact', icon: 'add', per: 1 },
+    { id: 10, label: 'Import a contact list', icon: 'import', per: 10 },
+    { id: 100, label: 'Import Hotmail address book', icon: 'mail', per: 100 },
+    { id: 'max', label: 'Import everything', icon: 'globe', per: null },
   ];
 
-  const tasks = taskPane({
-    title: 'I want to...',
-    items: TASKS.map((t) => ({ ...t, hint: '', onSelect: () => addContacts(t.id) })),
-  });
-  ref('actions').appendChild(tasks.el);
+  const tiles = new Map();
+  const tileHost = buyList(
+    TASKS.map((task) => {
+      const tile = buyTile({
+        icon: task.icon,
+        name: task.label,
+        effect: '',
+        cost: '',
+        onSelect: () => addContacts(task.id),
+      });
+      tiles.set(task.id, tile);
+      return tile.el;
+    }),
+  );
+
+  ref('actions').append(
+    el('div', { class: 'chat__tasks-head' }, [
+      el('strong', { text: 'I want to...' }),
+      helpButton(() => ({
+        title: 'AeroChat',
+        body: 'Your contacts chat around the clock, and their chatter is Buzz. More contacts means more Buzz, whether or not this window is open.',
+        gain: `Currently earning ${formatNumber(game.econ.buzzPerSecond(game.state, Date.now()))} Buzz/sec`,
+        note: 'Upgrades live in Tools > Options.',
+      })),
+    ]),
+    tileHost,
+  );
 
   /* ------------------------------------------------------------- menu bar */
 
@@ -421,36 +452,36 @@ export function mount(body, { game }) {
   /* ------------------------------------------------------------ breakdown */
 
   /**
-   * Shows the working behind the rate. Only factors that are actually doing
-   * something are listed, so a clean system reads "28 × 0.5 = 14 / sec" and a
-   * bloated one explains where the missing Buzz went.
+   * The working behind the rate — in a tooltip, not on the page.
+   *
+   * This used to print `120 × 0.5 ×1.32 buddies ×5.20 CPU ×1.00 bloat` across
+   * the window. It is accurate and it is unreadable: an idle game's main view
+   * should show the final number, and offer the derivation to anybody who wants
+   * it. The rate now carries a dotted underline and the whole chain lives one
+   * hover away.
    */
-  function renderBreakdown(bd) {
-    const parts = [
-      el('span', { text: `${bd.bots} × ${bd.perBot}` }),
-      ...(bd.milestone !== 1
-        ? [el('span', { class: 'is-boost', text: `×${bd.milestone.toFixed(2)} buddies` })]
-        : []),
-      ...(bd.buffs !== 1
-        ? [el('span', { class: 'is-boost', text: `×${bd.buffs.toFixed(2)} bonus` })]
-        : []),
-      ...(bd.playlist !== 1
-        ? [el('span', { class: 'is-boost', text: `×${bd.playlist.toFixed(2)} playlist` })]
-        : []),
-      ...(bd.cpu !== 1 ? [el('span', { class: 'is-boost', text: `×${bd.cpu.toFixed(2)} CPU` })] : []),
-      ...(bd.bloat !== 1
-        ? [el('span', { class: 'is-drag', text: `×${bd.bloat.toFixed(2)} bloat` })]
-        : []),
-      // Seeding is a separate producer, so it adds rather than multiplies —
-      // showing it as a factor would misreport where the Buzz comes from.
-      ...(bd.seeds > 0
-        ? [el('span', { class: 'is-boost', text: `+ ${formatNumber(bd.seeds)} seeding` })]
-        : []),
-      el('span', { class: 'is-total', text: `= ${formatNumber(bd.total)} / sec` }),
-    ];
+  function rateTooltip() {
+    const bd = game.econ.rateBreakdown(game.state, Date.now());
+    const rows = [[`${bd.bots} contacts`, `× ${formatNumber(bd.perBot)} each`]];
 
-    clear(breakdown);
-    breakdown.append(...parts);
+    if (bd.milestone !== 1) rows.push(['Contact milestones', `× ${bd.milestone.toFixed(2)}`]);
+    if (bd.buffs !== 1) rows.push(['Active bonuses', `× ${bd.buffs.toFixed(2)}`]);
+    if (bd.playlist !== 1) rows.push(['RetroAmp playlist', `× ${bd.playlist.toFixed(2)}`]);
+    if (bd.cpu !== 1) rows.push(['Processor', `× ${bd.cpu.toFixed(2)}`]);
+    if (bd.legacy !== 1) rows.push(['Legacy level', `× ${bd.legacy.toFixed(2)}`]);
+    if (bd.bloat !== 1) rows.push(['System bloat', `× ${bd.bloat.toFixed(2)}`]);
+    if (bd.breach !== 1) rows.push(['Rogue processes', `× ${bd.breach.toFixed(2)}`]);
+    // Seeding and the other buildings *add* rather than multiply, so they are
+    // shown as their own lines — folding them in would misreport the source.
+    if (bd.seeds > 0) rows.push(['LemonWire seeding', `+ ${formatNumber(bd.seeds)}`]);
+    if (bd.otherBuildings > 0) rows.push(['Other programs', `+ ${formatNumber(bd.otherBuildings)}`]);
+
+    return {
+      title: 'Buzz per second',
+      body: 'Everything currently feeding the total.',
+      gain: `${formatNumber(bd.total)} Buzz/sec`,
+      rows,
+    };
   }
 
   /* ---------------------------------------------------------------- buffs */
@@ -505,16 +536,44 @@ export function mount(body, { game }) {
     }
 
     /**
-     * The task pane. Each verb carries its price where a menu item's shortcut
-     * would sit — so the cost is legible without ever naming a transaction.
+     * The purchase tiles. Each one states what it gives you in Buzz/sec, what
+     * it costs, and — through the sliver — how close the wallet is to it.
      */
     const snapshot = view.read();
     if (snapshot) {
+      const perUnit = snapshot.raw.perUnit;
+      const chainMultiplier =
+        snapshot.units > 0 ? snapshot.production / (snapshot.units * perUnit) : 1;
+
       for (const task of TASKS) {
         const step = snapshot.steps.find((x) => x.step === task.id);
-        tasks.update(task.id, {
-          hint: snapshot.maxed ? 'Full' : step ? formatNumber(step.cost) : '—',
-          disabled: !step || step.disabled,
+        const count = step?.count ?? 0;
+        const gain = count * perUnit * chainMultiplier;
+
+        tiles.get(task.id)?.update({
+          effect: snapshot.maxed
+            ? 'Contact list is full'
+            : count > 0
+              ? `+${formatNumber(gain)} Buzz/sec · ${count} ${count === 1 ? 'contact' : 'contacts'}`
+              : 'Not enough Buzz yet',
+          cost: step ? formatNumber(step.cost) : '\u2014',
+          progress: step && step.cost > 0 ? s.buzz / step.cost : 0,
+          state: snapshot.maxed ? 'maxed' : step && !step.disabled ? 'buyable' : 'unaffordable',
+          tooltip: {
+            title: task.label,
+            body:
+              task.id === 1
+                ? 'One more contact on your list. Every contact chats and earns Buzz.'
+                : `Adds ${task.per ?? 'as many as you can afford'} contacts in one go. The price rises with each contact you own.`,
+            gain: snapshot.maxed
+              ? 'Contact list is full.'
+              : `+${formatNumber(gain)} Buzz/sec (${count} \u00d7 ${formatNumber(perUnit * chainMultiplier)})`,
+            rows: [
+              ['Cost', step ? `${formatNumber(step.cost)} Buzz` : '\u2014'],
+              ['You have', `${formatNumber(s.buzz)} Buzz`],
+              ['Contacts', `${snapshot.units} of ${snapshot.maxPerRun}`],
+            ],
+          },
         });
       }
 
@@ -523,7 +582,6 @@ export function mount(body, { game }) {
       status.set('connection', snapshot.maxed ? 'List full' : 'Connected');
     }
 
-    renderBreakdown(econ.rateBreakdown(s, now));
     renderList();
     renderBuffs(now);
 
@@ -536,6 +594,8 @@ export function mount(body, { game }) {
   return () => {
     unsubscribe();
     optionsOpen?.close();
+    for (const tile of tiles.values()) tile.destroy();
+    detachRateTip();
     menus.destroy();
     body.classList.remove('app-aerochat');
   };

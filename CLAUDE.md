@@ -34,6 +34,15 @@ most "missing" apps are scheduled, not forgotten.
   how an app sells its units and upgrades is bespoke and must fit that app's software
   metaphor — contacts in AeroChat, render blades in Aero Studio. An app that draws its own
   exports `ownsBuildingUI = true`; the generic panel is a fallback for the ten not yet done.
+- Every purchase is a `buyTile` from `ui/win32.js` — icon, name, the gain in Buzz/sec, a
+  cart glyph, the word BUY, the price, and the affordability sliver. Skeuomorphism must
+  never cost the player the ability to tell that something is a transaction.
+- Maths does not go on the page. Breakdowns, multiplier chains and "what does this do"
+  live in the shared `tooltip`/`explainedValue`; the screen shows the final number with a
+  dotted underline. Each app also carries one `helpButton` saying what it is *for*.
+- Aero's shadows are allowed and Material's are not. A raised surface pairs an outer
+  directional shadow with an inset highlight; a big centred blur under a flat shape is the
+  banned pattern. `tests/aeroCharter.test.js` draws the line.
 - Common controls (menu bar, tab strip, spinner, split button, dialog) live in `ui/win32.js`
   and know nothing about the game. That is the OS's widget set, not a shop.
 - 7.css uses `button::after` for its hover wash at `opacity: 0; z-index: -1`. A CSS glyph
