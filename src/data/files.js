@@ -4,8 +4,8 @@
  * These are the files the player can *seed*. Three fields decide what a slot is
  * worth: `sizeGB` costs disk and pays a little, `seeders` is inverted into a
  * rarity premium (a swarm of six needs you; a swarm of 302 does not), and
- * `risk` pays the most while deciding how often Shield99 has something to
- * quarantine. That is the whole decision the app offers.
+ * `risk` pays the most, because the files nobody else will host are the ones
+ * the swarm needs a volunteer for. That is the whole decision the app offers.
  */
 
 export const FILES = [

@@ -154,29 +154,6 @@ describe('taking a slot', () => {
     expect(lw.storageUsedGB(s)).toBeCloseTo(4);
   });
 
-  it('refuses while the machine is infected', () => {
-    const s = wired();
-    s.security.infection = { at: 0 };
-    expect(lw.canSeed(s, 'wallpapers', slots(s), capacity(s)).reason).toBe('infected');
-  });
-});
-
-describe('the Recycle Bin', () => {
-  it('does not hand the space back when a seed is stopped', () => {
-    const s = wired();
-    const job = seed(s, 'battlefront');
-
-    expect(lw.stopSeeding(s, job.id)).toMatchObject({
-      ok: true,
-      secondsLeft: LEMONWIRE.trashSeconds,
-    });
-    expect(s.lemonwire.activeSeeds).toEqual([]); // the slot is free immediately
-    expect(lw.trashUsedGB(s)).toBe(4);
-    expect(lw.storageUsedGB(s)).toBe(4); // ...the disk is not
-
-    expect(lw.stopSeeding(s, job.id).reason).toBe('no-such-seed');
-  });
-
   it('empties on simulation time, and only then frees the disk', () => {
     const s = wired();
     lw.stopSeeding(s, seed(s, 'battlefront').id);

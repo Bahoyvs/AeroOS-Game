@@ -76,13 +76,6 @@ describe('reward sizing', () => {
 });
 
 describe('offers know what the game is doing', () => {
-  it('does not offer a render skip with no render running', () => {
-    const game = newGame();
-    expect(game.adOffer('renderBoost')).toMatchObject({ ok: false, reason: 'not-rendering' });
-
-    game.startRender('Argent Metal OST');
-    expect(game.adOffer('renderBoost').ok).toBe(true);
-  });
 
   it('does not offer a sweeper token when the player is already full', () => {
     const game = newGame();

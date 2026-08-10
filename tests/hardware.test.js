@@ -125,10 +125,14 @@ describe('what the stats are wired into', () => {
 
   it('RAM decides what fits in memory', () => {
     const s = at({ ram: 0 });
-    s.apps.aerostudio.installed = true; // 192 MB
-    expect(econ.canOpenApp(s, 'aerostudio').ok).toBe(false);
+    // No single window outgrows the stock 128 MB now, so the budget is blown
+    // by what is already open rather than by one heavyweight app.
+    s.apps.lemonwire.installed = true;
+    s.apps.lemonwire.open = true; // 96 of 128 MB
+    s.apps.retroamp.installed = true; // wants 64
+    expect(econ.canOpenApp(s, 'retroamp').ok).toBe(false);
     s.hardware.ram = 2;
-    expect(econ.canOpenApp(s, 'aerostudio').ok).toBe(true);
+    expect(econ.canOpenApp(s, 'retroamp').ok).toBe(true);
   });
 });
 

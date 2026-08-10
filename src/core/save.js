@@ -1,5 +1,5 @@
-import { AEROSTUDIO, LEMONWIRE, SAVE } from '../data/balance.js';
-import { getApp, hasApp } from '../data/apps.js';
+import { LEMONWIRE, SAVE } from '../data/balance.js';
+import { hasApp } from '../data/apps.js';
 import { BUILDINGS, hasBuilding } from '../data/buildings.js';
 import { hasFile } from '../data/files.js';
 import { SAVE_VERSION, createInitialState } from './state.js';
@@ -169,8 +169,8 @@ const MIGRATIONS = {
     const { shield99, aeroburn, aerostudio, ...rest } = data;
 
     let refund = 0;
-    for (const id of ['shield99', 'aeroburn', 'aerostudio']) {
-      if (data.apps?.[id]?.installed && hasApp(id)) refund += getApp(id).install?.cost ?? 0;
+    for (const [id, cost] of Object.entries(RETIRED_INSTALL_COSTS)) {
+      if (data.apps?.[id]?.installed) refund += cost;
     }
     for (const [id, tier] of Object.entries(aerostudio?.upgrades ?? {})) {
       refund += aerostudioUpgradeSpend(id, tier);
@@ -213,13 +213,44 @@ const MIGRATIONS = {
 };
 
 /**
+ * What the three retired apps cost to install, frozen at the moment they were
+ * retired (they were 3,000 / 12,000 / 12,000 Buzz in `data/apps.js`).
+ *
+ * These have to be literals, and the reason is worth stating plainly because it
+ * bit once already: the obvious spelling is `getApp(id).install.cost`, and the
+ * moment Phase 1 takes these three off the roster that lookup starts throwing —
+ * or, guarded with `hasApp`, quietly returns zero. A refund that silently pays
+ * nothing is the exact failure the GDD's own draft formula had, and it would
+ * have been reintroduced here by the removal that this refund exists to
+ * compensate for.
+ */
+const RETIRED_INSTALL_COSTS = {
+  shield99: 3_000,
+  aeroburn: 12_000,
+  aerostudio: 12_000,
+};
+
+/**
+ * Aero Studio's upgrade prices, frozen for the same reason.
+ *
+ * A copy, not an import, and it must stay one: the migration has to price what
+ * a player *actually paid* years from now, and the module these came from no
+ * longer exists to be read. A live constant would also be a live liability —
+ * retuning a table for a shop nobody can open would silently change what old
+ * saves are refunded.
+ */
+const RETIRED_AEROSTUDIO_UPGRADES = {
+  sidechainCompression: { baseCost: 75_000, costGrowth: 1.5 },
+  arpeggiator: { baseCost: 250_000, costGrowth: 1.8 },
+  environmentalFx: { baseCost: 1_000_000, costGrowth: 2.2 },
+};
+
+/**
  * What a player put into one Aero Studio upgrade track to reach `tier`, priced
- * off the same table the shop charged from. Local to the migration because it
- * is the last thing that will ever need it — the module it prices is being
- * deleted in the next phase.
+ * off the same curve the shop charged from (`ceil(base × growth^owned)`).
  */
 function aerostudioUpgradeSpend(id, tier) {
-  const upgrade = AEROSTUDIO.upgrades?.[id];
+  const upgrade = RETIRED_AEROSTUDIO_UPGRADES[id];
   const owned = Math.max(0, Math.floor(tier ?? 0));
   if (!upgrade || owned === 0) return 0;
   let total = 0;

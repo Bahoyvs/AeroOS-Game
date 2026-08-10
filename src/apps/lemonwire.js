@@ -101,11 +101,6 @@ export function mount(body, { game }) {
         <span class="lw__uprate" data-role="uprate"></span>
       </div>
 
-      <div class="lw__quarantine" data-role="infected" hidden>
-        <strong>⚠ Infected — sharing suspended</strong>
-        <span>Run a Shield99 scan to clean the machine. Production is halved until you do.</span>
-      </div>
-
       <h4 class="lw__heading">Seeding <small data-role="slot-count"></small></h4>
       <ul class="lw__seeds" data-role="seeds"></ul>
 
@@ -141,7 +136,7 @@ export function mount(body, { game }) {
         dataset: { fileId: file.id },
         // The trade the app is built around, spelled out before the click.
         title: `${file.name}\n${sizeText(file.sizeGB)} · ${demand} in the swarm · ${risk} risk${
-          file.risk >= 0.25 ? ' — risky shares attract threats for Shield99 to catch' : ''
+          file.risk >= 0.25 ? ' — the swarm wants it badly enough not to ask questions' : ''
         }`,
         onclick: () => {
           const result = game.startSeeding(file.id);
@@ -154,7 +149,6 @@ export function mount(body, { game }) {
               'no-slots': ['Every slot is busy', 'Stop seeding something first, or upgrade your HDD.'],
               'already-seeding': ['Already sharing', 'It is in one of your slots.'],
               'in-trash': ['Still in the Recycle Bin', 'Wait for the bin to empty before sharing it again.'],
-              infected: ['Sharing suspended', 'Clean the infection with Shield99 first.'],
               'not-open': ['LemonWire is closed', 'Open it to share.'],
             };
             const [title, bodyText] = messages[result.reason] ?? ['Cannot share that', ''];
@@ -324,7 +318,6 @@ export function mount(body, { game }) {
     const s = game.state;
     const { econ } = game;
     const now = Date.now();
-    const infected = s.security.infection !== null;
 
     const used = storageUsedGB(s);
     const capacity = econ.storageCapacityGB(s);
@@ -336,12 +329,9 @@ export function mount(body, { game }) {
     ref('disk-trash').hidden = held === 0;
     ref('disk-trash').textContent = `🗑 ${sizeText(held)} in Trash — not free yet`;
 
-    ref('infected').hidden = !infected;
-
     const seeding = s.lemonwire.activeSeeds.length;
-    ref('status').textContent = infected
-      ? 'Sharing suspended'
-      : seeding === 0
+    ref('status').textContent =
+      seeding === 0
         ? 'Connected to 1,204 peers'
         : `Sharing ${seeding} ${seeding === 1 ? 'file' : 'files'}`;
     ref('uprate').textContent =

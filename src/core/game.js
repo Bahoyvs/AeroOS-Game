@@ -1,21 +1,17 @@
-import { ADS, BUILDING, CLICK, DEFRAG, SAVE, AEROSTUDIO, SHIELD99, SWEEPER } from '../data/balance.js';
+import { ADS, BUILDING, CLICK, DEFRAG, SAVE, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { hasBuilding } from '../data/buildings.js';
 import { applyLegacyLevel } from './legacy.js';
-import { getCD } from '../data/cds.js';
 import { getFile } from '../data/files.js';
 import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
 import * as ads from './ads.js';
-import * as burner from './aeroburn.js';
-import * as aerostudio from './aerostudio.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as cosmetics from './cosmetics.js';
 import * as defrag from './defrag.js';
 import * as lw from './lemonwire.js';
-import * as shield from './shield99.js';
 import * as sweeper from './sweeper.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
@@ -122,43 +118,8 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       bus.emit(EVENTS.TRASH_EMPTIED, { file: getFile(item.fileId) });
     }
 
-    const threat = shield.updateThreats(state, dt, rng, now);
-    if (threat) {
-      if (threat.outcome === 'quarantined') {
-        bus.emit(EVENTS.THREAT_QUARANTINED, {
-          item: threat.item,
-          threat: shield.getThreat(threat.item.threatId),
-        });
-      } else {
-        bus.emit(EVENTS.VIRUS, { outcome: threat.outcome });
-      }
-      save();
-    }
 
-    const disc = burner.updateBurn(state, dt);
-    if (disc) {
-      bus.emit(EVENTS.BURN_DONE, { cd: getCD(disc.typeId), disc });
-      save();
-    }
 
-    const render = aerostudio.updateRender(state, dt);
-    if (render?.done) {
-      const payout = econ.buzzPerSecond(state, now) * AEROSTUDIO.payoutSeconds;
-      // Store the reward for manual collection instead of granting immediately.
-      // finishRender() resets isRendering so updateRender stops returning done.
-      state.aerostudio.pendingReward = {
-        projectName: render.projectName,
-        payout,
-      };
-      aerostudio.finishRender(state);
-      bus.emit(EVENTS.RENDER_DONE, { projectName: render.projectName, payout });
-      bus.emit(EVENTS.NOTIFY, {
-        title: 'Render Complete!',
-        body: `"${render.projectName}" is ready — collect your reward!`,
-        tone: 'success',
-      });
-      save();
-    }
 
     // AeroSweeper tokens refill whether or not the tab was open — wall clock.
     const tokens = sweeper.updateTokens(state, now);
@@ -167,11 +128,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
       save();
     }
 
-    const scan = shield.updateScan(state, dt);
-    if (scan?.done) {
-      bus.emit(EVENTS.SCAN_DONE, { cured: scan.cured });
-      save();
-    }
 
     // A timed playlist burns out on the wall clock, so it also expires while
     // the tab is closed rather than resuming on return.
@@ -208,6 +164,19 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     state.stats.nudges += 1;
     grantBuzz(amount, 'nudge');
     return amount;
+  }
+
+  /**
+   * The sunset refund screen has been shown (GDD §11). Clearing the field is
+   * what makes it a one-time message rather than a permanent save entry, and it
+   * is an action rather than a UI-side delete because the UI never writes state.
+   */
+  function acknowledgeSunsetRefund() {
+    if (!(state.sunsetRefund > 0)) return { ok: false, reason: 'nothing-pending' };
+    const refund = state.sunsetRefund;
+    delete state.sunsetRefund;
+    save();
+    return { ok: true, refund };
   }
 
   function setUsername(username) {
@@ -373,7 +342,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, playlist };
   }
 
-  /* ------------------------------------------------- LemonWire / Shield99 */
+  /* ------------------------------------------------------------ LemonWire */
 
   /** Put a file in a seed slot (AO-21). Refusals explain themselves to the UI. */
   function startSeeding(fileId) {
@@ -409,57 +378,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return result;
   }
 
-  /**
-   * Open a quarantined file (the rewarded-ad lootbox).
-   *
-   * The ad itself belongs to the shell — the SDK is a browser API and core does
-   * not touch it — so this is called *after* `adFinished` with `viaAd: true`.
-   * The manual path is always available at a fraction of the reward, because a
-   * player with an ad blocker must never be locked out of a mechanic.
-   *
-   * When the ad system is switched off entirely (`ADS.enabled`), that fraction
-   * would stop being a trade and become a permanent tax: there is no ad to
-   * watch, so 25% is simply what the lootbox is worth now. It pays in full
-   * instead — "nothing is gated behind an ad" has to survive the ads being off.
-   */
-  function extractQuarantine(itemId, { viaAd = false } = {}) {
-    const now = Date.now();
-    const check = shield.canExtract(state, itemId, { viaAd, now });
-    if (!check.ok) return check;
-
-    const threat = shield.getThreat(check.item.threatId);
-    const reward = shield.rewardFor(threat, {
-      fraction: viaAd || !ADS.enabled ? 1 : SHIELD99.manualRewardFraction,
-      buzzPerSecond: econ.buzzPerSecond(state, now),
-      isRendering: state.aerostudio.isRendering,
-    });
-
-    shield.takeFromQuarantine(state, itemId);
-    if (viaAd) shield.startAdCooldown(state, now);
-
-    if (reward.kind === 'buzz') {
-      grantBuzz(reward.buzz, 'quarantine');
-    } else if (reward.kind === 'buff') {
-      addBuff(
-        state,
-        {
-          id: `quarantine-${threat.id}`,
-          kind: 'global',
-          magnitude: reward.magnitude,
-          durationSeconds: reward.durationSeconds,
-          label: threat.name,
-          source: 'shield99',
-        },
-        now,
-      );
-    } else if (reward.kind === 'render') {
-      aerostudio.boostRender(state, reward.renderFraction);
-    }
-
-    bus.emit(EVENTS.QUARANTINE_CLAIMED, { threat, reward, viaAd });
-    save();
-    return { ok: true, threat, reward };
-  }
 
   /* ----------------------------------------------------------- AeroSweeper */
 
@@ -544,46 +462,16 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, combo, buzz };
   }
 
-  /* -------------------------------------------------------------- AeroBurn */
 
-  /** Burn Buzz onto a disc that will outlive the next Format C: (AO-29). */
-  function startBurn(typeId) {
-    const check = burner.canBurn(state, typeId);
-    if (!check.ok) return check;
-
-    const job = burner.startBurn(state, typeId);
-    bus.emit(EVENTS.BURN_STARTED, { cd: getCD(typeId), job });
-    return { ok: true, job };
-  }
-
-  /** Play a disc: Buzz back, or a buff. Either way it is consumed. */
-  function playDisc(index) {
-    const result = burner.playDisc(state, index, Date.now());
-    if (!result.ok) return result;
-
-    if (result.buzz > 0) grantBuzz(result.buzz, 'aeroburn');
-    bus.emit(EVENTS.DISC_PLAYED, { cd: result.cd, buzz: result.buzz });
-    save();
-    return result;
-  }
-
-  /** Start a Shield99 scan (AO-22). Curing is what ends an infection. */
-  function startScan() {
-    const result = shield.startScan(state);
-    if (result.ok) bus.emit(EVENTS.SCAN_STARTED, {});
-    return result;
-  }
-
-  /* ----------------------------------------------------------- rewarded ads */
 
   /**
    * Is a rewarded offer worth showing, and what does it pay?
    *
    * Two gates, deliberately kept apart: `core/ads.js` owns *pacing* (daily
    * allowance, cooldown) and knows nothing about the game; this function owns
-   * *context* — there is no point offering a render skip with no render
-   * running, or a payout boost on a Format C: that is not ready. The UI calls
-   * it to label a button, and `claimAdReward` calls it again to make sure the
+   * *context* — there is no point offering a payout boost on a Format C: that
+   * is not ready, or a token to a player whose tokens are full. The UI calls it
+   * to label a button, and `claimAdReward` calls it again to make sure the
    * offer was still valid by the time the video finished.
    */
   function adOffer(id, now = Date.now()) {
@@ -592,9 +480,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
     if (id === 'sweeperToken' && state.sweeper.tokens >= SWEEPER.maxTokens) {
       return { ok: false, reason: 'tokens-full' };
-    }
-    if (id === 'renderBoost' && !state.aerostudio.isRendering) {
-      return { ok: false, reason: 'not-rendering' };
     }
     if (id === 'formatBoost') {
       if (state.ads.formatBoost) return { ok: false, reason: 'already-boosted' };
@@ -611,9 +496,8 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
    * Pay out a rewarded ad.
    *
    * Called by the shell *after* `adFinished`, never before — the SDK is a
-   * browser API and core does not touch it, which is the same seam
-   * `extractQuarantine` uses. Everything it can hand out is an existing system:
-   * a buff, a Buzz grant, a sweeper token, render progress. Nothing here is a
+   * browser API and core does not touch it. Everything it can hand out is an
+   * existing system: a buff, a Buzz grant, a sweeper token. Nothing here is a
    * bespoke ad-only mechanic, so nothing here can drift out of balance on its
    * own.
    */
@@ -646,8 +530,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         tokens: state.sweeper.tokens,
         bought: true,
       });
-    } else if (reward.kind === 'render') {
-      aerostudio.boostRender(state, reward.renderFraction);
     } else if (reward.kind === 'dollars') {
       // Nothing is paid now: the flag is spent by the Format C: it was bought
       // for, so a player who changes their mind keeps it for the next one.
@@ -801,52 +683,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     }
   }
 
-  function startRender(projectName) {
-    // Don't allow starting a new render while a reward is waiting to be claimed.
-    if (state.aerostudio.pendingReward) return { ok: false, reason: 'pending-reward' };
-    const result = aerostudio.startRender(state, projectName);
-    if (result.ok) bus.emit(EVENTS.RENDER_STARTED, { projectName });
-    return result;
-  }
 
-  /**
-   * Claim the deferred render reward (the player clicks "Collect").
-   *
-   * The portal's `happytime()` belongs on this moment, but not in here: core
-   * does not touch the browser, and the bare `window.CrazyGames` this used to
-   * reach for was also a ReferenceError waiting for the first test that ran this
-   * function in plain Node. `RENDER_CLAIMED` is emitted below and main.js makes
-   * the call, the same way it does for PRESTIGE.
-   */
-  function claimRenderReward() {
-    const pending = state.aerostudio.pendingReward;
-    if (!pending) return { ok: false, reason: 'no-pending' };
-
-    grantBuzz(pending.payout, 'aerostudio');
-    state.aerostudio.pendingReward = null;
-
-    bus.emit(EVENTS.RENDER_CLAIMED, { projectName: pending.projectName, payout: pending.payout });
-    bus.emit(EVENTS.NOTIFY, {
-      title: 'Reward Collected!',
-      body: `+${formatNumber(pending.payout)} Buzz from "${pending.projectName}"`,
-      tone: 'success',
-    });
-    save();
-    return { ok: true, projectName: pending.projectName, payout: pending.payout };
-  }
-
-  function cancelRender() {
-    return aerostudio.cancelRender(state);
-  }
-
-  function buyAeroUpgrade(upgradeId) {
-    const result = aerostudio.buyUpgrade(state, upgradeId);
-    if (result.ok) {
-      bus.emit(EVENTS.AERO_UPGRADE_BOUGHT, { upgradeId, cost: result.cost });
-      save();
-    }
-    return result;
-  }
 
   /**
    * Ask the shell to run the Format C: sequence (AO-17). The game does not own
@@ -920,7 +757,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     },
     clearCooldowns() {
       state.retroamp.cooldownUntil = {};
-      state.shield99.adCooldownUntil = 0;
       state.sweeper.nextTokenAt = 0;
       state.sweeper.tokens = SWEEPER.maxTokens;
       state.ads.watched = {};
@@ -951,6 +787,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     openApp,
     closeApp,
     installApp,
+    acknowledgeSunsetRefund,
     buyUnits,
     claimStatusBonus,
     loadPlaylist,
@@ -958,10 +795,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     startSeeding,
     stopSeeding,
     upgradeConnection,
-    extractQuarantine,
-    startScan,
-    startBurn,
-    playDisc,
     startSweeperRound,
     buySweeperToken,
     endSweeperRound,
@@ -976,10 +809,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     setCosmetic,
     cosmetics: () => cosmetics.cosmeticSummary(state),
     activeCosmetics: () => cosmetics.activeCosmetics(state),
-    startRender,
-    cancelRender,
-    claimRenderReward,
-    buyAeroUpgrade,
     formatC,
     requestFormat,
     hardReset,

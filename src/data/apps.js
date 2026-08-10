@@ -50,38 +50,6 @@ export const APPS = [
     blurb: 'Seed files for passive Buzz. Some of them bite.',
   },
   {
-    id: 'shield99',
-    name: 'Shield99',
-    icon: 'icons/shield99.png',
-    day: 5,
-    ram: 48,
-    install: { cost: 3000, unlockAt: 2500 },
-    // The quarantine list is the app now, so the window opens tall enough to
-    // show a catch without scrolling for it.
-    window: { width: 360, height: 520 },
-    blurb: 'Antivirus. Catches threats and seals them as loot.',
-  },
-  {
-    id: 'aerostudio',
-    name: 'Aero Studio',
-    icon: 'icons/aerostudio.png',
-    day: 7,
-    ram: 192,
-    install: { cost: 12000, unlockAt: 8000 },
-    window: { width: 720, height: 520 },
-    blurb: 'Long GPU-bound render, biggest single payout in the game.',
-  },
-  {
-    id: 'aeroburn',
-    name: 'AeroBurn',
-    icon: 'icons/aeroburn.png',
-    day: 6,
-    ram: 64,
-    install: { cost: 12000, unlockAt: 9000 },
-    window: { width: 340, height: 260 },
-    blurb: 'Burn Buzz to a CD that survives Format C:.',
-  },
-  {
     id: 'aerosweeper',
     name: 'AeroSweeper',
     icon: 'icons/aerosweeper.png',

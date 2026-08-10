@@ -1,13 +1,10 @@
 import { getApp } from '../data/apps.js';
-import * as aeroburn from './aeroburn.js';
 import * as aerochat from './aerochat.js';
 import * as aerosweeper from './aerosweeper.js';
 import * as lemonwire from './lemonwire.js';
 import * as placeholder from './placeholder.js';
 import * as retroamp from './retroamp.js';
-import * as shield99 from './shield99.js';
 import * as system from './system.js';
-import * as aerostudio from './aerostudio.js';
 
 /**
  * Maps an app id to the module that renders its window body. Anything missing
@@ -21,9 +18,6 @@ const IMPLEMENTATIONS = {
   aerochat,
   retroamp,
   lemonwire,
-  shield99,
-  aeroburn,
-  aerostudio,
   aerosweeper,
 };
 

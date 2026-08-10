@@ -12,7 +12,7 @@ import { getBonus } from './core/statusEvents.js';
 import { ADS, HEAT } from './data/balance.js';
 import { createAds } from './ui/ads.js';
 import { createAudio } from './ui/audio.js';
-import { confirmFormat, createFormatSequence } from './ui/bsod.js';
+import { confirmFormat, createFormatSequence, createSystemUpdate } from './ui/bsod.js';
 import { createDesktop } from './ui/desktop.js';
 import { createMotionPreference } from './ui/motion.js';
 import { createNotifier } from './ui/notify.js';
@@ -382,6 +382,10 @@ async function boot() {
             dollars: result.dollars ?? 0,
             bonus: result.bonus ?? 0,
             prestigeCount: game.state.prestigeCount,
+            // What the wipe just paid, permanently (GDD §2.6). The POST screen
+            // is the only place this is announced, so it travels with the rest
+            // of the summary rather than arriving in a balloon afterwards.
+            legacy: result.legacy ?? null,
             ramMB: game.econ.ramCapacity(game.state),
           };
         });
@@ -414,11 +418,6 @@ async function boot() {
     [game.events.STATUS_CLAIMED]: 'coin',
     [game.events.SEED_STARTED]: 'hdd',
     [game.events.BANDWIDTH_UPGRADED]: 'buy',
-    [game.events.QUARANTINE_CLAIMED]: 'coin',
-    [game.events.SCAN_DONE]: 'chime',
-    [game.events.BURN_STARTED]: 'burn',
-    [game.events.BURN_DONE]: 'chime',
-    [game.events.DISC_PLAYED]: 'coin',
     [game.events.PLAYLIST_LOADED]: 'click',
     [game.events.SWEEPER_TOKEN]: 'chime',
     [game.events.DEFRAG_INSTALLED]: 'hdd',
@@ -428,10 +427,6 @@ async function boot() {
   for (const [event, sound] of Object.entries(SOUNDS)) {
     game.bus.on(event, () => audio.play(sound));
   }
-  game.bus.on(game.events.VIRUS, ({ outcome }) =>
-    audio.play(outcome === 'infected' ? 'virus' : 'chime'),
-  );
-
   game.bus.on(game.events.SETTINGS, ({ settings }) => {
     audio.setEnabled({ sfx: settings.sfx !== false, bgm: settings.bgm !== false });
     if (settings.sfx !== false) audio.play('click');
@@ -569,140 +564,7 @@ async function boot() {
     });
   });
 
-  /**
-   * The catch. This is the balloon the whole lootbox loop hangs off, so it says
-   * what was caught and where it went — a threat the player never notices is a
-   * reward they never open.
-   */
-  game.bus.on(game.events.THREAT_QUARANTINED, ({ threat }) => {
-    taskbar.flag('shield99', true);
-    notify({
-      title: 'Shield99: 1 threat moved to Quarantine',
-      body: `${threat.name} is sealed and waiting. Open Shield99 to extract it.`,
-      tone: 'success',
-    });
-  });
-
-  game.bus.on(game.events.QUARANTINE_CLAIMED, ({ threat, reward, viaAd }) => {
-    taskbar.flag('shield99', game.state.shield99.quarantine.length > 0);
-    const payout =
-      reward.kind === 'buzz'
-        ? `+${formatNumber(reward.buzz)} Buzz`
-        : reward.kind === 'buff'
-          ? `+${Math.round(reward.magnitude * 100)}% to everything for ${reward.durationSeconds / 60} minutes`
-          : `your render jumped ${Math.round(reward.renderFraction * 100)}%`;
-    notify({
-      title: `${threat.name} disinfected`,
-      body: viaAd ? `${payout}.` : `${payout} — the full payload needs the ad.`,
-      tone: 'success',
-    });
-  });
-
-  game.bus.on(game.events.VIRUS, ({ outcome }) => {
-    const messages = {
-      blocked: ['Shield99 blocked a threat', 'Quarantine is full — clear it to keep collecting.', 'info'],
-      rescued: [
-        'Shield99 free trial saved you',
-        'A threat got through while nothing was watching. That was your one free rescue — install and open Shield99 to stay covered.',
-        'warn',
-      ],
-      infected: [
-        'Your machine is infected',
-        'Production is halved and sharing is suspended. Run a Shield99 deep scan to clean it — nothing you have earned is lost.',
-        'error',
-      ],
-    };
-    const [title, bodyText, tone] = messages[outcome];
-    notify({ title, body: bodyText, tone });
-    if (outcome === 'infected') taskbar.flag('shield99', true);
-  });
-
-  game.bus.on(game.events.SCAN_DONE, ({ cured }) => {
-    // The flag belongs to whatever still needs attention: a cured machine with
-    // files in quarantine is still asking to be opened.
-    taskbar.flag('shield99', game.state.shield99.quarantine.length > 0);
-    notify({
-      title: cured ? 'Machine cleaned' : 'Scan complete',
-      body: cured ? 'Production is back to normal.' : 'No threats found.',
-      tone: 'success',
-    });
-  });
-
-  // AeroBurn (AO-29).
-  game.bus.on(game.events.BURN_DONE, ({ cd }) => {
-    notify({
-      title: `${cd.name} burned`,
-      body: 'It survives the next Format C:. Play it whenever you like.',
-      tone: 'success',
-    });
-  });
-
-  game.bus.on(game.events.DISC_PLAYED, ({ cd, buzz }) => {
-    notify({
-      title: `Playing ${cd.name}`,
-      body: buzz > 0
-        ? `+${formatNumber(buzz)} Buzz recovered.`
-        : `+${Math.round(cd.buff.magnitude * 100)}% for ${cd.buff.durationSeconds / 60} minutes.`,
-      tone: 'success',
-    });
-  });
-
-  /**
-   * AeroSweeper (Day 7). The balloon is the handoff: the round is banked, the
-   * combo is running, and the thing to do with it is go and click.
-   */
-  game.bus.on(game.events.SWEEPER_ENDED, ({ tiles, combo, buzz }) => {
-    if (tiles === 0) {
-      notify({
-        title: 'Round over',
-        body: 'That board never opened. The first square is always safe — start there.',
-        tone: 'warn',
-      });
-      return;
-    }
-    notify({
-      title: combo.hitMine
-        ? `Mine at ${tiles} squares`
-        : combo.cleared
-          ? 'Board swept'
-          : `${tiles} squares banked`,
-      body: `Nudge pays ×${(1 + combo.magnitude).toFixed(1)} for ${Math.round(
-        combo.durationSeconds / 60,
-      )} minutes${buzz > 0 ? `, plus ${formatNumber(buzz)} Buzz` : ''}.${
-        combo.hitMine ? ' Half of it survived the blast.' : ''
-      }`,
-      tone: combo.hitMine ? 'warn' : 'success',
-    });
-    if (sdk && combo.cleared) sdk.game.happytime();
-
-    /**
-     * A banked round is the closest thing this game has to a level ending: the
-     * board is gone, the reward is on screen and nothing is being clicked. That
-     * is the natural break the interstitial guide asks for — and the SDK, not
-     * this call site, decides whether it has been long enough.
-     */
-    if (tiles > 0) ads.midgame('sweeper-round');
-  });
-
-  game.bus.on(game.events.SWEEPER_TOKEN, ({ granted, bought }) => {
-    if (bought) return; // the player just paid for it; they know
-    taskbar.flag('aerosweeper', true);
-    notify({
-      title: `${granted} sweeper ${granted === 1 ? 'token' : 'tokens'}`,
-      body: 'A fresh board is waiting. Safe squares multiply the Nudge button.',
-      tone: 'info',
-    });
-  });
-
   game.bus.on(game.events.SWEEPER_STARTED, () => taskbar.flag('aerosweeper', false));
-
-  // The other natural break: a four-hour render has just been collected, which
-  // is a milestone screen in everything but name — and the portal's own idea of a
-  // good moment, which is what happytime() reports.
-  game.bus.on(game.events.RENDER_CLAIMED, () => {
-    if (sdk) sdk.game.happytime();
-    ads.midgame('render-collected');
-  });
 
   /**
    * One place to announce every rewarded payout, so a new placement gets its
@@ -720,7 +582,6 @@ async function boot() {
           reward.durationSeconds / 60
         } minutes.`,
       token: () => 'A fresh board is waiting in AeroSweeper.',
-      render: () => `The render jumped ${Math.round(reward.renderFraction * 100)}%.`,
     };
     notify({
       title: id === 'gift' ? 'Sponsor bonus collected' : 'Thanks for watching',
@@ -820,6 +681,30 @@ async function boot() {
       if (source !== 'nudge') return;
       stop();
       launch('aerochat');
+    });
+  }
+
+  /**
+   * The sunset refund (GDD §11), before anything else the player might see.
+   *
+   * `sunsetRefund` is written by the 3 -> 4 migration and read exactly once —
+   * it is a message, not a balance, so it is cleared as soon as it has been
+   * delivered. A player who never bought any of the three retired apps is owed
+   * no explanation and gets no screen.
+   */
+  if (game.state.sunsetRefund > 0) {
+    const refunded = game.state.sunsetRefund;
+    await createSystemUpdate({ root: document.body, reducedMotion: motion.isReduced }).run({
+      refund: refunded,
+      formatNumber,
+    });
+    game.acknowledgeSunsetRefund();
+    notify({
+      title: 'System update complete',
+      body: `Shield99, AeroBurn and Aero Studio have been removed. ${formatNumber(
+        refunded,
+      )} Buzz has been returned to you.`,
+      tone: 'success',
     });
   }
 

@@ -74,7 +74,7 @@ describe('resilience', () => {
     const loaded = deserialize(legacy, 0);
 
     expect(loaded.buzz).toBe(10);
-    expect(loaded.apps.aerostudio.installed).toBe(false);
+    expect(loaded.apps.lemonwire.installed).toBe(false);
     expect(loaded.buildings.aerochat.units).toBe(0);
     expect(loaded.settings.sfx).toBe(true);
     // Including tracks and whole slices added since — a new hardware track and
@@ -152,17 +152,6 @@ describe('resilience', () => {
     expect(loaded.lemonwire.activeSeeds).toHaveLength(LEMONWIRE.baseSeedSlots);
     // A file the list no longer has cannot be seeded, and must not crash a load.
     expect(loaded.lemonwire.activeSeeds.map((seed) => seed.fileId)).not.toContain('gone-file');
-  });
-
-  it('gives a v2 save the Shield99 fields it never had', () => {
-    const loaded = deserialize(JSON.stringify({ version: 2, buzz: 10 }), 0);
-    expect(loaded.shield99).toEqual({
-      quarantine: [],
-      nextThreatIn: 0,
-      adCooldownUntil: 0,
-      filesCleaned: 0,
-      nextId: 1,
-    });
   });
 
   /**

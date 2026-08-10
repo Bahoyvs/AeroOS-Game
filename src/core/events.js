@@ -52,18 +52,6 @@ export const EVENTS = {
   SEED_STOPPED: 'lemonwire:stopped', // { file, secondsLeft }
   BANDWIDTH_UPGRADED: 'lemonwire:bandwidth', // { connection, cost }
   TRASH_EMPTIED: 'lemonwire:trashed', // { file } — its disk space came back
-  THREAT_QUARANTINED: 'shield99:quarantined', // { item, threat }
-  QUARANTINE_CLAIMED: 'shield99:claimed', // { threat, reward, viaAd }
-  VIRUS: 'security:virus', // { outcome: blocked | rescued | infected }
-  SCAN_STARTED: 'security:scan', // {}
-  SCAN_DONE: 'security:scanned', // { cured }
-  BURN_STARTED: 'aeroburn:started', // { cd, job }
-  BURN_DONE: 'aeroburn:done', // { cd, disc }
-  DISC_PLAYED: 'aeroburn:played', // { cd, buzz }
-  RENDER_STARTED: 'aerostudio:started', // { projectName }
-  RENDER_DONE: 'aerostudio:done', // { projectName, payout }
-  RENDER_CLAIMED: 'aerostudio:claimed', // { projectName, payout }
-  AERO_UPGRADE_BOUGHT: 'aerostudio:upgraded', // { upgradeId, cost }
   SWEEPER_STARTED: 'sweeper:started', // { tokensLeft }
   SWEEPER_ENDED: 'sweeper:ended', // { tiles, combo, buzz, best }
   SWEEPER_TOKEN: 'sweeper:token', // { granted, tokens, bought }

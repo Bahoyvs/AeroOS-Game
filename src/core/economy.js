@@ -30,10 +30,8 @@ import {
   unlockedBuildings,
 } from './buildings.js';
 import { legacyLevel, legacyMultiplier, legacyProgress } from './legacy.js';
-import { canBurn } from './aeroburn.js';
 import { defragPenalty, defragProgress, isDefragging, offlineBloat } from './defrag.js';
 import { canSeed, connectionAt, seedWeight, storageUsedGB } from './lemonwire.js';
-import { infectionPenalty } from './shield99.js';
 
 /**
  * Every number the game shows is derived here. Functions are pure and take the
@@ -74,11 +72,6 @@ export function storageFreeGB(state) {
   return Math.round((storageCapacityGB(state) - storageUsedGB(state)) * 1000) / 1000;
 }
 
-/** Can this disc be burned? Wrapper so the UI never imports the burner. */
-export function canBurnDisc(state, typeId) {
-  return canBurn(state, typeId);
-}
-
 /**
  * Seed slots. The base count lives in the save (so a future upgrade can raise
  * it); the HDD track adds the rest, which is the second job of that track and
@@ -103,7 +96,7 @@ export function canSeedFile(state, fileId) {
   return canSeed(state, fileId, seedSlots(state), storageCapacityGB(state));
 }
 
-/** Cooldown scale for heavy apps like Aero Studio (Day 6). */
+/** Cooldown scale for anything the GPU track is meant to speed up. */
 export function cooldownMultiplier(state) {
   return hardwareEffects(state).cooldown;
 }
@@ -214,7 +207,7 @@ export function bloatGain(state, seconds) {
 
 /**
  * Auto-Defrag, re-exported so the UI never imports the mechanic directly — the
- * same wrapping `canBurnDisc` does for the burner.
+ * same front door everything else in this module provides.
  */
 export { defragPenalty, defragProgress, isDefragging, offlineBloat };
 
@@ -258,8 +251,8 @@ export function bloatLevel(state) {
 
 /**
  * The building layer (GDD v2 §2), re-exported so the UI has one import for
- * every derived number — the same front door `defragPenalty` and `canBurnDisc`
- * go through. The mechanic itself is in core/buildings.js.
+ * every derived number — the same front door `defragPenalty` and the LemonWire
+ * wrappers go through. The mechanic itself is in core/buildings.js.
  */
 export {
   affordableUnits,
@@ -360,11 +353,9 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
 
 /** Global multiplier from hardware, system health, legacy and global-kind buffs. */
 export function globalMultiplier(state, now = Date.now()) {
-  const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   return (
     hardwareEffects(state).production *
     bloatPenalty(state) *
-    infectionPenalty(state) *
     retroampMultiplier(state, now) *
     buffMultiplier(state, 'global', now) *
     // Everything the player has ever earned, in one number (GDD §2.6). It is
@@ -372,8 +363,7 @@ export function globalMultiplier(state, now = Date.now()) {
     legacyMultiplier(state) *
     // A defrag pass is disk-bound and the machine knows it. Small, and only
     // while it runs — the bloat it is clearing costs far more.
-    defragPenalty(state) *
-    renderPenalty
+    defragPenalty(state)
   );
 }
 
@@ -390,7 +380,6 @@ export function buzzPerSecond(state, now = Date.now()) {
 export function rateBreakdown(state, now = Date.now()) {
   const bots = buddyCount(state);
   const base = bots * getBuilding('aerochat').baseProduction;
-  const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   // Seeding and the other eleven buildings are separate producers, not factors
   // on the first, so they are reported as their own lines rather than folded
   // into the chain — the factors below still multiply to the AeroChat rate
@@ -407,12 +396,10 @@ export function rateBreakdown(state, now = Date.now()) {
     milestone: milestoneMultiplier(bots),
     buffs: buffMultiplier(state, 'chat', now) * buffMultiplier(state, 'global', now),
     playlist: retroampMultiplier(state, now),
-    virus: infectionPenalty(state),
     cpu: hardwareEffects(state).production,
     legacy: legacyMultiplier(state),
     bloat: bloatPenalty(state),
     defrag: defragPenalty(state),
-    render: renderPenalty,
     open: state.apps.aerochat?.open === true,
     total: buzzPerSecond(state, now),
   };

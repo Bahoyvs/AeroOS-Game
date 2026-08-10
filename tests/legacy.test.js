@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as econ from '../src/core/economy.js';
-import { applyLegacyLevel, buzzForLevel, levelFor } from '../src/core/legacy.js';
+import { applyLegacyLevel, buzzForLevel, earlyLevelsFor, levelFor } from '../src/core/legacy.js';
 import { createGame } from '../src/core/game.js';
 import { createMemoryStorage } from '../src/core/save.js';
 import { createInitialState, resetForPrestige } from '../src/core/state.js';
@@ -10,15 +10,61 @@ import { LEGACY, PRESTIGE } from '../src/data/balance.js';
 
 const withHistory = (allTimeBuzz) => ({ ...createInitialState(0), allTimeBuzz });
 
-describe('the curve', () => {
-  it('is zero until the first level is actually earned', () => {
-    expect(levelFor(0)).toBe(0);
-    expect(levelFor(LEGACY.divisor - 1)).toBe(0);
-    expect(levelFor(LEGACY.divisor)).toBe(1);
+describe('the early term', () => {
+  it('pays the first level on the first Format C: a player can press', () => {
+    // earlyAt is the prestige threshold itself, so nobody ever sees a wipe
+    // report "Legacy Level 0" on a screen whose job is announcing the level.
+    expect(LEGACY.earlyAt).toBe(PRESTIGE.minLifetimeBuzz);
+    expect(levelFor(PRESTIGE.minLifetimeBuzz - 1)).toBe(0);
+    expect(levelFor(PRESTIGE.minLifetimeBuzz)).toBe(1);
   });
 
-  it('is cubic: each level costs more than the last', () => {
-    for (let level = 1; level < 20; level += 1) {
+  it('costs a fixed ratio per level, so it can span nine orders of magnitude', () => {
+    for (let level = 1; level < LEGACY.earlyLevels; level += 1) {
+      expect(buzzForLevel(level + 1) / buzzForLevel(level)).toBeCloseTo(LEGACY.earlyRatio, 6);
+    }
+  });
+
+  it('caps, so it cannot follow the player into the endgame', () => {
+    expect(earlyLevelsFor(1e30)).toBe(LEGACY.earlyLevels);
+  });
+});
+
+describe('the handover', () => {
+  /**
+   * The invariant the whole two-term design rests on. If the early term ran out
+   * before the cubic one started paying, the curve would stall in the gap and
+   * the player would gain nothing across orders of magnitude of play.
+   */
+  it('caps the early term at or below where the late term starts paying', () => {
+    const lastEarly = buzzForLevel(LEGACY.earlyLevels);
+    const firstLate = LEGACY.divisor;
+    expect(lastEarly).toBeLessThanOrEqual(firstLate);
+  });
+
+  it('has no dead zone: the level keeps moving across the seam', () => {
+    const seam = buzzForLevel(LEGACY.earlyLevels);
+    expect(levelFor(seam)).toBe(LEGACY.earlyLevels);
+    expect(levelFor(LEGACY.divisor)).toBe(LEGACY.earlyLevels + 1);
+    expect(levelFor(LEGACY.divisor * 8)).toBe(LEGACY.earlyLevels + 2);
+  });
+
+  it('leaves the endgame where the simulation put it', () => {
+    // ~1e20 all-time Buzz is "finished the content"; the early term's permanent
+    // +10 is a rounding error against it, which is the point of capping it.
+    expect(levelFor(1e20)).toBeGreaterThan(200);
+    expect(levelFor(1e20)).toBeLessThan(260);
+  });
+});
+
+describe('the curve', () => {
+  it('is zero before anything has been earned', () => {
+    expect(levelFor(0)).toBe(0);
+    expect(levelFor(LEGACY.earlyAt - 1)).toBe(0);
+  });
+
+  it('is cubic once past the early term: each level costs more than the last', () => {
+    for (let level = LEGACY.earlyLevels + 1; level < LEGACY.earlyLevels + 20; level += 1) {
       const step = buzzForLevel(level + 1) - buzzForLevel(level);
       const previous = buzzForLevel(level) - buzzForLevel(level - 1);
       expect(step).toBeGreaterThan(previous);
@@ -26,7 +72,7 @@ describe('the curve', () => {
   });
 
   it('round-trips through its own inverse', () => {
-    for (const level of [1, 2, 5, 25, 400]) {
+    for (const level of [1, 2, 5, 10, 11, 25, 400]) {
       expect(levelFor(buzzForLevel(level))).toBe(level);
       // Stepped back by a share of the gap below, not by 1: the thresholds run
       // to 1e17 and up, where a double cannot resolve a single Buzz and "one
@@ -38,7 +84,7 @@ describe('the curve', () => {
 
   it('never decreases as all-time Buzz grows', () => {
     let previous = 0;
-    for (let buzz = 0; buzz < 1e9; buzz = buzz * 1.7 + 1000) {
+    for (let buzz = 0; buzz < 1e22; buzz = buzz * 1.7 + 1000) {
       const level = levelFor(buzz);
       expect(level).toBeGreaterThanOrEqual(previous);
       previous = level;

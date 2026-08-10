@@ -8,32 +8,76 @@ import { LEGACY } from '../data/balance.js';
  * track re-prices it and Format C: pays against it, so it is a *ledger*, and a
  * ledger that gets settled is not a monument.
  *
- *   level      = floor((allTimeBuzz / divisor) ^ (1/3))
+ *   level      = earlyLevels(allTimeBuzz) + lateLevels(allTimeBuzz)
  *   multiplier = 1 + perLevel × level
  *
- * The cube root is the entire mechanism, taken from Cookie Clicker's Prestige
- * Level: the reward is linear in the level and the price of the next one is
- * cubic, so the gap widens by itself. No schedule to hand-tune, and no point at
- * which prestiging is obviously early or obviously late.
+ * Two terms, tuned to hand over to each other — the why is in `LEGACY`
+ * (data/balance.js). In short: the cubic term is the Cookie Clicker mechanism
+ * the design asks for and has to be sized for an endgame twenty orders of
+ * magnitude away, which leaves the first ten prestiges paying nothing; the
+ * logarithmic early term covers exactly that span and then caps.
+ *
+ * Both terms are floored separately and added. That is deliberate — it keeps
+ * the total monotonic in `allTimeBuzz` (a sum of two non-decreasing step
+ * functions), and it makes `buzzForLevel` an exact inverse at every level
+ * rather than an approximate one near the handover.
  *
  * Pure, and the level is *always* derived rather than read from the save.
  * `state.legacy.level` exists only so the Format C: sequence can show what
  * changed; if it ever disagrees with `allTimeBuzz`, `allTimeBuzz` is right.
  */
 
-/** The level a given all-time total is worth. Monotonic by construction. */
-export function levelFor(allTimeBuzz) {
+/**
+ * The early term. Logarithmic and capped: level 1 at `earlyAt` — which is the
+ * first Format C: threshold, so a player's first wipe always pays one — and
+ * each level after it costs `earlyRatio`× the last.
+ */
+export function earlyLevelsFor(allTimeBuzz) {
+  // Stepped rather than `log(x / earlyAt) / log(earlyRatio)`. The logarithm is
+  // wrong on exactly the inputs that matter: `Math.log(1e9) / Math.log(10)` is
+  // 8.999999999999998, so a player standing precisely on the tenth threshold
+  // would be told they have nine levels. This loop runs at most `earlyLevels`
+  // times and agrees with `buzzForLevel` bit for bit, because both are the same
+  // repeated multiplication.
+  let level = 0;
+  let threshold = LEGACY.earlyAt;
+  while (level < LEGACY.earlyLevels && allTimeBuzz >= threshold) {
+    level += 1;
+    threshold *= LEGACY.earlyRatio;
+  }
+  return level;
+}
+
+/** The late term: the cubic curve, which pays nothing until `divisor`. */
+export function lateLevelsFor(allTimeBuzz) {
   if (!(allTimeBuzz > 0)) return 0;
   return Math.floor(Math.cbrt(allTimeBuzz / LEGACY.divisor));
+}
+
+/** The level a given all-time total is worth. Monotonic by construction. */
+export function levelFor(allTimeBuzz) {
+  return earlyLevelsFor(allTimeBuzz) + lateLevelsFor(allTimeBuzz);
 }
 
 export function legacyLevel(state) {
   return levelFor(state.allTimeBuzz ?? 0);
 }
 
-/** All-time Buzz needed to reach `level`. The inverse of the curve above. */
+/**
+ * All-time Buzz needed to reach `level` — the exact inverse, piecewise like the
+ * curve it inverts. Below the early cap a level is a power of `earlyRatio`;
+ * above it, the cubic term is carrying the whole thing and the early term is
+ * pinned at its cap.
+ */
 export function buzzForLevel(level) {
-  return level <= 0 ? 0 : level ** 3 * LEGACY.divisor;
+  if (level <= 0) return 0;
+  if (level > LEGACY.earlyLevels) return (level - LEGACY.earlyLevels) ** 3 * LEGACY.divisor;
+  // Same repeated multiplication `earlyLevelsFor` walks, for the same reason:
+  // `earlyAt * earlyRatio ** (level - 1)` is a different float once the ratio
+  // stops being a power of two, and these two have to agree exactly.
+  let threshold = LEGACY.earlyAt;
+  for (let i = 1; i < level; i += 1) threshold *= LEGACY.earlyRatio;
+  return threshold;
 }
 
 /** The permanent global multiplier the player's history is worth. */

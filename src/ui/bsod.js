@@ -110,6 +110,21 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
               : ''
           }
           <div><dt>Format C: count</dt><dd>${summary.prestigeCount}</dd></div>
+          ${
+            /**
+             * The Legacy line (GDD §2.6). It belongs *here*, on the POST
+             * screen, and not in a balloon afterwards: the whole promise of
+             * the layer is that the wipe is what pays it, and a number that
+             * arrives a beat later reads as an unrelated reward. Only drawn
+             * when there is a level to report — "Legacy Level 0" on the one
+             * screen that exists to announce it would be worse than silence.
+             */
+            summary.legacy?.level > 0
+              ? `<div><dt>Legacy Level</dt><dd>${summary.legacy.level}${
+                  summary.legacy.gained > 0 ? ` (+${summary.legacy.gained})` : ''
+                } — ×${(1 + summary.legacy.level / 100).toFixed(2)} forever</dd></div>`
+              : ''
+          }
           <div><dt>Memory</dt><dd>${summary.ramMB} MB OK</dd></div>
         </dl>
         <p class="bsod__hint">Starting AeroOS…</p>
@@ -151,6 +166,71 @@ export function createFormatSequence({ root, reducedMotion = () => false }) {
   }
 
   return { run, get busy() { return !overlay.hidden; } };
+}
+
+/**
+ * The one-time "System Updating…" screen (GDD §11).
+ *
+ * Shield99, AeroBurn and Aero Studio were taken away from players who had
+ * already paid for them. The migration refunds that Buzz; this is where the
+ * player is *told*, and it is deliberately not a toast or a modal — it borrows
+ * the POST screen because a mid-2000s OS removing three programs and handing
+ * back what they cost is exactly the sort of thing that happened on a reboot.
+ *
+ * Shown once, on the first boot after the 3 -> 4 migration, and only when there
+ * is a refund to report: a player who never bought any of the three is not
+ * owed a screen explaining that they were refunded nothing.
+ */
+export function createSystemUpdate({ root, reducedMotion = () => false }) {
+  const REMOVED = ['Shield99', 'AeroBurn', 'Aero Studio'];
+
+  async function run({ refund, formatNumber = (n) => String(n) }) {
+    const overlay = el('div', { class: 'bsod bsod--post' });
+    overlay.innerHTML = `
+      <div class="bsod__inner">
+        <div class="bsod__post-head">AeroOS — System Update</div>
+        <ul class="bsod__steps">
+          ${REMOVED.map((name) => `<li><span>Removing ${name}</span><b>OK</b></li>`).join('')}
+          <li><span>Refunding your investment</span><b>OK</b></li>
+        </ul>
+        <dl class="bsod__summary">
+          <div><dt>Programs removed</dt><dd>${REMOVED.length}</dd></div>
+          <div><dt>Refunded</dt><dd>${formatNumber(refund)} Buzz</dd></div>
+        </dl>
+        <p class="bsod__hint">Click to continue</p>
+      </div>
+    `;
+    root.appendChild(overlay);
+    document.body.classList.add('is-formatting');
+
+    const items = [...overlay.querySelectorAll('.bsod__steps li')];
+    const step = STAGES.wipe / (items.length + 2);
+    items.forEach((item, i) => setTimeout(() => item.classList.add('is-done'), step * i));
+
+    // Same skip contract as the Format C: sequence: held long enough to read,
+    // dismissible the moment the player has had enough of it.
+    await new Promise((resolve) => {
+      let armed = false;
+      const done = () => {
+        overlay.removeEventListener('click', onClick);
+        resolve();
+      };
+      const onClick = () => armed && done();
+      setTimeout(() => {
+        armed = true;
+        overlay.classList.add('is-armed');
+      }, SKIP_GRACE_MS);
+      setTimeout(done, STAGES.wipe + 1400);
+      overlay.addEventListener('click', onClick);
+    });
+
+    overlay.classList.add('is-leaving');
+    await new Promise((resolve) => setTimeout(resolve, reducedMotion() ? 0 : 400));
+    overlay.remove();
+    document.body.classList.remove('is-formatting');
+  }
+
+  return { run };
 }
 
 /**

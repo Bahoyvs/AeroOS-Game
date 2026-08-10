@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { createMemoryStorage, deserialize, migrate, serialize } from '../src/core/save.js';
 import { SAVE_VERSION, createInitialState } from '../src/core/state.js';
-import { AEROSTUDIO, SAVE } from '../src/data/balance.js';
+import { SAVE } from '../src/data/balance.js';
 import { BUILDINGS } from '../src/data/buildings.js';
-import { getApp } from '../src/data/apps.js';
+
+/**
+ * The retired apps' prices, restated here on purpose. The migration freezes its
+ * own copies (they are gone from `data/apps.js`), so a test that imported the
+ * live roster could not catch them drifting — and drifting is the one thing
+ * that must never happen to a refund players have already been paid.
+ */
+const RETIRED = {
+  shield99: { install: 3_000 },
+  aeroburn: { install: 12_000 },
+  aerostudio: { install: 12_000, sidechain: { baseCost: 75_000, costGrowth: 1.5 } },
+};
 
 /**
  * The 3 -> 4 migration (GDD v2 §10-11). This one runs against real players'
@@ -110,12 +121,12 @@ describe('the sunset refund (GDD §11)', () => {
     const before = v3Save();
     const after = migrate(before);
 
-    const sidechain = AEROSTUDIO.upgrades.sidechainCompression;
+    const sidechain = RETIRED.aerostudio.sidechain;
     const upgradeSpend =
       Math.ceil(sidechain.baseCost) + Math.ceil(sidechain.baseCost * sidechain.costGrowth);
     const expected =
-      getApp('shield99').install.cost + // installed
-      getApp('aeroburn').install.cost + // installed
+      RETIRED.shield99.install + // installed
+      RETIRED.aeroburn.install + // installed
       // Aero Studio was never installed, so its install price is not owed...
       upgradeSpend + // ...but its upgrade spend is, and 5,000 sits on a disc.
       5_000;

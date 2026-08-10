@@ -7,8 +7,7 @@ import { getFile } from '../data/files.js';
  * The app used to be a download manager: queue a transfer, watch a bar, collect
  * a lump sum. It is now a *seeder*. A file sits in a slot and pays Buzz every
  * second it is shared, which turns LemonWire from a thing you babysit into a
- * second income stream — and into the thing that attracts the threats Shield99
- * turns into loot (src/core/shield99.js).
+ * second income stream.
  *
  * Income accrues on the same terms as every other producer: only while the
  * window is open. That is what keeps its 96 MB footprint a real decision
@@ -41,7 +40,7 @@ export function seedWeight(fileId) {
   return { size, risk, demand, total: size * risk * demand };
 }
 
-/** Total risk being seeded — Shield99 reads this to pace its threats. */
+/** Total risk being seeded. Kept as a readable stat for the window. */
 export function seededRisk(state) {
   return state.lemonwire.activeSeeds.reduce((sum, seed) => sum + getFile(seed.fileId).risk, 0);
 }
@@ -78,7 +77,6 @@ export function isSeeding(state, fileId) {
 export function canSeed(state, fileId, slots, capacityGB) {
   const file = getFile(fileId);
   if (!state.apps.lemonwire?.open) return { ok: false, reason: 'not-open' };
-  if (state.security.infection) return { ok: false, reason: 'infected' };
   if (isSeeding(state, fileId)) return { ok: false, reason: 'already-seeding' };
   if (state.lemonwire.activeSeeds.length >= slots) return { ok: false, reason: 'no-slots' };
   // Still physically on the disk until the bin empties — no stop-and-restart

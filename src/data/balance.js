@@ -59,35 +59,50 @@ export const BUILDING = {
 /**
  * Legacy Level — the prestige layer (GDD §2.6).
  *
- * `level = floor((allTimeBuzz / divisor)^(1/3))`, worth `perLevel` each. The
- * cube root is the whole mechanism: the reward is linear in level and the cost
- * is cubic, so the gap between levels widens by itself and prestige never needs
- * a hand-tuned schedule.
+ * Worth `perLevel` per level, and computed as the sum of **two** terms, because
+ * one curve cannot serve a twenty-order-of-magnitude economy:
  *
- * `divisor` is provisional (GDD §14.1 has every number down for simulation
- * calibration) and it is sized off the *endgame*, which is the one end of this
- * curve that cannot be argued with:
+ *   level = earlyLevels(allTimeBuzz) + floor(cbrt(allTimeBuzz / divisor))
  *
- *   all twelve buildings at the top milestone produce ~8e14 Buzz/sec, so a
- *   player who finishes the content accumulates ~1e20-1e21 all-time Buzz.
- *   At 1e13 that is level 215-464, worth +215% to +464%.
+ * **The late term** is the mechanism GDD §2.6 asks for, taken from Cookie
+ * Clicker: reward linear in level, cost cubic, so the gap between levels widens
+ * by itself and prestige never needs a hand-tuned schedule. `divisor` is sized
+ * off the endgame, the one end of the curve that cannot be argued with — twelve
+ * buildings at the top milestone make ~8e14 Buzz/sec, so finishing the content
+ * means ~1e20-1e21 all-time Buzz, which is level 215-464.
  *
- * A first simulation pass (400k ticks of optimal buying) was run at 50,000 and
- * reached **legacy level 183,799 — a ×1,839 multiplier that dwarfed every other
- * factor in the chain combined**. The economy spans twenty orders of magnitude;
- * a cube root of it still spans seven, so the divisor has to be sized for the
- * top of that range or the layer swallows the game.
+ * A first simulation pass (400k ticks of optimal buying) ran this term alone at
+ * a divisor of 50,000 and reached **level 183,799 — a ×1,839 multiplier larger
+ * than every other factor in the chain combined**. Hence 1e13.
  *
- * The cost of that choice, and it is a real one for design to settle: the first
- * level now lands in phase 3 rather than on the second or third Format C:, so
- * early wipes report "Legacy Level 0". A cube root with a linear reward cannot
- * serve both ends of a range this wide — making the first prestige pay a level
- * needs either a higher `PRESTIGE.minLifetimeBuzz` or a second term in the
- * reward curve. See docs/REDESIGN-PLAN.md, "Calibration findings".
+ * **The early term** is what stops that fix costing the first ten prestiges.
+ * Sized for the endgame, the cubic term alone does not pay its first level
+ * until 1e13 all-time Buzz — deep in phase 3 — so every wipe before that would
+ * report "Legacy Level 0" on a screen whose entire job is announcing the level.
+ * The early term is logarithmic instead of cubic, precisely because the span it
+ * has to cover (5e3 -> 5e12) is nine orders of magnitude and a cubic crosses
+ * three: each early level costs `earlyRatio`× the one before.
+ *
+ * The two are tuned to hand over seamlessly. `earlyAt` is
+ * `PRESTIGE.minLifetimeBuzz`, so **the first Format C: a player ever presses
+ * grants Legacy Level 1**; the tenth and last early level lands at 5e12, and
+ * the cubic term pays its first at 1e13. No dead zone between them, and the
+ * permanent +10 the early term contributes is a rounding error against an
+ * endgame of +215%.
+ *
+ * Invariant, asserted by tests/legacy.test.js: the early term must cap at or
+ * below where the late term starts paying, or the curve stalls in the gap.
  */
 export const LEGACY = {
-  divisor: 1e13,
   perLevel: 0.01,
+
+  /** The late, endgame term. */
+  divisor: 1e13,
+
+  /** The early term: level 1 at `earlyAt`, then ×`earlyRatio` per level. */
+  earlyAt: 5_000,
+  earlyRatio: 10,
+  earlyLevels: 10,
 };
 
 /**
@@ -347,83 +362,6 @@ export const LEMONWIRE = {
 };
 
 /**
- * The safety net (GDD 6): a virus must never ruin a run. Production is
- * multiplied by `productionFloor` and nothing stacks below it, LemonWire is
- * locked until cured, and nothing the player already earned is taken away.
- */
-export const SECURITY = {
-  productionFloor: 0.5,
-  scanSeconds: 6,
-  freeRescuesPerRun: 1,
-};
-
-/**
- * Shield99's quarantine (the Day 5 refactor).
- *
- * Seeding attracts threats. With Shield99 installed they are *caught* and land
- * in quarantine as sealed files — the surprise box. Without it they run the
- * old safety net instead (free rescue, then a capped infection), which is what
- * keeps risky seeding a decision rather than free money.
- *
- * Extracting a quarantined file is worth ~15 minutes of the player's current
- * production, so it stays meaningful at every stage. A rewarded ad pays it in
- * full; `manualRewardFraction` is the always-available fallback, because a
- * player with an ad blocker must never be locked out of a mechanic.
- */
-export const SHIELD99 = {
-  minSpawnSeconds: 180,
-  maxSpawnSeconds: 300,
-
-  // Total risk across the seed slots shortens the wait, up to this much.
-  riskUrgency: 1.5,
-  maxUrgency: 3,
-
-  maxQuarantine: 5, // a backlog, not a savings account
-  adCooldownSeconds: 90,
-  manualRewardFraction: 0.25,
-
-  /**
-   * The loot table. `weight` is the relative roll chance; the reward kinds map
-   * onto systems that already exist — a Buzz burst measured in seconds of
-   * production, a timed global buff, and a shove to the Aero Studio render.
-   *
-   * Names are deliberately silly period pastiche: this is a toy antivirus in a
-   * toy OS, and nothing here should read as a real security warning.
-   */
-  threats: [
-    {
-      id: 'adware',
-      name: 'Adware.Win32.Popupz',
-      tier: 'Common',
-      weight: 60,
-      blurb: 'Seventeen toolbars in a trenchcoat. Somebody was paid per install.',
-      reward: { kind: 'buzz', seconds: 900 },
-    },
-    {
-      id: 'worm',
-      name: 'Worm.LoveLetter.2005',
-      tier: 'Rare',
-      weight: 30,
-      blurb: 'Mails itself to your whole buddy list. They all reply.',
-      reward: { kind: 'buff', magnitude: 1, durationSeconds: 600 },
-    },
-    {
-      id: 'trojan',
-      name: 'Trojan.RenderFarm',
-      tier: 'Epic',
-      weight: 10,
-      blurb: 'Stole your GPU cycles. Shield99 is stealing them back.',
-      // No render running? Pay the equivalent in Buzz instead of nothing.
-      reward: { kind: 'render', fraction: 0.25, fallbackSeconds: 1200 },
-    },
-  ],
-};
-
-export const AEROBURN = {
-  maxDiscs: 5, // a shelf, not a warehouse — discs are a bridge, not a bank
-};
-
-/**
  * AeroSweeper (Day 7) — the one *active* mechanic in an idle game.
  *
  * Everything else in AeroOS pays for a decision and then runs itself. This pays
@@ -543,11 +481,10 @@ export const ADS = {
    * gadget that answer every press with "ads are disabled" is worse than no
    * offers at all, and it is the first thing a new player touches.
    *
-   * The same flag is what keeps "nothing is gated behind an ad" true: with ads
-   * off, `extractQuarantine` pays Shield99's loot in full rather than at
-   * `SHIELD99.manualRewardFraction`, because the full path is not merely
-   * inconvenient — it does not exist. Setting this back to `true` (alongside
-   * uncommenting the SDK calls) restores both behaviours with no other edits.
+   * The same flag is what keeps "nothing is gated behind an ad" true: every
+   * rewarded offer has an always-available path that does not need a video, so
+   * switching this back to `true` (alongside uncommenting the SDK calls) adds
+   * offers rather than unlocking content, with no other edits.
    */
   enabled: false,
 
@@ -612,12 +549,6 @@ export const ADS = {
       cooldownSeconds: 300,
     },
 
-    /** Convenience: a shove for the longest timer in the game. */
-    renderBoost: {
-      perDay: 4,
-      cooldownSeconds: 600,
-      fraction: 0.2,
-    },
 
     /**
      * Loss aversion, at the one moment the player is about to hand over a run:
@@ -651,29 +582,3 @@ export const ADS = {
   },
 };
 
-export const AEROSTUDIO = {
-  // Payout multiplier: A finished render pays this many seconds of current production
-  payoutSeconds: 14400, // 4 hours
-
-  // A completely un-upgraded render at standard 1x production takes roughly this long in seconds
-  // (Base speed is scaled by current production)
-  baseRenderRequired: 7200,
-
-  upgrades: {
-    sidechainCompression: {
-      baseCost: 75000,
-      costGrowth: 1.5,
-      speedBonus: 0.25,
-    },
-    arpeggiator: {
-      baseCost: 250000,
-      costGrowth: 1.8,
-      speedBonus: 0.50,
-    },
-    environmentalFx: {
-      baseCost: 1000000,
-      costGrowth: 2.2,
-      speedBonus: 1.0,
-    }
-  }
-};

@@ -33,7 +33,7 @@ describe('system heat (AO-27)', () => {
   });
 
   it('never exceeds the thermal ceiling', () => {
-    const cooked = machine({ bloat: 5, open: ['aerochat', 'retroamp', 'lemonwire', 'shield99'] });
+    const cooked = machine({ bloat: 5, open: ['aerochat', 'retroamp', 'lemonwire', 'aerosweeper'] });
     expect(econ.systemHeat(cooked)).toBe(HEAT.maxC);
     expect(econ.heatRatio(cooked)).toBe(1);
   });

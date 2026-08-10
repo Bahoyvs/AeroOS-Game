@@ -2,7 +2,6 @@ import { ALL_APPS } from '../data/apps.js';
 import { LEMONWIRE, SWEEPER } from '../data/balance.js';
 import { BUILDINGS } from '../data/buildings.js';
 import { DEFAULT_COSMETICS } from '../data/cosmetics.js';
-import { carryDiscsThroughPrestige } from './aeroburn.js';
 
 /**
  * Bump SAVE_VERSION whenever the shape below changes in a way that old saves
@@ -111,34 +110,7 @@ export function createInitialState(now = Date.now()) {
       nextId: 1,
     },
 
-    // AeroBurn (AO-29). Discs survive Format C: — see resetForPrestige.
-    aeroburn: {
-      discs: [], // [{ typeId, spent }]
-      burning: null, // { typeId, secondsLeft, total, spent }
-      burned: 0,
-    },
 
-    /**
-     * Two slices, because they are two different things:
-     *
-     * `security` is the *machine's* condition — infected or not, the run's free
-     * rescue, a scan in progress. It exists whether or not Shield99 is even
-     * installed, which is precisely when it matters most.
-     */
-    security: {
-      infection: null, // null or { at }
-      rescuesUsed: 0, // the free trial rescue, one per run
-      scan: null,
-    },
-
-    /** ...and `shield99` is the app's own data: its catch, and its ad pacing. */
-    shield99: {
-      quarantine: [], // [{ id, threatId, at }] — sealed, waiting to be opened
-      nextThreatIn: 0, // simulation seconds; rolled on the first tick while seeding
-      adCooldownUntil: 0, // wall clock — it should burn down while the tab is shut
-      filesCleaned: 0,
-      nextId: 1,
-    },
 
     /**
      * AeroSweeper (Day 7). Only the pacing is persisted: tokens and the clock
@@ -237,18 +209,6 @@ export function createInitialState(now = Date.now()) {
     // save from before this existed simply sees the card once.
     tutorial: { step: 0, done: false, hardwareRevealed: false, goalsDismissed: false },
 
-    // Aero Studio (Day 7). Mega-project render center.
-    aerostudio: {
-      isRendering: false,
-      currentProject: null,
-      progress: 0,
-      pendingReward: null, // { projectName, payout } | null
-      upgrades: {
-        sidechainCompression: 0,
-        arpeggiator: 0,
-        environmentalFx: 0,
-      },
-    },
   };
 }
 
@@ -265,17 +225,6 @@ export function createInitialState(now = Date.now()) {
  */
 export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonusDollars = 0 } = {}) {
   const fresh = createInitialState(now);
-  // Burned discs outlive the wipe — that is the entire point of AeroBurn.
-  carryDiscsThroughPrestige(state, fresh);
-
-  /**
-   * ...and so does the burner itself, which is the one exception to "all
-   * software is wiped". A CD drive is part of the machine, and without it the
-   * discs would be unreachable until the player re-earned its install cost —
-   * precisely when the "starting boost for the next run" (GDD 6) is meant to
-   * be doing its job.
-   */
-  fresh.apps.aeroburn.installed = state.apps.aeroburn.installed;
 
   return {
     ...fresh,
@@ -317,7 +266,6 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
     event: { ...fresh.event, airplaneModeOwned: state.event?.airplaneModeOwned === true },
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
-    aeroburn: fresh.aeroburn,
     stats: { ...state.stats },
     settings: { ...state.settings },
     tutorial: { ...state.tutorial, done: true },

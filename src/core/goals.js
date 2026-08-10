@@ -97,7 +97,6 @@ export const GOALS = [
     detail: (state) => `${buddies(state)} / ${FIRST_MILESTONE.at} buddies`,
   },
   installGoal('lemonwire', 'Seeded files pay Buzz around the clock, with no clicking.'),
-  installGoal('shield99', 'Seeding attracts threats. Shield99 turns them into loot.'),
   {
     id: 'first-format',
     isDone: (state) => state.prestigeCount >= 1,
@@ -121,8 +120,6 @@ export const GOALS = [
     detail: (state) => `$${state.dollars.toFixed(2)} banked`,
   },
   installGoal('aerosweeper', 'Sweep squares, bank a multiplier, spend it on the Nudge button.'),
-  installGoal('aeroburn', 'Burn Buzz onto a disc that survives the next Format C:.'),
-  installGoal('aerostudio', 'The longest render in the game, and the biggest single payout.'),
 ];
 
 /**

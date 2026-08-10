@@ -32,13 +32,15 @@ describe('window/RAM lifecycle', () => {
 
   it('emits an out-of-memory event instead of opening', () => {
     const game = newGame();
-    game.state.apps.aerostudio.installed = true; // 192 MB vs 128 MB of RAM
+    game.state.apps.lemonwire.installed = true;
+    game.state.apps.lemonwire.open = true;
+    game.state.apps.retroamp.installed = true; // 96 + 64 > 128 MB of RAM
     let event = null;
     game.bus.on(game.events.OUT_OF_MEMORY, (payload) => (event = payload));
 
-    expect(game.openApp('aerostudio').ok).toBe(false);
-    expect(event).toMatchObject({ id: 'aerostudio', needed: 192 });
-    expect(game.state.apps.aerostudio.open).toBe(false);
+    expect(game.openApp('retroamp').ok).toBe(false);
+    expect(event).toMatchObject({ id: 'retroamp', needed: 64 });
+    expect(game.state.apps.retroamp.open).toBe(false);
   });
 });
 

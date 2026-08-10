@@ -1,6 +1,5 @@
 import { ALL_APPS, getApp } from '../data/apps.js';
 import { formatClock, formatNumber } from '../core/format.js';
-import { createTrayShield } from '../apps/shield99.js';
 import { clear, el, setBar, throttle } from './dom.js';
 
 /**
@@ -299,17 +298,7 @@ export function createTaskbar({ root, game, wm, launch }) {
     updateMotionButton,
   );
 
-  // Shield99's tray icon (AO-22) lives left of the clock, like the real thing.
-  const tray = createTrayShield({ root: root.querySelector('.tray'), game, launch });
-  game.bus.on(game.events.APP_INSTALLED, tray.update);
-  game.bus.on(game.events.APP_OPENED, tray.update);
-  game.bus.on(game.events.APP_CLOSED, tray.update);
-  game.bus.on(game.events.VIRUS, tray.update);
-  game.bus.on(game.events.SCAN_DONE, tray.update);
-  game.bus.on(game.events.PRESTIGE, tray.update);
-
   const update = throttle(() => {
-    tray.update();
     clockNode.textContent = formatClock();
     trayBuzz.textContent = `${formatNumber(game.state.buzz)} Buzz`;
   }, 500);

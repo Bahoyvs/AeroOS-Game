@@ -8,7 +8,7 @@ import { ADS } from '../data/balance.js';
  * "is this offer available right now?" and "what is it worth?", both of them
  * pure enough to unit-test in plain Node. The shell (src/ui/ads.js) owns the
  * video, and src/core/game.js owns applying the reward — the same three-way
- * split Shield99's quarantine already uses, and for the same reason: a reward
+ * split every rewarded offer here uses, and for the same reason: a reward
  * that can only be exercised by watching a real ad cannot be balanced.
  *
  * Allowances roll over on the **wall clock**, in UTC days. That is deliberate,
@@ -100,7 +100,7 @@ export function giftSeconds(state, now = Date.now()) {
 
 /**
  * What an offer pays, resolved against the player's current output. Pure, like
- * `shield99.rewardFor` — game.js applies the descriptor, so the same table can
+ * the reward descriptors below — game.js applies them, so the same table can
  * be shown on a button before the ad and paid out after it without two
  * balance sheets.
  *
@@ -128,8 +128,6 @@ export function rewardFor(state, id, { buzzPerSecond = 0, now = Date.now() } = {
     }
     case 'sweeperToken':
       return { kind: 'token', tokens: 1 };
-    case 'renderBoost':
-      return { kind: 'render', renderFraction: placement.fraction };
     case 'formatBoost':
       return { kind: 'dollars', multiplier: placement.multiplier };
     case 'offlineDouble':

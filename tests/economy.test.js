@@ -26,15 +26,19 @@ describe('memory budget', () => {
   it('refuses to open an app that does not fit', () => {
     const s = createInitialState(0);
     s.hardware.ram = 0; // 128 MB
-    s.apps.aerostudio.installed = true; // 192 MB
-    expect(econ.canOpenApp(s, 'aerostudio')).toEqual({ ok: false, reason: 'out-of-memory' });
+    s.apps.lemonwire.installed = true;
+    s.apps.lemonwire.open = true; // 96 MB
+    s.apps.retroamp.installed = true; // ...leaves 32, and RetroAmp wants 64
+    expect(econ.canOpenApp(s, 'retroamp')).toEqual({ ok: false, reason: 'out-of-memory' });
   });
 
   it('allows the same app once RAM is upgraded', () => {
     const s = createInitialState(0);
     s.hardware.ram = 3; // 1 GB
-    s.apps.aerostudio.installed = true;
-    expect(econ.canOpenApp(s, 'aerostudio').ok).toBe(true);
+    s.apps.lemonwire.installed = true;
+    s.apps.lemonwire.open = true;
+    s.apps.retroamp.installed = true;
+    expect(econ.canOpenApp(s, 'retroamp').ok).toBe(true);
   });
 
   it('refuses apps that are not installed', () => {
