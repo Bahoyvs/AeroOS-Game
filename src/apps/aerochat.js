@@ -5,7 +5,7 @@ import { claimSecondsLeft, getBonus } from '../core/statusEvents.js';
 import { formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 import { createBuildingView } from './../ui/buildingView.js';
-import { categoryList, dialog, groupBox, menuBar, splitButton, statusBar } from './../ui/win32.js';
+import { categoryList, dialog, groupBox, menuBar, statusBar, taskPane } from './../ui/win32.js';
 
 /**
  * AeroChat — the core idle engine (AO-5, AO-8, AO-9, AO-10).
@@ -20,9 +20,10 @@ import { categoryList, dialog, groupBox, menuBar, splitButton, statusBar } from 
  * foot. It is gone. Buddies are AeroChat's *units*, so buying them is the thing
  * MSN Messenger already had a verb for: **adding a contact**.
  *
- * - **Units** are the `Add a Contact` split button in the list footer. One click
- *   adds one; the drop-down offers the bulk imports a real client offered —
- *   a contact list, a Hotmail address book, everything.
+ * - **Units** live in the `I want to...` task pane, which is where Messenger put
+ *   its verbs. "Add a Contact" with a price beside it is a sentence; "Buy ×10"
+ *   is a shop. The bulk imports a real client offered — a contact list, a
+ *   Hotmail address book — are rows in the same list.
  * - **Upgrades** live in `Tools ▸ Options…`, the MSN options dialog, filed under
  *   the category each one belongs to. They read as features you switch on, not
  *   as items in a shop.
@@ -142,19 +143,22 @@ export function mount(body, { game }) {
     }
   }
 
-  const IMPORTS = [
-    { step: 10, label: 'Import a contact list\u2026' },
-    { step: 100, label: 'Import Hotmail address book\u2026' },
-    { step: 'max', label: 'Import everything\u2026' },
+  /**
+   * The verbs, as Messenger listed them. `id` doubles as the step passed to
+   * the view-model, so the pane's rows and the economy stay in one mapping.
+   */
+  const TASKS = [
+    { id: 1, label: 'Add a Contact', icon: 'add' },
+    { id: 10, label: 'Import a contact list', icon: 'import' },
+    { id: 100, label: 'Import Hotmail address book', icon: 'mail' },
+    { id: 'max', label: 'Import everything', icon: 'globe' },
   ];
 
-  const addButton = splitButton({
-    label: 'Add a Contact',
-    hint: '',
-    onClick: () => addContacts(1),
-    items: IMPORTS.map((i) => ({ label: i.label, onSelect: () => addContacts(i.step) })),
+  const tasks = taskPane({
+    title: 'I want to...',
+    items: TASKS.map((t) => ({ ...t, hint: '', onSelect: () => addContacts(t.id) })),
   });
-  ref('actions').appendChild(addButton.el);
+  ref('actions').appendChild(tasks.el);
 
   /* ------------------------------------------------------------- menu bar */
 
@@ -170,8 +174,10 @@ export function mount(body, { game }) {
     {
       label: 'Contacts',
       items: [
-        { label: 'Add a Contact\u2026', onSelect: () => addContacts(1) },
-        ...IMPORTS.map((i) => ({ label: i.label, onSelect: () => addContacts(i.step) })),
+        ...TASKS.map((t) => ({
+          label: `${t.label}\u2026`,
+          onSelect: () => addContacts(t.id),
+        })),
       ],
     },
     {
@@ -499,26 +505,18 @@ export function mount(body, { game }) {
     }
 
     /**
-     * The add-contact control. The price rides on the button as a hint rather
-     * than as a second line of chrome, and the bulk imports carry theirs in the
-     * drop-down — which is where a menu item's shortcut column always went.
+     * The task pane. Each verb carries its price where a menu item's shortcut
+     * would sit — so the cost is legible without ever naming a transaction.
      */
     const snapshot = view.read();
     if (snapshot) {
-      const one = snapshot.steps[0];
-      addButton.setDisabled(one.disabled);
-      addButton.setHint(snapshot.maxed ? 'List full' : formatNumber(one.cost));
-      addButton.setItems(
-        IMPORTS.map((i) => {
-          const step = snapshot.steps.find((x) => x.step === i.step);
-          return {
-            label: i.label,
-            hint: step && !snapshot.maxed ? formatNumber(step.cost) : '—',
-            disabled: !step || step.disabled,
-            onSelect: () => addContacts(i.step),
-          };
-        }),
-      );
+      for (const task of TASKS) {
+        const step = snapshot.steps.find((x) => x.step === task.id);
+        tasks.update(task.id, {
+          hint: snapshot.maxed ? 'Full' : step ? formatNumber(step.cost) : '—',
+          disabled: !step || step.disabled,
+        });
+      }
 
       status.set('contacts', `${snapshot.units} contacts`);
       status.set('rate', `${formatNumber(snapshot.production)} Buzz/sec`);
@@ -538,7 +536,6 @@ export function mount(body, { game }) {
   return () => {
     unsubscribe();
     optionsOpen?.close();
-    addButton.destroy();
     menus.destroy();
     body.classList.remove('app-aerochat');
   };

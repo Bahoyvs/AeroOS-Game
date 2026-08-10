@@ -438,6 +438,73 @@ export function categoryList(categories, { onSelect = null } = {}) {
   return { el: root, pages, select };
 }
 
+/**
+ * The task pane — XP's "I want to..." list, and the control MSN Messenger put
+ * its verbs in.
+ *
+ * A list of *links* with a small icon each, under a collapsible header. This is
+ * how a 2004 client asked you to do something; a row of buttons is not. It is
+ * also why it suits an idle game so well: "Add a Contact" with a price beside it
+ * is a sentence, where "Buy ×10" is a shop.
+ *
+ * `items` is `[{ id, label, hint, disabled, icon, onSelect }]`.
+ */
+export function taskPane({ title, items = [], collapsed = false }) {
+  const list = el('ul', { class: 'w32-tasks__list' });
+  const rows = new Map();
+
+  const header = el('button', {
+    type: 'button',
+    class: 'w32-tasks__header',
+    'aria-expanded': String(!collapsed),
+    onclick: () => {
+      const open = root.classList.toggle('is-collapsed');
+      header.setAttribute('aria-expanded', String(!open));
+    },
+  }, [
+    el('span', { class: 'w32-tasks__title', text: title }),
+    el('span', { class: 'w32-tasks__chevron', 'aria-hidden': 'true' }),
+  ]);
+
+  const root = el('div', { class: `w32-tasks${collapsed ? ' is-collapsed' : ''}` }, [header, list]);
+
+  function render(next) {
+    if (next) items = next;
+    clear(list);
+    rows.clear();
+    for (const item of items) {
+      const link = el('button', {
+        type: 'button',
+        class: `w32-tasks__item${item.disabled ? ' is-disabled' : ''}`,
+        disabled: item.disabled ? '' : null,
+        onclick: () => item.onSelect?.(),
+      }, [
+        el('span', { class: `w32-tasks__icon w32-tasks__icon--${item.icon ?? 'add'}`, 'aria-hidden': 'true' }),
+        el('span', { class: 'w32-tasks__label', text: item.label }),
+        el('span', { class: 'w32-tasks__hint', text: item.hint ?? '' }),
+      ]);
+      list.appendChild(el('li', {}, link));
+      rows.set(item.id, link);
+    }
+  }
+  render();
+
+  return {
+    el: root,
+    render,
+    /** Update one row's price and enabled state without rebuilding the list. */
+    update(id, { hint, disabled } = {}) {
+      const row = rows.get(id);
+      if (!row) return;
+      if (hint !== undefined) row.querySelector('.w32-tasks__hint').textContent = hint;
+      if (disabled !== undefined) {
+        row.disabled = disabled;
+        row.classList.toggle('is-disabled', disabled);
+      }
+    },
+  };
+}
+
 /** A group box with a legend — the panel Control Panel was built from. */
 export function groupBox(legend, children = []) {
   return el('fieldset', { class: 'w32-group' }, [el('legend', { text: legend }), ...[].concat(children)]);

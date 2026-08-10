@@ -17,38 +17,60 @@
 
 /* --------------------------------------------------------------- menu bar */
 
+/**
+ * Every selector in this file is scoped under its container.
+ *
+ * 7.css styles `[role="button"], button` — a selector *list*, and the
+ * `[role="button"]` half carries class-level specificity. In practice that rule
+ * beats a bare `.w32-thing` class, so an unscoped control here inherits the
+ * full raised-button chrome: border, gradient, 75px floor and all. Scoping
+ * (`.w32-menubar .w32-menubar__item`) takes it to (0,2,0) and wins cleanly,
+ * without `!important` anywhere.
+ *
+ * A menu bar item is *text*, not a button. No border, no fill, no radius —
+ * until it is hovered or open, when it takes the classic highlight rectangle.
+ */
 .w32-menubar {
   display: flex;
-  gap: 1px;
-  padding: 1px 2px;
-  background: linear-gradient(180deg, #fdfeff, #eef3f8);
-  border-bottom: 1px solid #c8d4de;
+  gap: 0;
+  padding: 2px 4px;
+  background: linear-gradient(180deg, #fdfeff, #f0f4f8);
+  border-bottom: 1px solid #d3dde5;
 }
 
-.w32-menubar__item {
+.w32-menubar .w32-menubar__item {
   min-width: 0;
   min-height: 0;
-  padding: 2px 8px;
+  padding: 3px 9px;
   font-size: 9pt;
+  font-weight: 400;
   color: #1a1a1a;
   cursor: default;
-  background: transparent;
-  border: 1px solid transparent;
+  background: none;
+  background-color: transparent;
+  /**
+   * `border: 0`, not `1px solid transparent`.
+   *
+   * The build minifies `transparent` to `#0000`, and that shorthand is being
+   * dropped here — so the declaration vanishes and 7.css's grey button border
+   * comes back, while `padding` from the same block still applies. Drawing the
+   * hover rectangle as an inset ring avoids the shorthand altogether *and*
+   * avoids the 1px reflow a border-on-hover would cause.
+   */
+  border: 0;
   border-radius: 0;
   box-shadow: none;
+  animation: none;
 }
 
-.w32-menubar__item:hover,
-.w32-menubar__item[aria-expanded='true'] {
-  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
-  border-color: #8fc4e8;
-  box-shadow: none;
-}
-
-/* A menu bar item must not sprout 7.css's blue focus wash or its pulse. */
-.w32-menubar__item:focus {
-  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
-  border-color: #8fc4e8;
+.w32-menubar .w32-menubar__item:hover,
+.w32-menubar .w32-menubar__item:focus,
+.w32-menubar .w32-menubar__item[aria-expanded='true'] {
+  color: #1a1a1a;
+  background: linear-gradient(180deg, #eaf6fd, #cfe9fb);
+  background-color: #dcf0fd;
+  border: 0;
+  box-shadow: inset 0 0 0 1px #7da2ce;
   animation: none;
 }
 
@@ -64,7 +86,7 @@
   box-shadow: 2px 2px 5px rgb(0 0 0 / 30%);
 }
 
-.w32-menu__item {
+.w32-menu .w32-menu__item {
   display: grid;
   grid-template-columns: 18px 1fr auto;
   gap: 8px;
@@ -76,20 +98,24 @@
   font-size: 9pt;
   text-align: left;
   cursor: default;
-  background: transparent;
-  border: 1px solid transparent;
+  background: none;
+  background-color: transparent;
+  /* See the note on the menu bar: no transparent-border shorthand anywhere. */
+  border: 0;
   border-radius: 0;
   box-shadow: none;
-}
-
-.w32-menu__item:hover:not(:disabled),
-.w32-menu__item:focus:not(:disabled) {
-  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
-  border-color: #8fc4e8;
   animation: none;
 }
 
-.w32-menu__item:disabled {
+.w32-menu .w32-menu__item:hover:not(:disabled),
+.w32-menu .w32-menu__item:focus:not(:disabled) {
+  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
+  border: 0;
+  box-shadow: inset 0 0 0 1px #8fc4e8;
+  animation: none;
+}
+
+.w32-menu .w32-menu__item:disabled {
   color: #8d8d8d;
   text-shadow: 1px 1px 0 #fff;
 }
@@ -104,7 +130,7 @@
   color: #5a6672;
 }
 
-.w32-menu__item:disabled .w32-menu__hint {
+.w32-menu .w32-menu__item:disabled .w32-menu__hint {
   color: #a0a0a0;
 }
 
@@ -132,7 +158,7 @@
   margin-bottom: -1px;
 }
 
-.w32-tabs__tab {
+.w32-tabs .w32-tabs__tab {
   min-width: 0;
   min-height: 0;
   padding: 3px 12px 4px;
@@ -145,18 +171,18 @@
   box-shadow: inset 0 1px 0 #fff;
 }
 
-.w32-tabs__tab:hover {
+.w32-tabs .w32-tabs__tab:hover {
   background: linear-gradient(180deg, #fdfeff, #e6f2fb);
 }
 
-.w32-tabs__tab.is-active {
+.w32-tabs .w32-tabs__tab.is-active {
   padding-bottom: 5px;
   font-weight: 700;
   background: #f4f7fa;
   animation: none;
 }
 
-.w32-tabs__tab:focus {
+.w32-tabs .w32-tabs__tab:focus {
   animation: none;
 }
 
@@ -207,8 +233,8 @@
   flex-direction: column;
 }
 
-.w32-spin__up,
-.w32-spin__down {
+.w32-spin .w32-spin__up,
+.w32-spin .w32-spin__down {
   position: relative;
   width: 17px;
   min-width: 0;
@@ -222,8 +248,8 @@
   box-shadow: inset 0 1px 0 #fff;
 }
 
-.w32-spin__up:active,
-.w32-spin__down:active {
+.w32-spin .w32-spin__up:active,
+.w32-spin .w32-spin__down:active {
   background: linear-gradient(180deg, #c3d6e6, #eaf3fa);
 }
 
@@ -264,7 +290,7 @@
   display: inline-flex;
 }
 
-.w32-split__main {
+.w32-split .w32-split__main {
   display: flex;
   gap: 10px;
   align-items: baseline;
@@ -290,7 +316,7 @@
   color: #8d8d8d;
 }
 
-.w32-split__drop {
+.w32-split .w32-split__drop {
   position: relative;
   width: 26px;
   min-width: 0;
@@ -314,6 +340,201 @@
   border-left: 4px solid transparent;
   opacity: 1;
   transform: translate(-50%, -50%);
+}
+
+/* --------------------------------------------------------------- task pane */
+
+/**
+ * XP's "I want to..." pane. Rows are links with a small icon, not buttons —
+ * scoped like everything else here so 7.css does not turn them into a stack of
+ * grey rectangles.
+ */
+.w32-tasks {
+  background: linear-gradient(180deg, #fbfdff, #eef4fa);
+  border-top: 1px solid #c8d7e4;
+}
+
+.w32-tasks .w32-tasks__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 8px;
+  cursor: default;
+  background: none;
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+.w32-tasks__title {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #1a3d63;
+}
+
+/* The collapse chevron, drawn in CSS. `opacity`/`z-index` restated — see the
+   note on the spinner arrows about 7.css's `button::after`. */
+.w32-tasks__chevron {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(180deg, #fdfeff, #d8e6f2);
+  border: 1px solid #7da2ce;
+  border-radius: 50%;
+}
+
+.w32-tasks__chevron::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  content: '';
+  border-top: 4px solid #1a3d63;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  opacity: 1;
+  transform: translate(-50%, -60%);
+}
+
+.w32-tasks.is-collapsed .w32-tasks__chevron::after {
+  border-top: 0;
+  border-bottom: 4px solid #1a3d63;
+  transform: translate(-50%, -40%);
+}
+
+.w32-tasks__list {
+  padding: 0 0 4px;
+  margin: 0;
+  list-style: none;
+}
+
+.w32-tasks.is-collapsed .w32-tasks__list {
+  display: none;
+}
+
+.w32-tasks .w32-tasks__item {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  /* 44px, per the mobile rule — these are the app's primary verbs. */
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 9pt;
+  text-align: left;
+  cursor: default;
+  background: none;
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  animation: none;
+}
+
+.w32-tasks .w32-tasks__item:hover:not(:disabled),
+.w32-tasks .w32-tasks__item:focus:not(:disabled) {
+  background: linear-gradient(180deg, #f3f9fe, #dcf0fd);
+  border: 0;
+  box-shadow: inset 0 0 0 1px #7da2ce;
+}
+
+/* Links, not buttons: the label is the affordance. */
+.w32-tasks__label {
+  color: #0a4d8c;
+  text-decoration: underline;
+  text-decoration-color: rgb(10 77 140 / 35%);
+}
+
+.w32-tasks .w32-tasks__item:hover:not(:disabled) .w32-tasks__label {
+  text-decoration-color: currentcolor;
+}
+
+.w32-tasks__hint {
+  font-variant-numeric: tabular-nums;
+  color: #4a5560;
+}
+
+.w32-tasks .w32-tasks__item:disabled .w32-tasks__label {
+  color: #8d8d8d;
+  text-shadow: 1px 1px 0 #fff;
+  text-decoration: none;
+}
+
+.w32-tasks .w32-tasks__item:disabled .w32-tasks__hint {
+  color: #a0a0a0;
+}
+
+/* Placeholder glyphs — CSS-drawn, to be swapped for real icon art later. */
+.w32-tasks__icon {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+.w32-tasks__icon--add::before,
+.w32-tasks__icon--add::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  content: '';
+  background: linear-gradient(180deg, #7fd18f, #2f8a44);
+  border-radius: 1px;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.w32-tasks__icon--add::before {
+  width: 12px;
+  height: 4px;
+}
+
+.w32-tasks__icon--add::after {
+  width: 4px;
+  height: 12px;
+}
+
+.w32-tasks__icon--import::before {
+  position: absolute;
+  inset: 2px;
+  z-index: 1;
+  content: '';
+  background: linear-gradient(180deg, #ffe9a8, #e0a72c);
+  border: 1px solid #a97c14;
+  border-radius: 1px 3px 1px 1px;
+  opacity: 1;
+}
+
+.w32-tasks__icon--mail::before {
+  position: absolute;
+  top: 3px;
+  right: 1px;
+  bottom: 3px;
+  left: 1px;
+  z-index: 1;
+  content: '';
+  background: linear-gradient(180deg, #fdfefe, #cfe0ee);
+  border: 1px solid #6f8ba3;
+  opacity: 1;
+}
+
+.w32-tasks__icon--globe::before {
+  position: absolute;
+  inset: 1px;
+  z-index: 1;
+  content: '';
+  background: radial-gradient(circle at 40% 32%, #b9e6ff, #2b7fc4 65%, #14567f);
+  border-radius: 50%;
+  opacity: 1;
 }
 
 /* ------------------------------------------------------------- status bar */
@@ -387,7 +608,7 @@
   box-shadow: inset 1px 1px 2px rgb(0 0 0 / 14%);
 }
 
-.w32-cats__item {
+.w32-cats .w32-cats__item {
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -395,23 +616,25 @@
   font-size: 9pt;
   text-align: left;
   cursor: default;
-  background: transparent;
-  border: 1px solid transparent;
+  background: none;
+  background-color: transparent;
+  border: 0;
   border-radius: 0;
   box-shadow: none;
+  animation: none;
 }
 
-.w32-cats__item:hover {
+.w32-cats .w32-cats__item:hover {
   background: linear-gradient(180deg, #f3f9fe, #e4f2fd);
-  border-color: #b6d9f5;
+  box-shadow: inset 0 0 0 1px #b6d9f5;
 }
 
 /* The Aero list selection: a blue gradient with a hairline, not a flat fill. */
-.w32-cats__item.is-active,
-.w32-cats__item.is-active:focus {
+.w32-cats .w32-cats__item.is-active,
+.w32-cats .w32-cats__item.is-active:focus {
   font-weight: 700;
   background: linear-gradient(180deg, #f0f8fe, #dcf0fd 45%, #c3e6fc 50%, #dbf2fe);
-  border-color: #7da2ce;
+  box-shadow: inset 0 0 0 1px #7da2ce;
   animation: none;
 }
 
@@ -514,11 +737,11 @@
     max-width: calc(100vw - 16px);
   }
 
-  .w32-menubar__item {
-    padding: 6px 10px;
+  .w32-menubar .w32-menubar__item {
+    padding: 7px 11px;
   }
 
-  .w32-menu__item {
+  .w32-menu .w32-menu__item {
     min-height: 40px;
   }
 
@@ -541,12 +764,12 @@
     overflow-x: auto;
   }
 
-  .w32-cats__item {
+  .w32-cats .w32-cats__item {
     min-height: 40px;
     white-space: nowrap;
   }
 
-  .w32-tabs__tab {
+  .w32-tabs .w32-tabs__tab {
     min-height: 40px;
   }
 
@@ -560,10 +783,18 @@
     height: auto;
   }
 
-  .w32-spin__up,
-  .w32-spin__down {
+  .w32-spin .w32-spin__up,
+  .w32-spin .w32-spin__down {
     width: 30px;
     height: 22px;
+  }
+
+  .w32-tasks .w32-tasks__item {
+    min-height: 44px;
+  }
+
+  .w32-tasks .w32-tasks__header {
+    min-height: 40px;
   }
 }
 
@@ -571,21 +802,13 @@
 
 /**
  * Contacts are AeroChat's units, so the purchase surface is the client's own
- * "add a contact" verb — a split button at the foot of the list, and the
- * imports a real messenger offered in its drop-down.
+ * verb list — the "I want to..." pane Messenger kept under the contact list,
+ * with "Add a Contact" at the top of it.
  */
 .app-aerochat .chat__actions {
-  display: flex;
+  display: block;
   padding: 0;
   border: 0;
-}
-
-.app-aerochat .chat__actions .w32-split {
-  width: 100%;
-}
-
-.app-aerochat .chat__actions .w32-split__main {
-  flex: 1;
 }
 
 /* --- Tools > Options ----------------------------------------------------- */
