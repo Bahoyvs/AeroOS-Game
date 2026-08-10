@@ -5,6 +5,8 @@
 @import './desktop.css';
 @import './window.css';
 @import './apps.css';
+/* The Win32 common controls, and the app skins built on them. */
+@import './win32.css';
 @import './retention.css';
 @import './bsod.css';
 @import './ads.css';

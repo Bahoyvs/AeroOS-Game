@@ -30,6 +30,14 @@ most "missing" apps are scheduled, not forgotten.
 - Build panels from Win32 parts, not cards: `<fieldset><legend>` group boxes, sunken white
   list views, `.instruction-primary` headlines, 7.css `.window`/`.title-bar` for dialogs.
   A translucent rounded rectangle floating on the wallpaper is the thing being avoided.
+- **No shared purchase UI.** Economy maths is central (`ui/buildingView.js` is headless);
+  how an app sells its units and upgrades is bespoke and must fit that app's software
+  metaphor — contacts in AeroChat, render blades in Aero Studio. An app that draws its own
+  exports `ownsBuildingUI = true`; the generic panel is a fallback for the ten not yet done.
+- Common controls (menu bar, tab strip, spinner, split button, dialog) live in `ui/win32.js`
+  and know nothing about the game. That is the OS's widget set, not a shop.
+- 7.css uses `button::after` for its hover wash at `opacity: 0; z-index: -1`. A CSS glyph
+  drawn in that pseudo-element is invisible until you restate both.
 - No uppercase letter-spaced micro-labels. The markup already says "Hardware shop"; CSS
   must not shout it. Tracking is fine on a large display string, never on a caption.
 - 7.css styles bare `button`, including `:focus` at specificity (0,1,1). A control with a

@@ -1,0 +1,917 @@
+/**
+ * Win32 common controls.
+ *
+ * The system widgets every application of the era was assembled from: a menu
+ * bar, a tab strip, an up-down spinner, a split button, a status bar, an options
+ * dialog with a category list. Shared *because* they were shared — that common
+ * vocabulary is why period software looked like one operating system rather
+ * than twelve unrelated programs.
+ *
+ * Nothing in here knows anything about the game. These are the widgets; the
+ * fiction is what each app builds out of them, in its own stylesheet.
+ *
+ * 7.css is the baseline (GDD §A.2 — build on it, do not invent a second style
+ * system), so anything it already draws is left alone and only the controls it
+ * does not ship are defined here.
+ */
+
+/* --------------------------------------------------------------- menu bar */
+
+.w32-menubar {
+  display: flex;
+  gap: 1px;
+  padding: 1px 2px;
+  background: linear-gradient(180deg, #fdfeff, #eef3f8);
+  border-bottom: 1px solid #c8d4de;
+}
+
+.w32-menubar__item {
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 8px;
+  font-size: 9pt;
+  color: #1a1a1a;
+  cursor: default;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.w32-menubar__item:hover,
+.w32-menubar__item[aria-expanded='true'] {
+  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
+  border-color: #8fc4e8;
+  box-shadow: none;
+}
+
+/* A menu bar item must not sprout 7.css's blue focus wash or its pulse. */
+.w32-menubar__item:focus {
+  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
+  border-color: #8fc4e8;
+  animation: none;
+}
+
+/* ------------------------------------------------------------ pop-up menu */
+
+.w32-menu {
+  position: fixed;
+  z-index: 9600;
+  min-width: 180px;
+  padding: 2px;
+  background: #f2f6f9;
+  border: 1px solid #a0aeb9;
+  box-shadow: 2px 2px 5px rgb(0 0 0 / 30%);
+}
+
+.w32-menu__item {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 6px;
+  font-size: 9pt;
+  text-align: left;
+  cursor: default;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.w32-menu__item:hover:not(:disabled),
+.w32-menu__item:focus:not(:disabled) {
+  background: linear-gradient(180deg, #eaf6fd, #c9e6fb);
+  border-color: #8fc4e8;
+  animation: none;
+}
+
+.w32-menu__item:disabled {
+  color: #8d8d8d;
+  text-shadow: 1px 1px 0 #fff;
+}
+
+.w32-menu__tick {
+  color: #1c6b28;
+  text-align: center;
+}
+
+.w32-menu__hint {
+  font-variant-numeric: tabular-nums;
+  color: #5a6672;
+}
+
+.w32-menu__item:disabled .w32-menu__hint {
+  color: #a0a0a0;
+}
+
+.w32-menu__sep {
+  height: 1px;
+  margin: 3px 4px;
+  background: #c8d4de;
+  border-bottom: 1px solid #fff;
+}
+
+/* -------------------------------------------------------------- tab strip */
+
+.w32-tabs__wrap {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.w32-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 4px;
+  /* The tabs sit *on* the panel border, the way a real tab control does. */
+  margin-bottom: -1px;
+}
+
+.w32-tabs__tab {
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 12px 4px;
+  font-size: 9pt;
+  cursor: default;
+  background: linear-gradient(180deg, #f6f9fb, #dde7ef);
+  border: 1px solid #a0aeb9;
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.w32-tabs__tab:hover {
+  background: linear-gradient(180deg, #fdfeff, #e6f2fb);
+}
+
+.w32-tabs__tab.is-active {
+  padding-bottom: 5px;
+  font-weight: 700;
+  background: #f4f7fa;
+  animation: none;
+}
+
+.w32-tabs__tab:focus {
+  animation: none;
+}
+
+.w32-tabs__bodies {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.w32-tabs__panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px;
+  overflow-y: auto;
+  background: #f4f7fa;
+  border: 1px solid #a0aeb9;
+}
+
+.w32-tabs__panel[hidden] {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------- spinner */
+
+.w32-spin {
+  display: inline-flex;
+  height: 24px;
+}
+
+.w32-spin__field {
+  width: 58px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 9pt;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  background: #fff;
+  border: 1px solid #8e8f8f;
+  border-right: 0;
+  box-shadow: inset 1px 1px 2px rgb(0 0 0 / 14%);
+}
+
+.w32-spin__buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+.w32-spin__up,
+.w32-spin__down {
+  position: relative;
+  width: 17px;
+  min-width: 0;
+  height: 12px;
+  min-height: 0;
+  padding: 0;
+  cursor: default;
+  background: linear-gradient(180deg, #fdfefe, #dfe9f2 50%, #cbd9e6);
+  border: 1px solid #7d94a8;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.w32-spin__up:active,
+.w32-spin__down:active {
+  background: linear-gradient(180deg, #c3d6e6, #eaf3fa);
+}
+
+/**
+ * CSS triangles — the charter bans emoji, and these are 5px arrows.
+ *
+ * `opacity` and `z-index` are restated because 7.css uses `button::after` for
+ * its own hover wash: it ships the pseudo at `opacity: 0` behind the button
+ * (`z-index: -1`) and fades it in. Inheriting that makes every arrow in the
+ * app invisible, which is exactly what happened the first time.
+ */
+.w32-spin__up::after,
+.w32-spin__down::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  content: '';
+  border-right: 3px solid transparent;
+  border-left: 3px solid transparent;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.w32-spin__up::after {
+  border-bottom: 4px solid #33424f;
+}
+
+.w32-spin__down::after {
+  border-top: 4px solid #33424f;
+}
+
+/* ----------------------------------------------------------- split button */
+
+.w32-split {
+  display: inline-flex;
+}
+
+.w32-split__main {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  /* 44px, per the mobile rule — this is a primary action in several apps. */
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 9pt;
+  border-radius: 3px 0 0 3px;
+}
+
+.w32-split__label {
+  font-weight: 700;
+}
+
+.w32-split__hint {
+  font-variant-numeric: tabular-nums;
+  color: #0a3d68;
+}
+
+.w32-split__main:disabled .w32-split__hint {
+  color: #8d8d8d;
+}
+
+.w32-split__drop {
+  position: relative;
+  width: 26px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0;
+  margin-left: -1px;
+  border-radius: 0 3px 3px 0;
+}
+
+/* Same 7.css `::after` trap as the spinner arrows — see the note above. */
+.w32-split__drop::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: 0;
+  height: 0;
+  content: '';
+  border-top: 4px solid #33424f;
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+/* ------------------------------------------------------------- status bar */
+
+.w32-status {
+  margin: 0;
+}
+
+.w32-status .status-bar-field {
+  font-variant-numeric: tabular-nums;
+}
+
+.w32-status .status-bar-field.is-grow {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------- dialog */
+
+.w32-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 9700;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(4 22 40 / 45%);
+}
+
+.w32-dialog__frame {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.w32-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.w32-dialog__footer {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 8px 10px 10px;
+}
+
+/* The default button carries the heavier border, as it did in every dialog. */
+.w32-dialog__default {
+  box-shadow: inset 0 0 0 1px #4b90c4, var(--emboss-soft);
+}
+
+/* ------------------------------------------------------- category list */
+
+.w32-cats__wrap {
+  display: flex;
+  gap: 10px;
+  min-height: 260px;
+}
+
+.w32-cats {
+  flex: none;
+  width: 130px;
+  padding: 2px;
+  margin: 0;
+  overflow-y: auto;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #8e8f8f;
+  box-shadow: inset 1px 1px 2px rgb(0 0 0 / 14%);
+}
+
+.w32-cats__item {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 4px 8px;
+  font-size: 9pt;
+  text-align: left;
+  cursor: default;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.w32-cats__item:hover {
+  background: linear-gradient(180deg, #f3f9fe, #e4f2fd);
+  border-color: #b6d9f5;
+}
+
+/* The Aero list selection: a blue gradient with a hairline, not a flat fill. */
+.w32-cats__item.is-active,
+.w32-cats__item.is-active:focus {
+  font-weight: 700;
+  background: linear-gradient(180deg, #f0f8fe, #dcf0fd 45%, #c3e6fc 50%, #dbf2fe);
+  border-color: #7da2ce;
+  animation: none;
+}
+
+.w32-cats__stack {
+  flex: 1;
+  min-width: 0;
+}
+
+.w32-cats__page[hidden] {
+  display: none !important;
+}
+
+/* ----------------------------------------------------- group box + list */
+
+.w32-group {
+  background: #f4f7fa;
+}
+
+.w32-group > legend {
+  padding: 0 4px;
+  color: #0a3d68;
+  font-weight: 700;
+}
+
+/**
+ * The sunken white list well — the Explorer details-pane container, and the
+ * shape a list of *anything* took in this era. Rows are the app's business.
+ */
+.w32-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #8e8f8f;
+  box-shadow: inset 1px 1px 2px rgb(0 0 0 / 14%);
+}
+
+.w32-list > li:nth-child(even) {
+  background: #f5f9fc;
+}
+
+/* A generic row: icon column, text column, trailing column. */
+.w32-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid #edf2f6;
+}
+
+.w32-row:last-child {
+  border-bottom: 0;
+}
+
+.w32-row:hover {
+  background: linear-gradient(180deg, #f3f9fe, #e4f2fd);
+  box-shadow: inset 0 0 0 1px #b6d9f5;
+}
+
+.w32-row__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.w32-row__text strong {
+  font-size: 9pt;
+}
+
+.w32-row__text small {
+  font-size: 8.5pt;
+  color: #4a5560;
+}
+
+/* Classic disabled text: greyed and etched, never an opacity fade. */
+.w32-row.is-disabled .w32-row__text strong,
+.w32-row.is-disabled .w32-row__text small {
+  color: #8d8d8d;
+  text-shadow: 1px 1px 0 #fff;
+}
+
+.w32-req {
+  margin-top: 1px;
+  font-size: 8.5pt;
+  font-style: normal;
+  font-weight: 700;
+  color: #8a5a00;
+}
+
+/* -------------------------------------------------------------- mobile */
+
+@media (max-width: 820px) {
+  /* Menus and dialogs have to survive a 390px viewport. */
+  .w32-menu {
+    max-width: calc(100vw - 16px);
+  }
+
+  .w32-menubar__item {
+    padding: 6px 10px;
+  }
+
+  .w32-menu__item {
+    min-height: 40px;
+  }
+
+  .w32-dialog {
+    padding: 0;
+  }
+
+  .w32-dialog__frame {
+    width: 100% !important;
+    height: 100%;
+  }
+
+  .w32-cats__wrap {
+    flex-direction: column;
+  }
+
+  .w32-cats {
+    display: flex;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .w32-cats__item {
+    min-height: 40px;
+    white-space: nowrap;
+  }
+
+  .w32-tabs__tab {
+    min-height: 40px;
+  }
+
+  .w32-spin__field {
+    width: 64px;
+  }
+
+  .w32-spin,
+  .w32-spin__up,
+  .w32-spin__down {
+    height: auto;
+  }
+
+  .w32-spin__up,
+  .w32-spin__down {
+    width: 30px;
+    height: 22px;
+  }
+}
+
+/* ================================================ AeroChat: MSN Messenger */
+
+/**
+ * Contacts are AeroChat's units, so the purchase surface is the client's own
+ * "add a contact" verb — a split button at the foot of the list, and the
+ * imports a real messenger offered in its drop-down.
+ */
+.app-aerochat .chat__actions {
+  display: flex;
+  padding: 0;
+  border: 0;
+}
+
+.app-aerochat .chat__actions .w32-split {
+  width: 100%;
+}
+
+.app-aerochat .chat__actions .w32-split__main {
+  flex: 1;
+}
+
+/* --- Tools > Options ----------------------------------------------------- */
+
+.chat__opt-blurb {
+  margin: 0 0 8px;
+  font-size: 9pt;
+  color: #4a5560;
+}
+
+.chat__opt-empty {
+  padding: 10px;
+  font-size: 9pt;
+  color: #6b7681;
+  text-align: center;
+}
+
+.chat__opt-line {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 0 0 4px;
+  font-size: 9pt;
+}
+
+.chat__opt-line b {
+  font-variant-numeric: tabular-nums;
+}
+
+.chat__opt-add {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 4px;
+}
+
+/* The Options checkbox: sunken white square, tick when the feature is on. */
+.chat__opt-check {
+  position: relative;
+  display: block;
+  width: 13px;
+  height: 13px;
+  background: #fff;
+  border: 1px solid #8e8f8f;
+  box-shadow: inset 1px 1px 2px rgb(0 0 0 / 20%);
+}
+
+.chat__opt-check.is-checked::after {
+  position: absolute;
+  top: 0;
+  left: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  color: #1c6b28;
+  content: '✓';
+}
+
+.chat__opt-state {
+  font-size: 9pt;
+  color: #1c6b28;
+}
+
+/* ============================================== Aero Studio: the NLE/DAW */
+
+/**
+ * The program monitor is the star of an NLE, but the tabs below it are where
+ * the work happens. Capping it keeps the Render Farm's allocation controls
+ * above the fold in the app's default window rather than three scrolls down.
+ */
+.app-aerostudio .aero-preview {
+  flex: 0 1 auto;
+  max-height: 190px;
+}
+
+.app-aerostudio .aero-tabhost {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 300px;
+  margin-top: 8px;
+}
+
+/* --- Timeline ------------------------------------------------------------ */
+
+.aero-strip {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+}
+
+.aero-strip__frame {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  font-size: 7.5pt;
+  color: #5a6672;
+}
+
+/* Storyboard thumbnails: sprocket-hole film cells, dark until rendered. */
+.aero-strip__thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background:
+    repeating-linear-gradient(90deg, #2b3a45 0 3px, transparent 3px 9px) top / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, #2b3a45 0 3px, transparent 3px 9px) bottom / 100% 3px no-repeat,
+    linear-gradient(160deg, #1b2831, #101a21);
+  border: 1px solid #5a6d7c;
+}
+
+.aero-strip__frame.is-rendered .aero-strip__thumb {
+  background:
+    repeating-linear-gradient(90deg, #cfe3f0 0 3px, transparent 3px 9px) top / 100% 3px no-repeat,
+    repeating-linear-gradient(90deg, #cfe3f0 0 3px, transparent 3px 9px) bottom / 100% 3px no-repeat,
+    linear-gradient(160deg, #7fb6d8, #2f6a8e);
+  border-color: #9fd0ea;
+}
+
+/* --- Effects rack -------------------------------------------------------- */
+
+.aero-rack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/**
+ * A rack slot. Brushed-metal face, a power LED on the left, the plugin's name
+ * and vendor, and its action on the right — the layout every VST host used.
+ */
+.aero-slot {
+  display: grid;
+  grid-template-columns: 12px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 9px;
+  background: linear-gradient(180deg, #f7fafc 0%, #dfe7ee 48%, #d2dce5 52%, #eef3f7 100%);
+  border: 1px solid #8fa1b0;
+  border-radius: 3px;
+  box-shadow: var(--emboss-soft);
+}
+
+.aero-slot.is-locked {
+  background: linear-gradient(180deg, #f2f4f6, #e2e6ea);
+  border-color: #b6bec5;
+}
+
+.aero-slot__led {
+  width: 10px;
+  height: 10px;
+  background: radial-gradient(circle at 40% 35%, #6a7b86, #2b3740);
+  border: 1px solid #26313a;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / 30%);
+}
+
+.aero-slot.is-live .aero-slot__led {
+  background: radial-gradient(circle at 40% 35%, #d6ffe4, #2fbf5c 60%, #14702f);
+  box-shadow: 0 0 6px rgb(80 240 130 / 85%), inset 0 1px 1px rgb(255 255 255 / 55%);
+}
+
+.aero-slot__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.aero-slot__head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.aero-slot__head strong {
+  font-size: 9pt;
+}
+
+.aero-slot__level {
+  font-family: 'Lucida Console', 'Courier New', monospace;
+  font-size: 8pt;
+  color: #1c6b28;
+}
+
+.aero-slot__text small {
+  font-size: 8pt;
+  color: #5a6672;
+}
+
+.aero-slot__blurb {
+  color: #4a5560 !important;
+}
+
+.aero-slot.is-locked .aero-slot__head strong,
+.aero-slot.is-locked .aero-slot__text small {
+  color: #8d8d8d;
+  text-shadow: 1px 1px 0 #fff;
+}
+
+.aero-slot__act {
+  min-width: 0;
+  min-height: 30px;
+  font-size: 8.5pt;
+  font-variant-numeric: tabular-nums;
+}
+
+.aero-slot__ok {
+  font-size: 8.5pt;
+  color: #1c6b28;
+}
+
+.aero-rack__divider {
+  padding: 6px 0 2px;
+  font-size: 8.5pt;
+  color: #5a6672;
+  border-bottom: 1px solid #c8d4de;
+}
+
+/* --- Render farm --------------------------------------------------------- */
+
+.aero-farm__stat {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 0 0 4px;
+  font-size: 9pt;
+}
+
+.aero-farm__stat b {
+  font-variant-numeric: tabular-nums;
+}
+
+.aero-farm__lock {
+  padding: 5px 8px;
+  margin: 6px 0 0;
+  font-size: 9pt;
+  background: #fdf6d8;
+  border: 1px solid #d9c66a;
+}
+
+/**
+ * The chassis: one cell per blade bay, filled bays lit. Ten across, which is
+ * how a real blade enclosure is laid out and keeps 150 bays readable at a
+ * glance without a number.
+ */
+.aero-blades {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+  padding: 5px;
+  margin-top: 6px;
+  background: linear-gradient(180deg, #26333c, #162026);
+  border: 1px solid #0e161b;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 60%);
+}
+
+.aero-blade {
+  height: 9px;
+  background: linear-gradient(180deg, #3a4a55, #24313a);
+  border: 1px solid #1a242b;
+  border-radius: 1px;
+}
+
+.aero-blade.is-live {
+  background: linear-gradient(180deg, #9fd0ea, #2f6a8e);
+  border-color: #bfe4f7;
+  box-shadow: 0 0 3px rgb(120 200 255 / 60%);
+}
+
+.aero-alloc {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.aero-alloc__label {
+  font-size: 9pt;
+}
+
+.aero-alloc__go {
+  min-height: 26px;
+}
+
+.aero-alloc__line {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin: 8px 0 0;
+  font-size: 9pt;
+}
+
+.aero-alloc__cost {
+  font-variant-numeric: tabular-nums;
+  color: #0a3d68;
+}
+
+.aero-throughput__row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 3px 8px;
+  font-size: 9pt;
+}
+
+.aero-throughput__row b {
+  font-variant-numeric: tabular-nums;
+}
+
+.aero-throughput__row.is-total {
+  font-weight: 700;
+  background: #eaf1f7;
+  border-top: 1px solid #c4d3df;
+}
+
+@media (max-width: 820px) {
+  .aero-strip {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .aero-blades {
+    grid-template-columns: repeat(15, 1fr);
+  }
+
+  .aero-alloc__go,
+  .aero-alloc button {
+    min-height: 40px;
+  }
+}

@@ -17,7 +17,9 @@ export const APPS = [
     ram: 32,
     // Core idle engine: bots are bought with Buzz and generate Buzz.
     install: { cost: 0, unlockAt: 0 },
-    window: { width: 340, height: 420 },
+    // Taller since the MSN rewrite: a menu bar above the list and a split
+    // button plus a status bar below it both need room in the default window.
+    window: { width: 360, height: 520 },
     blurb: 'Buddy list. Buy bots, they chat, chatter becomes Buzz.',
   },
   {
@@ -68,7 +70,9 @@ export const APPS = [
     day: 7,
     ram: 192,
     install: { cost: 12000, unlockAt: 8000 },
-    window: { width: 720, height: 520 },
+    // Taller since the NLE rewrite: the monitor sits above a tab control whose
+    // Render Farm page has to show a 150-bay chassis and its controls at once.
+    window: { width: 720, height: 680 },
     blurb: 'Long GPU-bound render, biggest single payout in the game.',
   },
   {

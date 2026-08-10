@@ -4,6 +4,8 @@ import { activeBuffs, remainingSeconds } from '../core/buffs.js';
 import { claimSecondsLeft, getBonus } from '../core/statusEvents.js';
 import { formatNumber } from '../core/format.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
+import { createBuildingView } from './../ui/buildingView.js';
+import { categoryList, dialog, groupBox, menuBar, splitButton, statusBar } from './../ui/win32.js';
 
 /**
  * AeroChat — the core idle engine (AO-5, AO-8, AO-9, AO-10).
@@ -11,13 +13,72 @@ import { clear, el, setBar, throttle } from './../ui/dom.js';
  * Buddies are derived from their index (src/data/buddies.js), so the list can
  * show 500 of them without storing any of it. Only a window of the list is
  * drawn; the rest is summarised.
+ *
+ * ## Where the economy went
+ *
+ * This app used to carry a generic "Buy 1 / Buy 10 / Max" block bolted to its
+ * foot. It is gone. Buddies are AeroChat's *units*, so buying them is the thing
+ * MSN Messenger already had a verb for: **adding a contact**.
+ *
+ * - **Units** are the `Add a Contact` split button in the list footer. One click
+ *   adds one; the drop-down offers the bulk imports a real client offered —
+ *   a contact list, a Hotmail address book, everything.
+ * - **Upgrades** live in `Tools ▸ Options…`, the MSN options dialog, filed under
+ *   the category each one belongs to. They read as features you switch on, not
+ *   as items in a shop.
+ * - **The breakdown** was already here and better than any table: the header
+ *   line spells out the whole multiplier chain in the app's own voice.
+ *
+ * The maths behind all three is untouched and still central — `ui/buildingView.js`
+ * hands over a plain object and this file decides what it looks like.
  */
+
+/**
+ * Which Options page each upgrade belongs on. An upgrade with no entry falls
+ * through to Account, so a new one added to `data/upgrades.js` never vanishes
+ * from the dialog — it just lands somewhere sensible until it is filed.
+ */
+const OPTION_PAGES = {
+  'aerochat.t1': 'personal',   // Custom Emoticon Pack
+  'aerochat.t2': 'messages',   // Winks & Nudges Add-on
+  'aerochat.t3': 'personal',   // Display Picture Studio
+  'aerochat.t4': 'privacy',    // Buddy List Groups
+  'aerochat.t5': 'messages',   // Offline Messaging
+  'aerochat.t6': 'connection', // Multi-Client Patch
+};
+
+/**
+ * What each feature *says* it does, in the client's voice.
+ *
+ * The view-model's fallback copy is written in economy terms ("doubles this
+ * building's output"), which is correct and completely wrong here — MSN did not
+ * know what a building was. Presentation is the app's job, so the app supplies
+ * the words.
+ */
+const OPTION_COPY = {
+  'aerochat.t1': 'Adds 130 custom emoticons. Conversations get livelier.',
+  'aerochat.t2': 'Winks, nudges and a shake that rattles the whole window.',
+  'aerochat.t3': 'Crop, rotate and frame your display picture.',
+  'aerochat.t4': 'Sort contacts into groups and collapse the ones you ignore.',
+  'aerochat.t5': 'Messages sent to offline contacts are delivered on sign-in.',
+  'aerochat.t6': 'Sign in from more than one machine at a time.',
+};
+
+const OPTION_CATEGORIES = [
+  { id: 'personal', label: 'Personal', blurb: 'Display picture, emoticons and how you appear to others.' },
+  { id: 'messages', label: 'Messages', blurb: 'What happens when a message arrives.' },
+  { id: 'privacy', label: 'Privacy', blurb: 'Who can see you, and how your list is organised.' },
+  { id: 'connection', label: 'Connection', blurb: 'How this client talks to the service.' },
+  { id: 'account', label: 'Account', blurb: 'Your contact allowance and subscription.' },
+];
 
 const VISIBLE_BUDDIES = 14;
 
 export function mount(body, { game }) {
   body.classList.add('app-aerochat');
   body.innerHTML = `
+    <div data-role="menubar"></div>
+
     <div class="chat__me glass">
       <span class="buddy-icon icon-user-green" aria-hidden="true"></span>
       <div class="chat__me-text">
@@ -44,18 +105,8 @@ export function mount(body, { game }) {
 
     <ul class="chat__list" data-role="list" aria-label="Buddy list"></ul>
 
-    <div class="chat__actions">
-      <button type="button" class="chat__buy" data-buy="1">
-        Add buddy<small data-role="cost-1">10</small>
-      </button>
-      <button type="button" class="chat__buy" data-buy="10">
-        ×10<small data-role="cost-10">—</small>
-      </button>
-      <button type="button" class="chat__buy" data-buy="max">
-        Max<small data-role="cost-max">—</small>
-      </button>
-    </div>
-    <p class="chat__hint" data-role="hint">Buddies chat while this window is open. Closing AeroChat stops the Buzz.</p>
+    <div class="chat__actions" data-role="actions"></div>
+    <div data-role="statusbar"></div>
   `;
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
@@ -63,21 +114,200 @@ export function mount(body, { game }) {
   const buffsRoot = ref('buffs');
   const breakdown = ref('breakdown');
 
-  for (const button of body.querySelectorAll('[data-buy]')) {
-    button.addEventListener('click', () => {
-      const amount = button.dataset.buy === 'max' ? CHAT_BOT.maxPerRun : Number(button.dataset.buy);
-      const result = game.buyBots(amount);
-      if (!result.ok) {
-        game.notify(
-          result.reason === 'buddy-list-full' ? 'Buddy list is full' : 'Not enough Buzz',
-          result.reason === 'buddy-list-full'
-            ? `${CHAT_BOT.maxPerRun} buddies is the cap for this run.`
-            : 'Nudge a few more times.',
-          'warn',
-        );
-        return;
-      }
+  const view = createBuildingView(game, 'aerochat');
+
+  /* ---------------------------------------------------------- add a contact */
+
+  /**
+   * Adding contacts, in the client's own words.
+   *
+   * A split button rather than four buttons in a row: the common case (add one)
+   * is a single click with no menu, and the bulk options are the imports a real
+   * messenger offered. Nobody has to read the word "buy".
+   */
+  function addContacts(step) {
+    const result = view.buy(step);
+    if (result.ok) {
       update();
+      return;
+    }
+    if (result.reason === 'maxed' || result.reason === 'buddy-list-full') {
+      game.notify(
+        'Contact list is full',
+        `${CHAT_BOT.maxPerRun} contacts is the limit on this account.`,
+        'warn',
+      );
+    } else {
+      game.notify('Cannot add contact', 'Not enough Buzz. Nudge a few more times.', 'warn');
+    }
+  }
+
+  const IMPORTS = [
+    { step: 10, label: 'Import a contact list\u2026' },
+    { step: 100, label: 'Import Hotmail address book\u2026' },
+    { step: 'max', label: 'Import everything\u2026' },
+  ];
+
+  const addButton = splitButton({
+    label: 'Add a Contact',
+    hint: '',
+    onClick: () => addContacts(1),
+    items: IMPORTS.map((i) => ({ label: i.label, onSelect: () => addContacts(i.step) })),
+  });
+  ref('actions').appendChild(addButton.el);
+
+  /* ------------------------------------------------------------- menu bar */
+
+  const menus = menuBar([
+    {
+      label: 'File',
+      items: [
+        { label: 'Sign out', disabled: true },
+        'separator',
+        { label: 'Close', onSelect: () => game.closeApp('aerochat') },
+      ],
+    },
+    {
+      label: 'Contacts',
+      items: [
+        { label: 'Add a Contact\u2026', onSelect: () => addContacts(1) },
+        ...IMPORTS.map((i) => ({ label: i.label, onSelect: () => addContacts(i.step) })),
+      ],
+    },
+    {
+      label: 'Actions',
+      items: [
+        { label: 'Send a Nudge', onSelect: () => game.nudge() },
+        { label: 'Claim status bonus', onSelect: () => game.claimStatusBonus() },
+      ],
+    },
+    { label: 'Tools', items: [{ label: 'Options\u2026', onSelect: openOptions }] },
+    {
+      label: 'Help',
+      items: [{ label: 'About AeroChat', onSelect: () => game.notify(
+        'AeroChat 7.5',
+        'Build 7.5.0324. Contacts chat whether or not this window is open.',
+        'info',
+      ) }],
+    },
+  ]);
+  ref('menubar').appendChild(menus);
+
+  /* --------------------------------------------------------- status bar */
+
+  const status = statusBar([
+    { id: 'contacts', text: '' },
+    { id: 'rate', text: '', grow: true },
+    { id: 'connection', text: 'Connected' },
+  ]);
+  ref('statusbar').appendChild(status.el);
+
+  /* ------------------------------------------------- Tools > Options */
+
+  let optionsOpen = null;
+
+  /**
+   * The MSN options dialog: a category list down the left, a page on the right.
+   * Upgrades appear as *features* on the page they belong to — checked and
+   * greyed once owned, with a Purchase button and a price while not, and the
+   * classic etched hint underneath when a requirement is unmet.
+   */
+  function openOptions() {
+    if (optionsOpen) return;
+
+    const cats = categoryList(OPTION_CATEGORIES);
+    const rebuild = () => {
+      const snapshot = view.read();
+      if (!snapshot) return;
+
+      for (const category of OPTION_CATEGORIES) {
+        const page = cats.pages[category.id];
+        clear(page);
+        page.appendChild(el('p', { class: 'chat__opt-blurb', text: category.blurb }));
+
+        const mine = snapshot.upgrades.filter(
+          (u) => (OPTION_PAGES[u.id] ?? 'account') === category.id,
+        );
+
+        if (mine.length > 0) {
+          page.appendChild(
+            groupBox(
+              'Features',
+              el('ul', { class: 'w32-list' }, mine.map(featureRow)),
+            ),
+          );
+        }
+
+        // The Account page also owns the contact allowance, which is where a
+        // real client would have put "you may add N contacts".
+        if (category.id === 'account') {
+          page.appendChild(
+            groupBox('Contact allowance', [
+              el('p', { class: 'chat__opt-line' }, [
+                el('span', { text: 'Contacts on this account' }),
+                el('b', { text: `${snapshot.units} of ${snapshot.maxPerRun}` }),
+              ]),
+              el('p', { class: 'chat__opt-line' }, [
+                el('span', { text: 'Next contact costs' }),
+                el('b', { text: `${formatNumber(snapshot.steps[0].cost)} Buzz` }),
+              ]),
+              el('button', {
+                type: 'button',
+                class: 'chat__opt-add',
+                disabled: snapshot.steps[0].disabled ? '' : null,
+                text: 'Add a Contact',
+                onSelect: null,
+                onclick: () => { addContacts(1); rebuild(); },
+              }),
+            ]),
+          );
+        }
+
+        if (mine.length === 0 && category.id !== 'account') {
+          page.appendChild(el('p', { class: 'chat__opt-empty', text: 'Nothing to configure yet.' }));
+        }
+      }
+    };
+
+    function featureRow(upgrade) {
+      const owned = upgrade.state === 'owned';
+      const gated = upgrade.state === 'gated';
+
+      return el('li', { class: `w32-row${gated ? ' is-disabled' : ''}` }, [
+        // A real checkbox, disabled: the feature is on or it is not, and MSN's
+        // options pages were columns of exactly this control.
+        // 7.css draws a checkbox through an adjacent <label>, which this row
+        // layout has no room for, so the box is drawn directly. Same sunken
+        // white square and same tick — it just does not need the pairing.
+        el('span', {
+          class: `chat__opt-check${owned ? ' is-checked' : ''}`,
+          role: 'img',
+          'aria-label': owned ? 'Enabled' : 'Not purchased',
+        }),
+        el('span', { class: 'w32-row__text' }, [
+          el('strong', { text: upgrade.name }),
+          el('small', { text: OPTION_COPY[upgrade.id] ?? upgrade.blurb }),
+          upgrade.requirement ? el('em', { class: 'w32-req', text: upgrade.requirement }) : null,
+        ]),
+        owned
+          ? el('span', { class: 'chat__opt-state', text: 'Enabled' })
+          : el('button', {
+            type: 'button',
+            disabled: upgrade.state === 'buyable' ? null : '',
+            text: `Purchase \u2014 ${formatNumber(upgrade.cost)}`,
+            onclick: () => { view.buyUpgrade(upgrade.id); rebuild(); update(); },
+          }),
+      ]);
+    }
+
+    rebuild();
+    const tick = game.bus.on(game.events.TICK, rebuild);
+    optionsOpen = dialog({
+      title: 'Options',
+      width: 520,
+      body: cats.el,
+      buttons: [{ label: 'OK', primary: true, onSelect: (close) => close() }],
+      onClose: () => { tick(); optionsOpen = null; },
     });
   }
 
@@ -268,20 +498,31 @@ export function mount(body, { game }) {
       setBar(ref('milestone-bar'), 1, { warn: 2, critical: 2 });
     }
 
-    for (const button of body.querySelectorAll('[data-buy]')) {
-      const raw = button.dataset.buy;
-      const amount = raw === 'max' ? CHAT_BOT.maxPerRun : Number(raw);
-      const { count, cost } = econ.affordableBots(s, amount);
-      button.disabled = count === 0;
-      const costNode = ref(`cost-${raw}`);
-      if (costNode) {
-        costNode.textContent =
-          raw === 'max'
-            ? count > 0
-              ? `${count} · ${formatNumber(cost)}`
-              : '—'
-            : formatNumber(econ.botCostBulk(s.chat.bots, amount));
-      }
+    /**
+     * The add-contact control. The price rides on the button as a hint rather
+     * than as a second line of chrome, and the bulk imports carry theirs in the
+     * drop-down — which is where a menu item's shortcut column always went.
+     */
+    const snapshot = view.read();
+    if (snapshot) {
+      const one = snapshot.steps[0];
+      addButton.setDisabled(one.disabled);
+      addButton.setHint(snapshot.maxed ? 'List full' : formatNumber(one.cost));
+      addButton.setItems(
+        IMPORTS.map((i) => {
+          const step = snapshot.steps.find((x) => x.step === i.step);
+          return {
+            label: i.label,
+            hint: step && !snapshot.maxed ? formatNumber(step.cost) : '—',
+            disabled: !step || step.disabled,
+            onSelect: () => addContacts(i.step),
+          };
+        }),
+      );
+
+      status.set('contacts', `${snapshot.units} contacts`);
+      status.set('rate', `${formatNumber(snapshot.production)} Buzz/sec`);
+      status.set('connection', snapshot.maxed ? 'List full' : 'Connected');
     }
 
     renderBreakdown(econ.rateBreakdown(s, now));
@@ -296,6 +537,16 @@ export function mount(body, { game }) {
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
+    optionsOpen?.close();
+    addButton.destroy();
+    menus.destroy();
     body.classList.remove('app-aerochat');
   };
 }
+
+/**
+ * This app owns its own economy UI, so `apps/registry.js` must not append the
+ * shared one. Every converted app exports this; the flag disappears once all
+ * twelve are done.
+ */
+export const ownsBuildingUI = true;

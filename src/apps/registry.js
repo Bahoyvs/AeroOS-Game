@@ -55,7 +55,14 @@ export function mountApp(id, body, ctx) {
   const impl = IMPLEMENTATIONS[id] ?? placeholder;
   const cleanupApp = impl.mount(body, { ...ctx, app });
 
-  if (!isBuilding(id)) return cleanupApp;
+  /**
+   * An app that draws its own economy UI opts out by exporting
+   * `ownsBuildingUI`. That is the migration switch: as each app grows a bespoke
+   * interface — contacts in AeroChat, blades in Aero Studio — it sets the flag
+   * and stops receiving the shared panel. When all twelve are converted the
+   * fallback below and the flag both go.
+   */
+  if (!isBuilding(id) || impl.ownsBuildingUI === true) return cleanupApp;
 
   let host = body.querySelector('[data-role="panel"]');
   if (!host) {

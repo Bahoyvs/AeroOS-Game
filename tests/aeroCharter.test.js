@@ -212,7 +212,8 @@ describe('the Aero visual charter (GDD §A.1)', () => {
    * monochrome as text and are exactly what a 2000s UI would have used.
    */
   const EMOJI_DEBT = new Set([
-    'apps/aerostudio.js',
+    // apps/aerostudio.js paid its debt off when the NLE rewrite landed — the
+    // clapperboard, party-popper and hourglass went with the old markup.
     'apps/aerosweeper.js',
     'apps/lemonwire.js',
     'apps/shield99.js',
