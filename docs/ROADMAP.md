@@ -447,6 +447,28 @@ them; the test holds the line at "no new files, list may only shrink", but
 redrawing those glyphs as period-correct icon art is the remaining half of
 GDD §G phase 6.
 
+## Bespoke app UI — in progress
+
+The shared purchase panel is being replaced app by app. `ui/buildingView.js` is
+headless (economy in, plain object out) and `ui/win32.js` holds the common
+controls — menu bar, pop-up menu, tab strip, spinner, split button, task pane,
+status bar, dialog, category list. An app that draws its own economy UI exports
+`ownsBuildingUI = true` and stops receiving the fallback.
+
+**Done:** AeroChat (MSN Messenger 7.5 — contacts via the "I want to..." task
+pane, upgrades in Tools > Options), Aero Studio (NLE/DAW — blades on a Render
+Farm tab, plugins in an Effects Rack), Shield99 (Norton AntiVirus 2004 — left
+nav, features with On/Off indicators, licences as a subscription).
+
+**Remaining:** RetroAmp (Winamp 2.x), LemonWire (LimeWire 4/5), AeroBurn (Nero),
+VidChat, Registry Doctor, GeoPage, and the three tray popovers (AdBar, IoT
+Botnet, Cloud Mainframe).
+
+Each converted app also writes its own copy for upgrade descriptions. The
+view-model's fallback is phrased in economy terms ("doubles this building's
+output"), which is right for the model and wrong in every window — MSN never
+said "building", and neither did Norton.
+
 ## Backlog (post-week)
 
 Cloud saves, achievements, buddy-list events with named characters, seasonal wallpapers,

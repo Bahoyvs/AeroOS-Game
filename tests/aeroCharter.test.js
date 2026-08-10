@@ -216,7 +216,8 @@ describe('the Aero visual charter (GDD §A.1)', () => {
     // clapperboard, party-popper and hourglass went with the old markup.
     'apps/aerosweeper.js',
     'apps/lemonwire.js',
-    'apps/shield99.js',
+    // apps/shield99.js paid its debt off with the Norton 2004 rewrite — the
+    // shield, biohazard and tier glyphs are all CSS now.
     'apps/system.js',
     'main.js',
     'ui/ads.js',
