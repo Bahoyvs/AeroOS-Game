@@ -416,8 +416,6 @@ async function boot() {
     [game.events.OUT_OF_MEMORY]: 'error',
     [game.events.HARDWARE_BOUGHT]: 'coin',
     [game.events.STATUS_CLAIMED]: 'coin',
-    [game.events.SEED_STARTED]: 'hdd',
-    [game.events.BANDWIDTH_UPGRADED]: 'buy',
     [game.events.PLAYLIST_LOADED]: 'click',
     [game.events.SWEEPER_TOKEN]: 'chime',
     [game.events.DEFRAG_INSTALLED]: 'hdd',
@@ -534,33 +532,6 @@ async function boot() {
       title: `${playlist.name} burnt out`,
       body: `Cooling down for ${playlist.cooldownSeconds / 60} minutes.`,
       tone: 'warn',
-    });
-  });
-
-  // LemonWire + Shield99 (AO-21/AO-22).
-  game.bus.on(game.events.BANDWIDTH_UPGRADED, ({ connection }) => {
-    notify({
-      title: `${connection.label} connected`,
-      body: `Every seed slot now pays ×${connection.multiplier}.`,
-      tone: 'success',
-    });
-  });
-
-  // Stopping a seed is not instant, and the player has to learn that the first
-  // time: the slot frees immediately, the disk does not.
-  game.bus.on(game.events.SEED_STOPPED, ({ file, secondsLeft }) => {
-    notify({
-      title: 'Moved to the Recycle Bin',
-      body: `${file.name} still takes up its space for ${formatDuration(secondsLeft)}.`,
-      tone: 'warn',
-    });
-  });
-
-  game.bus.on(game.events.TRASH_EMPTIED, ({ file }) => {
-    notify({
-      title: 'Recycle Bin emptied',
-      body: `${file.name} is gone — its disk space is free again.`,
-      tone: 'success',
     });
   });
 

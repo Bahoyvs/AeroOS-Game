@@ -87,3 +87,29 @@ export function riskLabel(risk) {
   if (risk >= 0.12) return 'medium';
   return 'low';
 }
+
+/**
+ * Which file the peer at `index` is sharing.
+ *
+ * Derived from the index and never stored — the same trick `data/buddies.js`
+ * plays for AeroChat, and for the same reason: LemonWire can show a swarm of
+ * five hundred peers without putting five hundred entries in a save.
+ *
+ * Deterministic, so a peer keeps its file across a reload, and weighted by
+ * position so the rare, risky files appear as the swarm grows. That is what
+ * turns the old three-way trade (size, rarity, risk) from a decision the player
+ * had to make into a progression they get to watch — which is the whole point
+ * of GDD §2.2's "no manual upgrade shops".
+ */
+export function peerAt(index) {
+  // Cheap integer hash, same shape as buddies.js — decorrelates neighbouring
+  // indices so the list does not read as a repeating cycle.
+  let h = (index + 1) * 0x9e3779b9;
+  h = Math.imul(h ^ (h >>> 15), 0x2545f491) >>> 0;
+
+  // Deeper into the swarm, rarer files: the pool the hash picks from widens as
+  // the index grows, so file #1 is always the safe wallpaper pack and the
+  // 300th peer can be sharing something that bites.
+  const depth = Math.min(FILES.length, 1 + Math.floor(Math.log2(index + 2)));
+  return FILES[h % depth];
+}

@@ -309,22 +309,17 @@ export const DEFRAG = {
  * swarm needs *them*, and riskier files pay more still while attracting the
  * threats Shield99 turns into loot.
  */
+/**
+ * LemonWire's swarm (building #5).
+ *
+ * These used to price a mechanic — hand-filled seed slots paying their own
+ * income. They now price a *display*: which files the swarm is sharing and how
+ * loudly, derived from the unit count (src/core/lemonwire.js). Nothing here
+ * touches production any more; the milestone table does that, like every other
+ * building.
+ */
 export const LEMONWIRE = {
-  baseSeedSlots: 3,
-  hddTiersPerSlot: 2, // every other HDD tier unlocks another slot
-  maxSeedSlots: 5,
 
-  /**
-   * Per-seed income = (`flatBuzzPerSecond` + buddy rate × `shareOfChatRate`)
-   * × the file's weight × bandwidth.
-   *
-   * The flat term is what makes the first seed feel like something on a fresh
-   * machine; the share term is what keeps a seed relevant at 300 buddies. Both
-   * are needed — a purely flat rate is dead weight by mid-game, and a purely
-   * proportional one pays nothing when the player first installs the app.
-   */
-  flatBuzzPerSecond: 0.6,
-  shareOfChatRate: 0.03,
 
   // File weight: size and risk both pay, and rarity pays most.
   weightPerGB: 0.35,
@@ -341,9 +336,10 @@ export const LEMONWIRE = {
   maxDemandModifier: 2,
 
   /**
-   * The connection. Bought with Buzz, kept for the run, and the only thing that
-   * multiplies *every* slot at once — which is what makes it worth saving for
-   * rather than filling one more slot.
+   * The connection ladder. No longer bought — the tier is read off LemonWire's
+   * milestone index, so the five green bars light up as the swarm grows
+   * (GDD §4). `cost` is kept only because the labels read better with it gone
+   * from the UI than from the data, and `multiplier` is now flavour.
    */
   connections: [
     { id: 'dialup', label: '56k Dial-up', multiplier: 1, cost: 0 },
@@ -356,9 +352,6 @@ export const LEMONWIRE = {
   // than generous — a 56k line uploading at 12 KB/s is the joke.
   uploadKBpsPerWeight: 6,
 
-  // Stopping a seed only moves the file to the trash; the space stays used
-  // until this much simulation time has passed (AO: Trash Bin).
-  trashSeconds: 300,
 };
 
 /**

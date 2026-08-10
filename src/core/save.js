@@ -154,6 +154,8 @@ const MIGRATIONS = {
    *    when Format C: settles one and not the other.
    * 3. Shield99, AeroBurn and Aero Studio are retired, and what was spent on
    *    them is refunded (GDD §11).
+   * 4. LemonWire's hand-tended seed slots are dropped — they became the derived
+   *    display of building #5's units.
    *
    * On the refund: the GDD's draft reads `app.units ?? app.bots`, but none of
    * these three ever had a unit count — they were one-off installs with their
@@ -166,7 +168,13 @@ const MIGRATIONS = {
    * slightly large number is a player who feels robbed.
    */
   3: (data) => {
-    const { shield99, aeroburn, aerostudio, ...rest } = data;
+    // `lemonwire` goes with them. Its seed slots were a second producer inside
+    // a building that also has units (see docs/REDESIGN-PLAN.md, "known
+    // overlap"); Phase 2 folded them in, so the swarm is now derived from the
+    // unit count and there is nothing left to carry forward. This rides in the
+    // 3 -> 4 migration rather than a 4 -> 5 because v4 has not shipped — no
+    // save in the wild has ever seen it.
+    const { shield99, aeroburn, aerostudio, lemonwire, ...rest } = data;
 
     let refund = 0;
     for (const [id, cost] of Object.entries(RETIRED_INSTALL_COSTS)) {

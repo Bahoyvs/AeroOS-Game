@@ -2069,3 +2069,137 @@
     padding: 20px 24px;
   }
 }
+
+/* ==========================================================================
+   The shared building kit (src/ui/building.js)
+   --------------------------------------------------------------------------
+   Twelve windows, one buy control, one meter, one celebration. Each app skins
+   these with its own selector; what lives here is only the layout and the Aero
+   chrome they all share.
+   ========================================================================== */
+
+.w32buy {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 4px;
+  padding: 6px;
+  border-top: 1px solid var(--line, rgb(255 255 255 / 0.35));
+}
+
+.w32buy__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  /* 44px is the PDA-mode touch-target floor (GDD §9) and it applies on the
+     desktop too — these are the most-pressed controls in the game. */
+  min-height: 44px;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink, #06283c);
+  cursor: pointer;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(214 233 247 / 0.92));
+  border: 1px solid rgb(126 168 199 / 0.9);
+  border-radius: 3px;
+  box-shadow: var(--emboss, inset 0 1px 0 rgb(255 255 255 / 0.9)), 0 1px 2px rgb(6 40 60 / 0.18);
+}
+
+.w32buy__btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fff, #cfe8fb);
+  border-color: #5b93bd;
+}
+
+.w32buy__btn:active:not(:disabled) {
+  box-shadow: var(--emboss-well, inset 0 2px 3px rgb(6 40 60 / 0.28));
+  transform: translateY(1px);
+}
+
+.w32buy__btn:disabled {
+  color: rgb(6 40 60 / 0.45);
+  cursor: default;
+  background: linear-gradient(180deg, rgb(242 246 250 / 0.8), rgb(222 231 239 / 0.8));
+  box-shadow: none;
+}
+
+.w32buy__cost {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.w32meter {
+  display: grid;
+  gap: 3px;
+  padding: 5px 8px;
+}
+
+.w32meter__label {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.w32meter__count { font-weight: 700; }
+.w32meter__tier { opacity: 0.75; }
+
+/* The celebration overlay (GDD §2.3). Absolutely positioned over the window
+   body, so it never reflows the app underneath it mid-animation. */
+.w32celebrate {
+  position: absolute;
+  /* Clear of the buy row it would otherwise cover. It is pointer-events:none so
+     clicks were always getting through, but a player who has just been told
+     they earned something should not have to wait 2.6s to see the button that
+     earns the next one. */
+  inset: auto 8px 62px;
+  z-index: 4;
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  pointer-events: none;
+  text-align: center;
+  background: linear-gradient(180deg, rgb(255 252 226 / 0.97), rgb(255 236 168 / 0.97));
+  border: 1px solid #d8b23c;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgb(6 40 60 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.9);
+  animation: w32celebrate-in 260ms ease-out both;
+}
+
+.w32celebrate.is-leaving { animation: w32celebrate-out 320ms ease-in both; }
+.w32celebrate__title { font-size: 13px; }
+.w32celebrate__body { font-size: 11px; }
+.w32celebrate__extra { font-size: 11px; font-weight: 700; color: #8a5b00; }
+
+@keyframes w32celebrate-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes w32celebrate-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-6px); }
+}
+
+/* Reduced motion resolves onto <html data-motion> (src/ui/motion.js) — never a
+   raw prefers-reduced-motion query, which would ignore the player's own
+   setting. The celebration still appears and still clears itself; it simply
+   stops moving. */
+[data-motion='reduced'] .w32celebrate,
+[data-motion='reduced'] .w32celebrate.is-leaving {
+  animation-duration: 1ms;
+}
+
+.w32locked {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  margin: auto;
+  text-align: center;
+}
+
+.w32locked__text { font-size: 12px; font-weight: 700; }
+.w32locked__hint { font-size: 11px; opacity: 0.7; }

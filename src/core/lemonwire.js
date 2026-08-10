@@ -1,176 +1,89 @@
 import { LEMONWIRE } from '../data/balance.js';
-import { getFile } from '../data/files.js';
+import { FILES, getFile, peerAt } from '../data/files.js';
 
 /**
- * LemonWire's P2P simulation (AO-21).
+ * LemonWire — building #5's swarm.
  *
- * The app used to be a download manager: queue a transfer, watch a bar, collect
- * a lump sum. It is now a *seeder*. A file sits in a slot and pays Buzz every
- * second it is shared, which turns LemonWire from a thing you babysit into a
- * second income stream.
+ * This module used to own a mechanic: seed slots the player filled by hand,
+ * paying Buzz on their own schedule. Phase 2 of the redesign folded that into
+ * the building model (GDD v2 §2.2, and the "known overlap" note in
+ * docs/REDESIGN-PLAN.md) — LemonWire was a producer *and* a building with
+ * units, which is two economies in one window.
  *
- * Income accrues on the same terms as every other producer: only while the
- * window is open. That is what keeps its 96 MB footprint a real decision
- * rather than a free background earner. The Recycle Bin still runs on
- * simulation time, for the reason ARCHITECTURE.md gives: the cost of deleting
- * a file is time spent *at the machine*.
+ * What survives is the part that was never about income: the swarm's *texture*.
+ * Which files the peers are sharing, how much disk that implies, how many green
+ * connection bars are lit. All of it derived from the unit count, none of it
+ * stored — the same contract `data/buddies.js` has with AeroChat.
+ *
+ * The three-way trade the old app offered (size vs rarity vs risk) is not gone
+ * either; it moved from a decision into a progression. `peerAt` weights rarer
+ * and riskier files deeper into the swarm, so a player watching the list grow
+ * sees exactly the spread they used to choose between.
  */
 
-/* ------------------------------------------------------- what a seed pays */
-
 /**
- * Relative earning weight of one file, before bandwidth and before the
- * player's own production is folded in.
+ * What one file is worth to the swarm, as a display figure.
  *
- * Size pays a little (you are pushing more bytes), risk pays a lot, and rarity
- * pays most: a file with six seeders needs *you*, so the leechers queue up. The
- * inversion is also what stops the "302 seeders" malware from being the
- * obvious best slot in the list — that swarm is bots, and bots do not download.
+ * No longer feeds production — units do that — but it is still what makes one
+ * row of the list read as more valuable than another, and the numbers are the
+ * ones players already learned.
  */
 export function seedWeight(fileId) {
   const file = getFile(fileId);
-
   const size = 1 + file.sizeGB * LEMONWIRE.weightPerGB;
   const risk = 1 + file.risk * LEMONWIRE.riskPayoutBonus;
+  // Rarity premium, inverted: a swarm of six needs you, a swarm of 302 does not.
   const demand = Math.min(
     LEMONWIRE.maxDemandModifier,
     Math.max(LEMONWIRE.minDemandModifier, LEMONWIRE.seedersPivot / Math.max(1, file.seeders)),
   );
-
   return { size, risk, demand, total: size * risk * demand };
 }
 
-/** Total risk being seeded. Kept as a readable stat for the window. */
-export function seededRisk(state) {
-  return state.lemonwire.activeSeeds.reduce((sum, seed) => sum + getFile(seed.fileId).risk, 0);
+/**
+ * The swarm as the window draws it: one entry per file, with how many of the
+ * player's peers are sharing it. Derived from `units`, capped at `limit` rows
+ * so a swarm of five hundred is still a list somebody can read.
+ */
+export function swarm(units, limit = FILES.length) {
+  const counts = new Map();
+  for (let i = 0; i < units; i += 1) {
+    const file = peerAt(i);
+    counts.set(file.id, (counts.get(file.id) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([fileId, peers]) => ({ file: getFile(fileId), peers, weight: seedWeight(fileId) }))
+    .sort((a, b) => b.peers - a.peers)
+    .slice(0, limit);
 }
 
-/* ---------------------------------------------------------------- the disk */
-
-/** Total gigabytes on disk: what is seeding, plus what is still in the bin. */
-export function storageUsedGB(state) {
-  const seeding = state.lemonwire.activeSeeds.reduce(
-    (sum, seed) => sum + getFile(seed.fileId).sizeGB,
-    0,
-  );
-  const trash = state.lemonwire.trash.reduce((sum, item) => sum + getFile(item.fileId).sizeGB, 0);
-  return Math.round((seeding + trash) * 1000) / 1000;
-}
-
-export function trashUsedGB(state) {
-  return Math.round(
-    state.lemonwire.trash.reduce((sum, item) => sum + getFile(item.fileId).sizeGB, 0) * 1000,
-  ) / 1000;
-}
-
-/* -------------------------------------------------------------- seed slots */
-
-export function isSeeding(state, fileId) {
-  return state.lemonwire.activeSeeds.some((seed) => seed.fileId === fileId);
+/** Disk the swarm implies. Flavour, but it is what the disk bar is measuring. */
+export function storageUsedGB(units) {
+  let total = 0;
+  for (const row of swarm(units)) total += row.file.sizeGB * row.peers;
+  return Math.round(total * 1000) / 1000;
 }
 
 /**
- * Can this file take a slot? `slots` and `capacityGB` are passed in rather than
- * derived here, because both are hardware-dependent and hardware maths lives in
- * economy.js.
+ * The connection tier, from the milestone tier rather than a Buzz purchase.
+ *
+ * This is GDD §4's "5 green connection bars" — the visual progression that
+ * replaced the old `[Upgrade]` button. It is derived, so it cannot desync from
+ * the milestone celebration that announces it.
  */
-export function canSeed(state, fileId, slots, capacityGB) {
-  const file = getFile(fileId);
-  if (!state.apps.lemonwire?.open) return { ok: false, reason: 'not-open' };
-  if (isSeeding(state, fileId)) return { ok: false, reason: 'already-seeding' };
-  if (state.lemonwire.activeSeeds.length >= slots) return { ok: false, reason: 'no-slots' };
-  // Still physically on the disk until the bin empties — no stop-and-restart
-  // farming loop, and no way to dodge the cost of changing your mind.
-  if (state.lemonwire.trash.some((item) => item.fileId === fileId)) {
-    return { ok: false, reason: 'in-trash' };
-  }
-
-  const free = capacityGB - storageUsedGB(state);
-  if (file.sizeGB > free) {
-    return { ok: false, reason: 'no-space', needed: file.sizeGB, free: Math.max(0, free) };
-  }
-  return { ok: true };
-}
-
-export function startSeeding(state, fileId, now = Date.now()) {
-  state.lemonwire.activeSeeds.push({
-    id: state.lemonwire.nextId++,
-    fileId,
-    startedAt: now,
-    uploadedMB: 0,
-  });
-  return state.lemonwire.activeSeeds.at(-1);
-}
-
-/**
- * Stop seeding. The file goes to the Recycle Bin rather than evaporating, so
- * chasing a better slot costs the disk space for a while — otherwise the "which
- * three files" decision could be re-taken for free every few seconds.
- */
-export function stopSeeding(state, seedId) {
-  const index = state.lemonwire.activeSeeds.findIndex((seed) => seed.id === seedId);
-  if (index === -1) return { ok: false, reason: 'no-such-seed' };
-
-  const [seed] = state.lemonwire.activeSeeds.splice(index, 1);
-  state.lemonwire.trash.push({ fileId: seed.fileId, secondsLeft: LEMONWIRE.trashSeconds });
-  return { ok: true, seed, secondsLeft: LEMONWIRE.trashSeconds };
-}
-
-/** Upload rate in KB/s, for the counter in the window. Cosmetic. */
-export function uploadKBps(fileId, bandwidth = 1) {
-  return seedWeight(fileId).total * LEMONWIRE.uploadKBpsPerWeight * bandwidth;
-}
-
-/**
- * Bookkeeping for the upload counters the UI shows. Purely cosmetic — the Buzz
- * itself is paid by the production formula in economy.js, like every other
- * producer, so it lands in one place and gets the global multipliers.
- */
-export function updateSeeds(state, dt, bandwidth = 1) {
-  if (!state.apps.lemonwire?.open) return;
-  for (const seed of state.lemonwire.activeSeeds) {
-    seed.uploadedMB += (uploadKBps(seed.fileId, bandwidth) * dt) / 1024;
-  }
-}
-
-/** Empty the bin on simulation time. Returns the files whose space came back. */
-export function updateTrash(state, dt) {
-  if (state.lemonwire.trash.length === 0) return [];
-
-  const emptied = [];
-  for (const item of state.lemonwire.trash) {
-    item.secondsLeft -= dt;
-    if (item.secondsLeft <= 0) emptied.push(item);
-  }
-  if (emptied.length > 0) {
-    state.lemonwire.trash = state.lemonwire.trash.filter((item) => item.secondsLeft > 0);
-  }
-  return emptied;
-}
-
-/* ------------------------------------------------------------ the connection */
-
 export function connectionAt(index) {
-  const list = LEMONWIRE.connections;
-  return list[Math.min(Math.max(index | 0, 0), list.length - 1)];
+  const tiers = LEMONWIRE.connections;
+  return tiers[Math.min(Math.max(index, 0), tiers.length - 1)];
 }
 
-export function nextConnection(index) {
-  return LEMONWIRE.connections[index + 1] ?? null;
+/** Total risk the swarm is carrying. A readable stat for the status bar. */
+export function swarmRisk(units) {
+  let total = 0;
+  for (const row of swarm(units)) total += row.file.risk * row.peers;
+  return Math.round(total * 100) / 100;
 }
 
-export function canUpgradeConnection(state) {
-  const next = nextConnection(state.lemonwire.connection);
-  if (!next) return { ok: false, reason: 'maxed' };
-  if (state.buzz < next.cost) return { ok: false, reason: 'too-expensive', cost: next.cost };
-  return { ok: true, cost: next.cost, connection: next };
-}
-
-export function upgradeConnection(state) {
-  const check = canUpgradeConnection(state);
-  if (!check.ok) return check;
-
-  state.buzz -= check.cost;
-  state.lemonwire.connection += 1;
-  return { ok: true, connection: check.connection, cost: check.cost };
+/** The cosmetic KB/s counter next to a row. Period-accurate rather than generous. */
+export function uploadKBps(fileId, peers = 1) {
+  return Math.max(1, Math.round(seedWeight(fileId).total * peers * LEMONWIRE.uploadKBpsPerWeight));
 }

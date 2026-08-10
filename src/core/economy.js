@@ -31,7 +31,7 @@ import {
 } from './buildings.js';
 import { legacyLevel, legacyMultiplier, legacyProgress } from './legacy.js';
 import { defragPenalty, defragProgress, isDefragging, offlineBloat } from './defrag.js';
-import { canSeed, connectionAt, seedWeight, storageUsedGB } from './lemonwire.js';
+import { connectionAt, storageUsedGB, swarm, swarmRisk } from './lemonwire.js';
 
 /**
  * Every number the game shows is derived here. Functions are pure and take the
@@ -63,38 +63,36 @@ export function ramCapacity(state) {
   return hardwareEffects(state).ramMB;
 }
 
-/** Storage ceiling for LemonWire's seeds — one of the HDD track's other jobs. */
+/** Storage ceiling for LemonWire's swarm — one of the HDD track's other jobs. */
 export function storageCapacityGB(state) {
   return hardwareEffects(state).storageGB;
 }
 
-export function storageFreeGB(state) {
-  return Math.round((storageCapacityGB(state) - storageUsedGB(state)) * 1000) / 1000;
+/**
+ * The LemonWire swarm, wrapped so the window never imports the mechanic — the
+ * same front door everything else in this module goes through. Every one of
+ * these is derived from the unit count, so none of them is a second economy.
+ */
+export function lemonwireSwarm(state, limit) {
+  return swarm(unitsOf(state, 'lemonwire'), limit);
+}
+
+export function lemonwireDiskUsedGB(state) {
+  return storageUsedGB(unitsOf(state, 'lemonwire'));
+}
+
+export function lemonwireRisk(state) {
+  return swarmRisk(unitsOf(state, 'lemonwire'));
 }
 
 /**
- * Seed slots. The base count lives in the save (so a future upgrade can raise
- * it); the HDD track adds the rest, which is the second job of that track and
- * the reason a bigger disk is worth Dollars beyond the raw capacity.
+ * The connection tier, driven by LemonWire's milestone tier rather than by a
+ * purchase (GDD §4: the five green bars are progression, not a shop row).
  */
-export function seedSlots(state) {
-  const fromHdd = Math.floor(state.hardware.hdd / LEMONWIRE.hddTiersPerSlot);
-  return Math.min(LEMONWIRE.maxSeedSlots, state.lemonwire.maxSeedSlots + fromHdd);
+export function lemonwireConnection(state) {
+  return connectionAt(milestoneIndex(unitsOf(state, 'lemonwire')));
 }
 
-export function seedSlotsFree(state) {
-  return Math.max(0, seedSlots(state) - state.lemonwire.activeSeeds.length);
-}
-
-/** The connection multiplier — every slot at once (LEMONWIRE.connections). */
-export function totalBandwidth(state) {
-  return connectionAt(state.lemonwire.connection).multiplier;
-}
-
-/** Can this file take a seed slot? Wraps the capacity lookups for the UI. */
-export function canSeedFile(state, fileId) {
-  return canSeed(state, fileId, seedSlots(state), storageCapacityGB(state));
-}
 
 /** Cooldown scale for anything the GPU track is meant to speed up. */
 export function cooldownMultiplier(state) {
@@ -304,31 +302,9 @@ function chatRate(state, now = Date.now()) {
   return buildingProduction(state, 'aerochat') * buffMultiplier(state, 'chat', now);
 }
 
-/**
- * What one seed slot pays per second (AO-21, seeding refactor).
- *
- * Two terms, and both earn their place: the flat one is what makes the first
- * seed feel like something on a stock machine, and the proportional one is what
- * stops a slot being worthless at 300 buddies. The buddy rate is used as the
- * yardstick whether or not AeroChat is open — the swarm's appetite follows how
- * well connected the player is, not which window has focus.
- */
-export function seedRate(state, fileId, now = Date.now()) {
-  const anchor = LEMONWIRE.flatBuzzPerSecond + chatRate(state, now) * LEMONWIRE.shareOfChatRate;
-  return anchor * seedWeight(fileId).total * totalBandwidth(state);
-}
-
-/** Everything the seed slots pay together. Zero while the window is closed. */
-export function seedBuzzPerSecond(state, now = Date.now()) {
-  if (!state.apps.lemonwire?.open) return 0;
-  return state.lemonwire.activeSeeds.reduce(
-    (sum, seed) => sum + seedRate(state, seed.fileId, now),
-    0,
-  );
-}
 
 /**
- * Buzz/sec before global modifiers: the twelve buildings, plus the seed slots.
+ * Buzz/sec before global modifiers: the twelve buildings, and nothing else.
  *
  * Production is *not* gated on a window being open (GDD §5). It used to be, for
  * AeroChat — and with twelve buildings that rule would mean the RAM budget
@@ -336,9 +312,10 @@ export function seedBuzzPerSecond(state, now = Date.now()) {
  * management puzzle nobody asked for. RAM still bounds how much of the desktop
  * can be on screen at once; it no longer bounds income.
  *
- * The exception is LemonWire's seed slots, which keep their own open-window
- * rule until Phase 2 folds them into LemonWire's unit count — the slots are a
- * thing the player is tending, not a thing they installed.
+ * There is exactly one producer term now. LemonWire's seed slots used to be a
+ * second one living inside a building that also has units — Phase 2 folded them
+ * in, so the swarm is what LemonWire's units *look like* rather than a parallel
+ * income the player has to tend.
  */
 export function baseBuzzPerSecond(state, now = Date.now()) {
   // The chat-kind buff belongs to AeroChat's units alone, so it is applied here
@@ -348,7 +325,7 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
     buildingProduction(state, 'aerochat') * (buffMultiplier(state, 'chat', now) - 1);
   // RetroAmp's units produce like any other building; its *playlists* are a
   // separate axis and multiply, via globalMultiplier.
-  return buildings + seedBuzzPerSecond(state, now);
+  return buildings;
 }
 
 /** Global multiplier from hardware, system health, legacy and global-kind buffs. */
@@ -385,10 +362,8 @@ export function rateBreakdown(state, now = Date.now()) {
   // into the chain — the factors below still multiply to the AeroChat rate
   // exactly (tests/economy.test.js).
   const global = globalMultiplier(state, now);
-  const seeds = seedBuzzPerSecond(state, now) * global;
   const others = (totalBuildingProduction(state) - buildingProduction(state, 'aerochat')) * global;
   return {
-    seeds,
     others,
     bots,
     perBot: getBuilding('aerochat').baseProduction,

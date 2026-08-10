@@ -1,26 +1,25 @@
-import { FILES, getFile, riskLabel } from '../data/files.js';
-import {
-  connectionAt,
-  nextConnection,
-  seedWeight,
-  storageUsedGB,
-  trashUsedGB,
-  uploadKBps,
-} from '../core/lemonwire.js';
-import { formatDuration, formatNumber } from '../core/format.js';
+import { LEMONWIRE } from '../data/balance.js';
+import { riskLabel } from '../data/files.js';
+import { uploadKBps } from '../core/lemonwire.js';
+import { formatNumber } from '../core/format.js';
+import { createBuyControl, createCelebration, createLockedPanel, createMeter } from '../ui/building.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 /**
- * LemonWire (AO-21) — the P2P *seeder*.
+ * LemonWire — building #5 (GDD v2 §4).
  *
- * The app no longer asks the player to start a transfer and watch it finish. It
- * asks a better question: which three files are worth a slot? Rare files pay
- * more than popular ones, risky files pay more than safe ones, and big files
- * charge the disk for the privilege. Income only accrues while this window is
- * open, which is what keeps its 96 MB footprint a real decision.
+ * The app used to ask the player to pick three files and tend them. It now asks
+ * the only question the redesign leaves any building: how many more? Everything
+ * else — which files the swarm is sharing, how full the disk is, how many green
+ * bars are lit — is *derived* from the unit count and shown, not chosen.
+ *
+ * The `w32-buy` costume (GDD §3.1) is the one control this app has always had:
+ * a Search box with a Download button under it. Pressing Download is buying
+ * units; the swarm list underneath is what those units turned into. The player
+ * never sees a "buy" verb or a bare number.
  */
 
-const sizeText = (gb) => (gb < 1 ? `${Math.round(gb * 1024)} MB` : `${gb} GB`);
+const sizeText = (gb) => (gb < 1 ? `${Math.round(gb * 1024)} MB` : `${gb.toFixed(1)} GB`);
 
 /** The list's type column. `kind` comes from src/data/files.js. */
 const KIND_GLYPH = {
@@ -33,17 +32,15 @@ const KIND_GLYPH = {
 };
 
 /**
- * Decorative chrome (AO-21 revision): the category tabs and the search box are
- * period dressing, not controls. They are marked aria-hidden and are not
- * focusable — a screen reader announcing four tabs that do nothing is worse
- * than not announcing them, and the real navigation is the list below.
+ * Decorative chrome: the category tabs and the sidebar filters are period
+ * dressing, not controls. They are aria-hidden and not focusable — a screen
+ * reader announcing five tabs that do nothing is worse than not announcing
+ * them, and the real navigation is the list below.
  */
 const CATEGORY_TABS = ['Audio', 'Video', 'Images', 'Documents', 'Programs'];
-
-/** Fake swarm sizes for the sidebar. Flavour only — nothing reads these. */
 const CATEGORY_COUNTS = ['12,481', '3,912', '981', '402', '66'];
 
-/** Demand as words, so the reason a file pays well is legible before clicking. */
+/** Demand as words, so the reason a row pays well is legible at a glance. */
 function demandLabel(demand) {
   if (demand >= 1.6) return 'rare';
   if (demand >= 1) return 'wanted';
@@ -56,7 +53,7 @@ export function mount(body, { game }) {
   body.innerHTML = `
     <div class="lw__chrome">
       <span class="lw__logo" aria-hidden="true">🍋</span>
-      <span class="lw__wordmark">LemonWire<small>PRO 4.9</small></span>
+      <span class="lw__wordmark">LemonWire<small data-role="edition">4.9</small></span>
       <div class="lw__search" aria-hidden="true">
         <span class="lw__search-field">frutiger aero mix</span>
         <span class="lw__search-go">Search</span>
@@ -81,8 +78,8 @@ export function mount(body, { game }) {
       <h5 class="lw__side-heading">Connection</h5>
       <div class="lw__connection">
         <strong data-role="conn-label"></strong>
-        <span data-role="conn-note"></span>
-        <button type="button" class="lw__upgrade" data-role="conn-buy"></button>
+        <div class="lw__bars" data-role="conn-bars" aria-hidden="true"></div>
+        <span class="lw__conn-note" data-role="conn-note"></span>
       </div>
 
       <h5 class="lw__side-heading">Disk</h5>
@@ -91,7 +88,6 @@ export function mount(body, { game }) {
           <span>Used</span><span data-role="disk-text">0 / 0 GB</span>
         </div>
         <div class="lw__pbar"><div class="meter__fill" data-role="disk-bar"></div></div>
-        <div class="lw__disk-trash" data-role="disk-trash" hidden></div>
       </div>
     </aside>
 
@@ -101,214 +97,121 @@ export function mount(body, { game }) {
         <span class="lw__uprate" data-role="uprate"></span>
       </div>
 
-      <h4 class="lw__heading">Seeding <small data-role="slot-count"></small></h4>
-      <ul class="lw__seeds" data-role="seeds"></ul>
+      <div data-role="meter"></div>
 
-      <h4 class="lw__heading">Shared files</h4>
+      <h4 class="lw__heading">Sharing <small data-role="peer-count"></small></h4>
       <div class="lw__columns" aria-hidden="true">
-        <span></span><span>Name</span><span>Size</span><span>Swarm</span><span>Buzz/s</span>
+        <span></span><span>Name</span><span>Peers</span><span>Size</span><span>Up</span>
       </div>
       <ul class="lw__results" data-role="results"></ul>
 
-      <h4 class="lw__heading" data-role="trash-heading" hidden>
-        Recycle Bin <small data-role="trash-count"></small>
-      </h4>
-      <ul class="lw__library" data-role="trash" hidden></ul>
+      <div data-role="buy"></div>
+      <div data-role="locked"></div>
     </div>
   `;
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
   const resultsRoot = ref('results');
-  const seedsRoot = ref('seeds');
-  const trashRoot = ref('trash');
-  const rows = new Map();
 
-  /* --------------------------------------------------------- shared files */
+  /* ------------------------------------------------------- the shared kit */
 
-  for (const file of FILES) {
-    const risk = riskLabel(file.risk);
-    const demand = demandLabel(seedWeight(file.id).demand);
-    const button = el(
-      'button',
-      {
-        type: 'button',
-        class: 'lw__result',
-        dataset: { fileId: file.id },
-        // The trade the app is built around, spelled out before the click.
-        title: `${file.name}\n${sizeText(file.sizeGB)} · ${demand} in the swarm · ${risk} risk${
-          file.risk >= 0.25 ? ' — the swarm wants it badly enough not to ask questions' : ''
-        }`,
-        onclick: () => {
-          const result = game.startSeeding(file.id);
-          if (!result.ok) {
-            const messages = {
-              'no-space': [
-                'Disk full',
-                `${file.name} needs ${sizeText(file.sizeGB)}. Stop a seed or buy a bigger HDD.`,
-              ],
-              'no-slots': ['Every slot is busy', 'Stop seeding something first, or upgrade your HDD.'],
-              'already-seeding': ['Already sharing', 'It is in one of your slots.'],
-              'in-trash': ['Still in the Recycle Bin', 'Wait for the bin to empty before sharing it again.'],
-              'not-open': ['LemonWire is closed', 'Open it to share.'],
-            };
-            const [title, bodyText] = messages[result.reason] ?? ['Cannot share that', ''];
-            game.notify(title, bodyText, 'warn');
-          }
-          update();
-        },
-      },
-      [
-        el('span', { class: 'lw__result-row' }, [
-          el('span', { class: 'lw__kind', 'aria-hidden': 'true', text: KIND_GLYPH[file.kind] ?? '▤' }),
-          el('span', { class: 'lw__file-name', text: file.name }),
-          el('span', { class: 'lw__file-size', text: sizeText(file.sizeGB) }),
-          el('span', { class: 'lw__file-swarm', text: String(file.seeders) }),
-          el('span', { class: 'lw__result-rate', dataset: { role: `rate-${file.id}` } }),
-        ]),
-        el('span', { class: 'lw__file-meta' }, [
-          el('span', { class: `lw__demand is-${demand}`, text: demand }),
-          el('span', { class: `lw__risk is-${risk}`, text: `${risk} risk` }),
-        ]),
-      ],
-    );
-    resultsRoot.appendChild(el('li', {}, button));
-    rows.set(file.id, button);
-  }
+  const meter = createMeter({ game, buildingId: 'lemonwire' });
+  ref('meter').replaceWith(meter.root);
 
-  /* ------------------------------------------------------------ the slots */
+  const buy = createBuyControl({
+    game,
+    buildingId: 'lemonwire',
+    // The download button *is* the purchase — the app's own verb, never "buy".
+    labels: { one: 'Download' },
+    onBought: () => renderSwarm(true),
+  });
+  ref('buy').replaceWith(buy.root);
 
-  let seedKey = null;
+  const locked = createLockedPanel({
+    game,
+    buildingId: 'lemonwire',
+    message: 'Searching for peers…',
+  });
+  ref('locked').replaceWith(locked.root);
 
-  function renderSeeds() {
-    const s = game.state;
-    const seeds = s.lemonwire.activeSeeds;
-    const slots = game.econ.seedSlots(s);
-    const key = `${seeds.map((seed) => seed.id).join(',')}|${slots}`;
+  /**
+   * LemonWire's milestone moment is the one GDD §4 calls for by name: the
+   * "Upgraded to PRO!" banner and its fake activation flow. It costs nothing,
+   * decides nothing, and is the whole reason the upgrade shop could be deleted
+   * without the app feeling emptier.
+   */
+  const celebration = createCelebration({
+    game,
+    buildingId: 'lemonwire',
+    host: body,
+    render: ({ multiplier, minigameUnlocked }) => {
+      const connection = game.econ.lemonwireConnection(game.state);
+      return [
+        el('strong', { class: 'w32celebrate__title', text: 'Upgraded to PRO!' }),
+        el('span', {
+          class: 'w32celebrate__body',
+          text: `${connection.label} unlocked — the swarm is ×${multiplier} faster.`,
+        }),
+        ...(minigameUnlocked
+          ? [el('em', { class: 'w32celebrate__extra', text: 'Bandwidth Tug-of-War unlocked' })]
+          : []),
+      ];
+    },
+  });
 
-    if (key !== seedKey) {
-      seedKey = key;
-      clear(seedsRoot);
+  /* -------------------------------------------------------------- swarm */
 
-      for (const seed of seeds) {
-        const meta = getFile(seed.fileId);
-        seedsRoot.appendChild(
-          el('li', { class: 'lw__seed', dataset: { seedId: String(seed.id) } }, [
-            el('div', { class: 'lw__seed-top' }, [
-              el('span', { class: 'lw__file-name', text: meta.name }),
-              el('button', {
-                type: 'button',
-                class: 'lw__cancel',
-                text: '✕',
-                'aria-label': `Stop seeding ${meta.name}`,
-                title: 'Stop seeding — the file goes to the Recycle Bin and holds its space for a while.',
-                onclick: () => {
-                  game.stopSeeding(seed.id);
-                  update();
-                },
-              }),
-            ]),
-            // A seed has no end state, so the bar shows share of income rather
-            // than progress: which slot is actually carrying the app.
-            el('div', { class: 'lw__pbar' }, el('div', { class: 'meter__fill' })),
-            el('div', { class: 'lw__seed-meta' }, [
-              el('span', { class: 'is-rate', dataset: { role: `seed-rate-${seed.id}` } }),
-              el('span', { dataset: { role: `seed-up-${seed.id}` } }),
-            ]),
-          ]),
-        );
-      }
+  let swarmKey = null;
 
-      // Empty slots are shown, not implied: the player should be able to see
-      // what an HDD upgrade just bought them.
-      for (let i = seeds.length; i < slots; i += 1) {
-        seedsRoot.appendChild(
-          el('li', { class: 'lw__seed is-empty' }, [
-            el('span', { class: 'lw__empty', text: 'Empty slot — pick something to share.' }),
-          ]),
-        );
-      }
-    }
+  function renderSwarm(force = false) {
+    const rows = game.econ.lemonwireSwarm(game.state, 8);
+    const key = rows.map((r) => `${r.file.id}:${r.peers}`).join('|');
+    if (!force && key === swarmKey) return;
+    swarmKey = key;
 
-    const now = Date.now();
-    const best = Math.max(1, ...seeds.map((seed) => game.econ.seedRate(s, seed.fileId, now)));
-    for (const seed of seeds) {
-      const row = seedsRoot.querySelector(`[data-seed-id="${seed.id}"]`);
-      if (!row) continue;
-      const rate = game.econ.seedRate(s, seed.fileId, now);
-      setBar(row.querySelector('.meter__fill'), rate / best, { warn: 2, critical: 2 });
-      row.querySelector(`[data-role="seed-rate-${seed.id}"]`).textContent =
-        `${formatNumber(rate * game.econ.globalMultiplier(s, now))} Buzz/s`;
-      row.querySelector(`[data-role="seed-up-${seed.id}"]`).textContent =
-        `↑ ${uploadKBps(seed.fileId, game.econ.totalBandwidth(s)).toFixed(1)} KB/s · ${formatNumber(
-          seed.uploadedMB,
-        )} MB shared`;
-    }
-  }
+    clear(resultsRoot);
 
-  /* ------------------------------------------------------- the connection */
-
-  function renderConnection() {
-    const s = game.state;
-    const current = connectionAt(s.lemonwire.connection);
-    const next = nextConnection(s.lemonwire.connection);
-
-    ref('conn-label').textContent = `${current.label} · ×${current.multiplier}`;
-    const buy = ref('conn-buy');
-
-    if (!next) {
-      ref('conn-note').textContent = 'Fastest line in the neighbourhood.';
-      buy.hidden = true;
+    if (rows.length === 0) {
+      resultsRoot.appendChild(
+        el('li', { class: 'lw__empty', text: 'No peers yet. Download something.' }),
+      );
       return;
     }
 
-    buy.hidden = false;
-    ref('conn-note').textContent = `${next.label} multiplies every slot by ${next.multiplier}.`;
-    buy.textContent = `Upgrade · ${formatNumber(next.cost)}`;
-    buy.disabled = s.buzz < next.cost;
-  }
-
-  ref('conn-buy').addEventListener('click', () => {
-    const result = game.upgradeConnection();
-    if (!result.ok && result.reason === 'too-expensive') {
-      game.notify('Not enough Buzz', 'The phone company wants more than that.', 'warn');
-    }
-    update();
-  });
-
-  /* --------------------------------------------------------------- trash */
-
-  /**
-   * The Recycle Bin. Its whole job is to make "stop seeding" cost something:
-   * the space is still gone, and the countdown says for how long.
-   */
-  let trashKey = null;
-
-  function renderTrash() {
-    const trash = game.state.lemonwire.trash;
-    const key = trash.map((item) => item.fileId).join(',');
-
-    ref('trash-heading').hidden = trash.length === 0;
-    trashRoot.hidden = trash.length === 0;
-    ref('trash-count').textContent = `(${sizeText(trashUsedGB(game.state))} held)`;
-
-    if (key !== trashKey) {
-      trashKey = key;
-      clear(trashRoot);
-      for (const item of trash) {
-        const meta = getFile(item.fileId);
-        trashRoot.appendChild(
-          el('li', { class: 'lw__owned is-trashed', dataset: { fileId: item.fileId } }, [
-            el('span', { class: 'lw__file-name', text: meta.name }),
-            el('span', { class: 'lw__file-size', text: sizeText(meta.sizeGB) }),
-            el('span', { class: 'lw__trash-timer', dataset: { role: `trash-${item.fileId}` } }),
-          ]),
-        );
-      }
-    }
-
-    for (const item of trash) {
-      const timer = trashRoot.querySelector(`[data-role="trash-${item.fileId}"]`);
-      if (timer) timer.textContent = `frees in ${formatDuration(Math.ceil(item.secondsLeft))}`;
+    for (const { file, peers, weight } of rows) {
+      const risk = riskLabel(file.risk);
+      const demand = demandLabel(weight.demand);
+      resultsRoot.appendChild(
+        el('li', {}, [
+          el(
+            'div',
+            {
+              class: 'lw__result',
+              title: `${file.name}\n${sizeText(file.sizeGB)} · ${demand} in the swarm · ${risk} risk`,
+            },
+            [
+              el('span', { class: 'lw__result-row' }, [
+                el('span', {
+                  class: 'lw__kind',
+                  'aria-hidden': 'true',
+                  text: KIND_GLYPH[file.kind] ?? '▤',
+                }),
+                el('span', { class: 'lw__file-name', text: file.name }),
+                el('span', { class: 'lw__file-swarm', text: `${peers}` }),
+                el('span', { class: 'lw__file-size', text: sizeText(file.sizeGB * peers) }),
+                el('span', {
+                  class: 'lw__result-rate',
+                  text: `↑ ${uploadKBps(file.id, peers)} KB/s`,
+                }),
+              ]),
+              el('span', { class: 'lw__file-meta' }, [
+                el('span', { class: `lw__demand is-${demand}`, text: demand }),
+                el('span', { class: `lw__risk is-${risk}`, text: `${risk} risk` }),
+              ]),
+            ],
+          ),
+        ]),
+      );
     }
   }
 
@@ -318,48 +221,55 @@ export function mount(body, { game }) {
     const s = game.state;
     const { econ } = game;
     const now = Date.now();
+    const unlocked = econ.isBuildingUnlocked(s, 'lemonwire');
 
-    const used = storageUsedGB(s);
+    // Locked and unlocked are the same window with different halves showing:
+    // the chrome is the point, and hiding it entirely would make the app feel
+    // like it arrived rather than like it was always there, waiting.
+    locked.root.hidden = unlocked;
+    buy.root.hidden = !unlocked;
+    meter.root.hidden = !unlocked;
+    if (!unlocked) {
+      locked.update();
+      return;
+    }
+
+    const bd = econ.getProductionBreakdown(s, 'lemonwire', now);
+    const connection = econ.lemonwireConnection(s);
+
+    ref('edition').textContent = bd.milestoneMultiplier > 1 ? 'PRO 4.9' : '4.9';
+    ref('conn-label').textContent = connection.label;
+    ref('conn-note').textContent = `${econ.lemonwireRisk(s).toFixed(1)} risk shared`;
+
+    // Five bars, lit to the milestone tier — GDD §4's visual progression.
+    const bars = ref('conn-bars');
+    const lit = LEMONWIRE.connections.indexOf(connection) + 1;
+    if (bars.childElementCount !== 5) {
+      clear(bars);
+      for (let i = 0; i < 5; i += 1) bars.appendChild(el('span', { class: 'lw__bar-tick' }));
+    }
+    [...bars.children].forEach((tick, i) => tick.classList.toggle('is-lit', i < lit));
+
+    const used = econ.lemonwireDiskUsedGB(s);
     const capacity = econ.storageCapacityGB(s);
     ref('disk-text').textContent = `${used.toFixed(2)} / ${capacity} GB`;
     setBar(ref('disk-bar'), capacity === 0 ? 0 : used / capacity, { warn: 0.8, critical: 0.95 });
 
-    // Space the player thinks they freed, and has not.
-    const held = trashUsedGB(s);
-    ref('disk-trash').hidden = held === 0;
-    ref('disk-trash').textContent = `🗑 ${sizeText(held)} in Trash — not free yet`;
-
-    const seeding = s.lemonwire.activeSeeds.length;
+    ref('peer-count').textContent = `(${bd.units} ${bd.units === 1 ? 'peer' : 'peers'})`;
     ref('status').textContent =
-      seeding === 0
-        ? 'Connected to 1,204 peers'
-        : `Sharing ${seeding} ${seeding === 1 ? 'file' : 'files'}`;
-    ref('uprate').textContent =
-      seeding === 0
-        ? ''
-        : `+${formatNumber(econ.seedBuzzPerSecond(s, now) * econ.globalMultiplier(s, now))} Buzz/s`;
+      bd.units === 0 ? 'Connected to 1,204 peers' : `Sharing with ${bd.units} peers`;
+    ref('uprate').textContent = bd.total > 0 ? `+${formatNumber(bd.total)} Buzz/s` : '';
 
-    ref('slot-count').textContent = `(${seeding} / ${econ.seedSlots(s)} slots)`;
-
-    for (const [fileId, button] of rows) {
-      const check = econ.canSeedFile(s, fileId);
-      button.disabled = !check.ok;
-      button.classList.toggle('is-seeding', check.reason === 'already-seeding');
-      button.querySelector(`[data-role="rate-${fileId}"]`).textContent = `${formatNumber(
-        econ.seedRate(s, fileId, now) * econ.globalMultiplier(s, now),
-      )} Buzz/s`;
-    }
-
-    renderSeeds();
-    renderConnection();
-    renderTrash();
+    meter.update();
+    buy.update();
+    renderSwarm();
   }, 150);
 
   update();
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
-    clear(resultsRoot);
+    celebration.destroy();
     body.classList.remove('app-lemonwire');
   };
 }

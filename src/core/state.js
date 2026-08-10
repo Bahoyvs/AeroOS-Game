@@ -99,16 +99,6 @@ export function createInitialState(now = Date.now()) {
      */
     crazyGames: { lastReportedCompletion: 0 },
 
-    // LemonWire seeds instead of downloading: a file in a slot pays Buzz for as
-    // long as it is shared. `maxSeedSlots` is the *base* count — the effective
-    // number is that plus what the HDD tier adds (econ.seedSlots).
-    lemonwire: {
-      activeSeeds: [], // [{ id, fileId, startedAt, uploadedMB }]
-      maxSeedSlots: LEMONWIRE.baseSeedSlots,
-      connection: 0, // index into LEMONWIRE.connections; the bandwidth multiplier
-      trash: [], // [{ fileId, secondsLeft }] — stopped, but still on the disk
-      nextId: 1,
-    },
 
 
 

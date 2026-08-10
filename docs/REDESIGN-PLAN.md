@@ -25,15 +25,23 @@ Three existing mechanics are *not* buildings and stay where they are:
 | Hardware / Dollars | GDD §2.7: a second, Dollar-priced currency layer. Untouched except that CPU now scales the 12-building sum. |
 | LemonWire seeding | A *second* producer inside a building that will also have units. See "Known overlap" below. |
 
-### Known overlap, deliberately deferred
+### The LemonWire overlap — resolved (Phase 2)
 
-`LemonWire` is building #5 *and* still owns the seed-slot producer
-(`econ.seedBuzzPerSecond`). Until Phase 2 gives LemonWire its unit UI, its unit count is
-0 and the two cannot double-count. Phase 2 resolves it by making the seed slots the
-*visual* layer of the unit count (`w32-buy` → `[Search]`/`[Download]`), and deleting
-`seedBuzzPerSecond` from `baseBuzzPerSecond`. Same story, smaller, for RetroAmp: it is
-building #2 *and* a global multiplier via playlists. The playlist multiplier is a
-different axis from unit production, so those two coexist permanently.
+`LemonWire` was building #5 *and* owned the seed-slot producer, which is two economies
+in one window. The seed slots are now the *visual* layer of the unit count: `peerAt(i)`
+derives which file peer #i is sharing, exactly the way `buddyAt(i)` derives a buddy, so
+a swarm of five hundred costs nothing in the save. `seedBuzzPerSecond` is gone from
+`baseBuzzPerSecond`, and there is one producer term again.
+
+The old three-way trade (size vs rarity vs risk) was not deleted — it moved from a
+decision into a progression. `peerAt` weights rarer and riskier files deeper into the
+swarm, so the spread the player used to choose between is now the spread they watch
+arrive. The connection ladder (dial-up → fibre) reads off the milestone index instead of
+a Buzz purchase, which is GDD §4's five green bars.
+
+Same story, smaller, for RetroAmp: it is building #2 *and* a global multiplier via
+playlists. The playlist multiplier is a different axis from unit production, so those
+two coexist permanently.
 
 ### Deviation from the GDD, and why
 
@@ -105,13 +113,25 @@ their branches in `globalMultiplier` (`infectionPenalty`, `renderPenalty`). The 
 "System Updating…" screen reuses `ui/bsod.js`. This is the only backwards-incompatible
 step for live players, so it goes early and alone.
 
-## Phase 2 — Faz 1–2 building content
+## Phase 2 — Faz 1–2 building content *(in progress)*
 
 AeroChat, RetroAmp, ChainMail, AeroBoards, LemonWire, GeoPage. Per building: an app
 module under `src/apps/`, a roster entry in `data/apps.js`, a `w32-buy` control (GDD §4),
-and a milestone celebration (2–3 s, no decision). Milestone celebrations want one shared
-driver — a `MILESTONE` event payload plus a per-app handler — not six bespoke timers.
-Resolves the LemonWire overlap above.
+and a milestone celebration (2–3 s, no decision).
+
+**Done:**
+
+- `src/ui/building.js` — the shared kit. One `w32-buy` control, one unit/milestone meter,
+  one celebration driver off the `MILESTONE` event, one locked panel. Six windows with
+  six bespoke celebration timers is how a celebration outlives the window that spawned
+  it; this is why there is exactly one.
+- **LemonWire** rebuilt on the kit, resolving the overlap above.
+
+**Remaining:** ChainMail, AeroBoards and GeoPage need app modules and roster entries
+(they are on the building roster but have no window yet, so they are unreachable in
+game). RetroAmp needs a unit track alongside its playlist deck. AeroChat needs its
+celebration wired — it still uses its own hand-built buy row rather than the kit, which
+works but is now the odd one out.
 
 ## Phase 3 — Faz 3 building content
 

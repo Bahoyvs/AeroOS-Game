@@ -48,10 +48,6 @@ export const EVENTS = {
   STATUS_MISSED: 'status:missed', // { index, bonusId }
   STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }
   BUFF_EXPIRED: 'buff:expired', // { buff }
-  SEED_STARTED: 'lemonwire:seeding', // { seed, file }
-  SEED_STOPPED: 'lemonwire:stopped', // { file, secondsLeft }
-  BANDWIDTH_UPGRADED: 'lemonwire:bandwidth', // { connection, cost }
-  TRASH_EMPTIED: 'lemonwire:trashed', // { file } — its disk space came back
   SWEEPER_STARTED: 'sweeper:started', // { tokensLeft }
   SWEEPER_ENDED: 'sweeper:ended', // { tiles, combo, buzz, best }
   SWEEPER_TOKEN: 'sweeper:token', // { granted, tokens, bought }

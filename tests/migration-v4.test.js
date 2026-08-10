@@ -97,7 +97,9 @@ describe('3 -> 4', () => {
     expect(after.prestigeCount).toBe(before.prestigeCount);
     expect(after.stats).toEqual(before.stats);
     expect(after.settings).toEqual(before.settings);
-    expect(after.lemonwire.connection).toBe(1);
+    // ...but not the seed slots: those became the derived swarm, so the whole
+    // slice is dropped rather than carried (see the migration's own note).
+    expect(after.lemonwire).toBeUndefined();
   });
 
   it('adds the redesign’s new slices with their defaults', () => {

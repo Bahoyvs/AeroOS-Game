@@ -3,7 +3,6 @@ import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { hasBuilding } from '../data/buildings.js';
 import { applyLegacyLevel } from './legacy.js';
-import { getFile } from '../data/files.js';
 import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
 import * as econ from './economy.js';
@@ -11,7 +10,6 @@ import * as ads from './ads.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as cosmetics from './cosmetics.js';
 import * as defrag from './defrag.js';
-import * as lw from './lemonwire.js';
 import * as sweeper from './sweeper.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
@@ -112,11 +110,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     if (spawned) bus.emit(EVENTS.STATUS_SPAWNED, spawned);
     if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
 
-    lw.updateSeeds(state, dt, econ.totalBandwidth(state));
-
-    for (const item of lw.updateTrash(state, dt)) {
-      bus.emit(EVENTS.TRASH_EMPTIED, { file: getFile(item.fileId) });
-    }
 
 
 
@@ -342,44 +335,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, playlist };
   }
 
-  /* ------------------------------------------------------------ LemonWire */
 
-  /** Put a file in a seed slot (AO-21). Refusals explain themselves to the UI. */
-  function startSeeding(fileId) {
-    const check = econ.canSeedFile(state, fileId);
-    if (!check.ok) return check;
-
-    const seed = lw.startSeeding(state, fileId, Date.now());
-    bus.emit(EVENTS.SEED_STARTED, { seed, file: getFile(fileId) });
-    save();
-    return { ok: true, seed };
-  }
-
-  /** Free the slot. The file goes to the bin, so the disk lags behind. */
-  function stopSeeding(seedId) {
-    const result = lw.stopSeeding(state, seedId);
-    if (result.ok) {
-      bus.emit(EVENTS.SEED_STOPPED, {
-        file: getFile(result.seed.fileId),
-        secondsLeft: result.secondsLeft,
-      });
-      save();
-    }
-    return result;
-  }
-
-  /** Buy the next connection tier — the multiplier over every slot at once. */
-  function upgradeConnection() {
-    const result = lw.upgradeConnection(state);
-    if (result.ok) {
-      bus.emit(EVENTS.BANDWIDTH_UPGRADED, { connection: result.connection, cost: result.cost });
-      save();
-    }
-    return result;
-  }
-
-
-  /* ----------------------------------------------------------- AeroSweeper */
 
   /**
    * Deal a fresh board (Day 7). One token, one round.
@@ -792,9 +748,6 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     claimStatusBonus,
     loadPlaylist,
     ejectPlaylist,
-    startSeeding,
-    stopSeeding,
-    upgradeConnection,
     startSweeperRound,
     buySweeperToken,
     endSweeperRound,
