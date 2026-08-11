@@ -336,18 +336,11 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
   return rate;
 }
 
-/** Permanent global production multiplier earned from total lifetime Dollars. */
-export function prestigeMultiplier(state) {
-  const dollars = state.dollarsEarnedTotal ?? 0;
-  return 1 + dollars * PRESTIGE.productionMultiplierPerDollar;
-}
-
-/** Global multiplier from hardware, prestige, system health and global-kind buffs. */
+/** Global multiplier from hardware, system health and global-kind buffs. */
 export function globalMultiplier(state, now = Date.now()) {
   const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   return (
     hardwareEffects(state).production *
-    prestigeMultiplier(state) *
     bloatPenalty(state) *
     infectionPenalty(state) *
     retroampMultiplier(state, now) *

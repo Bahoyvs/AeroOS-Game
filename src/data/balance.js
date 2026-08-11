@@ -157,8 +157,6 @@ export const PRESTIGE = {
   scale: 1,
   divisor: 1000,
   minLifetimeBuzz: 5000, // below this, Format C: is refused
-  /** Each banked Dollar provides a permanent +5% global production multiplier. */
-  productionMultiplierPerDollar: 0.05,
 };
 
 export const BLOAT = {
