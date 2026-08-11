@@ -276,22 +276,40 @@ export function affordableBots(state, max = 100) {
  * boosts AeroChat for the rest of the run, so buying in bulk has a visible goal.
  */
 export function chatMilestoneCount(state) {
-  return Math.floor(state.chat.bots / CHAT_BOT.milestoneEvery);
+  const count = state.chat.bots;
+  let idx = 0;
+  for (let i = 0; i < CHAT_BOT.milestones.length; i += 1) {
+    if (count >= CHAT_BOT.milestones[i].at) idx = i;
+    else break;
+  }
+  return idx;
 }
 
 export function chatMilestoneMultiplier(state) {
-  return 1 + chatMilestoneCount(state) * CHAT_BOT.milestoneBonus;
+  const count = state.chat.bots;
+  let mult = 1;
+  for (const m of CHAT_BOT.milestones) {
+    if (count >= m.at) mult = m.multiplier;
+    else break;
+  }
+  return mult;
 }
 
 /** Buddies still needed for the next milestone, and what it is worth. */
 export function nextChatMilestone(state) {
-  const next = (chatMilestoneCount(state) + 1) * CHAT_BOT.milestoneEvery;
-  if (next > CHAT_BOT.maxPerRun) return null;
-  return {
-    at: next,
-    remaining: next - state.chat.bots,
-    bonus: CHAT_BOT.milestoneBonus,
-  };
+  const count = state.chat.bots;
+  for (let i = 0; i < CHAT_BOT.milestones.length; i += 1) {
+    const m = CHAT_BOT.milestones[i];
+    if (count < m.at) {
+      return {
+        at: m.at,
+        remaining: m.at - count,
+        bonus: m.multiplier,
+        multiplier: m.multiplier,
+      };
+    }
+  }
+  return null;
 }
 
 /** AeroChat's own multiplier stack: milestones × chat-kind buffs. */
@@ -336,11 +354,16 @@ export function baseBuzzPerSecond(state, now = Date.now()) {
   return rate;
 }
 
-/** Global multiplier from hardware, system health and global-kind buffs. */
+import { legacyLevel, legacyMultiplier, legacyProgress } from './legacy.js';
+
+export { legacyLevel, legacyMultiplier, legacyProgress };
+
+/** Global multiplier from hardware, legacy level, system health and global-kind buffs. */
 export function globalMultiplier(state, now = Date.now()) {
   const renderPenalty = state.aerostudio?.isRendering ? 0.8 : 1.0;
   return (
     hardwareEffects(state).production *
+    legacyMultiplier(state) *
     bloatPenalty(state) *
     infectionPenalty(state) *
     retroampMultiplier(state, now) *
@@ -379,6 +402,7 @@ export function rateBreakdown(state, now = Date.now()) {
     playlist: retroampMultiplier(state, now),
     virus: infectionPenalty(state),
     cpu: hardwareEffects(state).production,
+    legacy: legacyMultiplier(state),
     bloat: bloatPenalty(state),
     defrag: defragPenalty(state),
     render: renderPenalty,

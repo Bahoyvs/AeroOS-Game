@@ -29,6 +29,7 @@ export function createInitialState(now = Date.now()) {
     // Currencies (GDD 4)
     buzz: 0,
     lifetimeBuzz: 0, // never reset; drives Format C: payout
+    allTimeBuzz: 0, // accumulated lifetime buzz across prestiges; drives Legacy Level
     runBuzz: 0, // reset on prestige; drives unlocks within a run
     dollars: 0,
     dollarsEarnedTotal: 0, // never reset; prestige pays out the difference
@@ -40,6 +41,7 @@ export function createInitialState(now = Date.now()) {
     // Progression
     hardware: { cpu: 0, ram: 0, gpu: 0, hdd: 0, mobo: 0 },
     prestigeCount: 0,
+    legacy: { level: 0 },
 
     // Software
     apps,
@@ -250,6 +252,8 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
      */
     ads: { ...state.ads, formatBoost: false },
     lifetimeBuzz: state.lifetimeBuzz,
+    allTimeBuzz: Math.max(state.allTimeBuzz ?? 0, state.lifetimeBuzz),
+    legacy: { level: (state.legacy?.level ?? 0) },
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
     aeroburn: fresh.aeroburn,

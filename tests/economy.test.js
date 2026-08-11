@@ -214,16 +214,16 @@ describe('buddy milestones', () => {
     expect(econ.chatMilestoneMultiplier(withBots(CHAT_BOT.milestoneEvery - 1))).toBe(1);
   });
 
-  it('adds a flat bonus per milestone', () => {
+  it('adds a milestone multiplier per tier', () => {
     const s = withBots(CHAT_BOT.milestoneEvery * 3);
-    expect(econ.chatMilestoneCount(s)).toBe(3);
-    expect(econ.chatMilestoneMultiplier(s)).toBeCloseTo(1 + 3 * CHAT_BOT.milestoneBonus);
+    expect(econ.chatMilestoneCount(s)).toBe(2);
+    expect(econ.chatMilestoneMultiplier(s)).toBe(4);
   });
 
   it('reports how far the next milestone is', () => {
     const next = econ.nextChatMilestone(withBots(CHAT_BOT.milestoneEvery + 4));
-    expect(next.at).toBe(CHAT_BOT.milestoneEvery * 2);
-    expect(next.remaining).toBe(CHAT_BOT.milestoneEvery - 4);
+    expect(next.at).toBe(50);
+    expect(next.remaining).toBe(21);
   });
 
   it('has no next milestone once the buddy list is full', () => {
@@ -259,7 +259,7 @@ describe('rate breakdown', () => {
 
     const bd = econ.rateBreakdown(s, 0);
     expect(bd.playlist).toBeGreaterThan(1);
-    expect(bd.base * bd.milestone * bd.buffs * bd.playlist * bd.cpu * bd.bloat).toBeCloseTo(
+    expect(bd.base * bd.milestone * bd.buffs * bd.playlist * bd.cpu * bd.legacy * bd.bloat).toBeCloseTo(
       bd.total,
       6,
     );
@@ -272,17 +272,13 @@ describe('rate breakdown', () => {
   });
 
   it('shows bloat as the factor cancelling the milestone', () => {
-    // The case from the bug report: the advertised x1.08 looked like it did
-    // nothing because bloat quietly ate it.
     const s = producing(28);
     s.bloat = 0.11; // the value on screen when it was reported
     const bd = econ.rateBreakdown(s, 0);
 
-    expect(bd.milestone).toBeCloseTo(1.08);
+    expect(bd.milestone).toBe(2);
     expect(bd.bloat).toBeCloseTo(0.945);
-    // Net effect ~x1.02: the advertised milestone is all but cancelled, which
-    // is exactly why the breakdown has to be visible in the UI.
-    expect(bd.total).toBeCloseTo(bd.base, 0);
+    expect(bd.total).toBeCloseTo(bd.base * bd.milestone * bd.bloat, 1);
   });
 
   it('reports zero while AeroChat is closed', () => {

@@ -11,12 +11,17 @@ export const CHAT_BOT = {
   costGrowth: 1.15, // geometric price curve, standard idle pacing
   baseRate: 0.5, // Buzz/sec per bot before multipliers
   maxPerRun: 500,
-
-  // Buddy-count milestones: every `milestoneEvery` buddies adds a flat
-  // `milestoneBonus` to the AeroChat multiplier (additive, so 500 buddies is
-  // ×2.6 rather than an exponential blow-up).
   milestoneEvery: 25,
-  milestoneBonus: 0.08,
+
+  /** Step function doubling milestone multipliers based on buddies owned. */
+  milestones: [
+    { at: 0, multiplier: 1 },
+    { at: 25, multiplier: 2 },
+    { at: 50, multiplier: 4 },
+    { at: 100, multiplier: 8 },
+    { at: 250, multiplier: 16 },
+    { at: 500, multiplier: 32 },
+  ],
 };
 
 /**
@@ -157,6 +162,20 @@ export const PRESTIGE = {
   scale: 1,
   divisor: 1000,
   minLifetimeBuzz: 5000, // below this, Format C: is refused
+};
+
+/**
+ * Legacy Level — the prestige layer.
+ *
+ * Worth `perLevel` per level, computed as earlyLevels(allTimeBuzz) + floor(cbrt(allTimeBuzz / divisor)).
+ * Calibrated for current 6-app roster.
+ */
+export const LEGACY = {
+  perLevel: 0.01,
+  divisor: 1e9,
+  earlyAt: 5_000,
+  earlyRatio: 10,
+  earlyLevels: 6,
 };
 
 export const BLOAT = {

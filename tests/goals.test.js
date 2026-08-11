@@ -44,10 +44,9 @@ describe('the goal tracker', () => {
    */
   it('skips an app the run has not unlocked yet', () => {
     const state = fresh();
-    state.chat.bots = 10;
+    state.chat.bots = CHAT_BOT.milestoneEvery;
     state.apps.retroamp.installed = true;
     state.retroamp.playlist = 'soft-signals';
-    state.chat.bots = CHAT_BOT.milestoneEvery;
     state.runBuzz = 0;
 
     // LemonWire is next on the list but unreachable, so the tracker moves past
@@ -68,10 +67,12 @@ describe('the goal tracker', () => {
 
   it('measures the first Format C: against the prestige threshold', () => {
     const state = fresh();
+    state.runBuzz = 1e9;
     state.chat.bots = CHAT_BOT.maxPerRun;
     state.apps.retroamp.installed = true;
+    state.apps.lemonwire.installed = true;
+    state.apps.shield99.installed = true;
     state.retroamp.playlist = 'soft-signals';
-    state.runBuzz = 0; // nothing else is unlocked
     state.lifetimeBuzz = PRESTIGE.minLifetimeBuzz / 2;
 
     const goal = currentGoal(state);
@@ -92,6 +93,7 @@ describe('the goal tracker', () => {
   /** Everything on the chain done, with the closing card not yet acknowledged. */
   const finished = () => {
     const state = fresh();
+    state.runBuzz = 1e9;
     state.apps.retroamp.installed = true;
     state.retroamp.playlist = 'soft-signals';
     state.chat.bots = CHAT_BOT.milestoneEvery;

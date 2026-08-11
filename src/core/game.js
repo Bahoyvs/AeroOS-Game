@@ -44,6 +44,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     state.buzz += amount;
     state.runBuzz += amount;
     state.lifetimeBuzz += amount;
+    state.allTimeBuzz = (state.allTimeBuzz ?? 0) + amount;
     bus.emit(EVENTS.BUZZ_GAINED, { amount, source });
   }
 
@@ -265,8 +266,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
 
     // Crossing a milestone is the reason to buy in bulk, so it gets announced.
     if (econ.chatMilestoneCount(state) > milestonesBefore) {
+      const idx = econ.chatMilestoneCount(state);
+      const m = CHAT_BOT.milestones[idx];
       bus.emit(EVENTS.MILESTONE, {
-        at: econ.chatMilestoneCount(state) * CHAT_BOT.milestoneEvery,
+        at: m ? m.at : CHAT_BOT.milestones[CHAT_BOT.milestones.length - 1].at,
         multiplier: econ.chatMilestoneMultiplier(state),
       });
     }

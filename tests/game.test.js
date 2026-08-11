@@ -118,7 +118,7 @@ describe('buddy milestones', () => {
     game.buyBots(1);
 
     expect(milestone).toMatchObject({ at: CHAT_BOT.milestoneEvery });
-    expect(milestone.multiplier).toBeCloseTo(1 + CHAT_BOT.milestoneBonus);
+    expect(milestone.multiplier).toBe(2);
   });
 
   it('does not emit when no threshold is crossed', () => {
