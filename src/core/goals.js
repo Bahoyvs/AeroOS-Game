@@ -58,7 +58,8 @@ function installGoal(id, why) {
  */
 const buddies = (state) => state.buildings?.aerochat?.units ?? 0;
 const FIRST_BUDDY_COST = getBuilding('aerochat').baseCost;
-const FIRST_MILESTONE = BUILDING.milestones[1];
+// Index 0 is the implicit multiplier=1 floor at 0 units; find the first actual milestone threshold.
+const FIRST_MILESTONE = BUILDING.milestones.find((m) => m.at > 0) ?? BUILDING.milestones[1];
 
 export const GOALS = [
   {
@@ -156,14 +157,14 @@ export const GOALS = [
 export const CLOSING_GOAL = {
   id: 'onboarding-complete',
   title: "You're in control now",
-  hint: 'Every app is installed and the machine is yours. Build the network your way.',
+  hint: 'You have the core apps up and running. Build the network your way.',
   isDone: (state) => state.tutorial.goalsDismissed === true,
 };
 
 /**
  * The one goal to show. First unmet, skipping anything not yet `isReady` —
- * "install Shield99" before the player has met a virus is a shopping list, not
- * an objective.
+ * offering an app before the player has reached its unlock threshold is a
+ * shopping list, not an objective.
  *
  * Once the chain is exhausted it hands over with `CLOSING_GOAL`, and after that
  * returns `null`, which the coach reads as "there is nothing to nag about"
