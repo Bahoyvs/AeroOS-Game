@@ -1,49 +1,56 @@
 import { formatNumber } from '../core/format.js';
 import { createBuyControl, createCelebration, createLockedPanel, createMeter } from '../ui/building.js';
-import { clear, el, throttle } from './../ui/dom.js';
+import { clear, el, setBar, throttle } from './../ui/dom.js';
 
 /**
  * FlashFarm — building #8 (GDD v2 §4).
  *
- * A satirical FarmVille, and the loudest window in the game on purpose. Phase 3
- * is where the OS stops being innocent, and FlashFarm's particular dishonesty
- * is *commercial*: it is the only app that tries to sell you something.
+ * Not a farm any more. It is the **hosting platform underneath** one: a server
+ * dashboard for running slot sessions on behalf of clients you never see.
  *
- * The micro-transaction shop down the right-hand side is deliberately too
- * bright, too glossy and slightly too animated — it is styled to be a little
- * unpleasant next to the Aero chrome around it, because that contrast is the
- * joke. Nothing in it is a real purchase and nothing in it is a real IAP: every
- * price is in Buzz, and pressing a bundle is the same `buyUnits` call the
- * `w32-buy` row makes. It is a *costume* on the building's only mechanic.
+ * The redesign matters because of where it puts the player. The first pass was
+ * a consumer-facing bundle shop, which cast them as the mark — and an idle game
+ * cannot really sell you anything, so the satire had nothing to bite on. Here
+ * they are the *operator*: the thing being scaled is somebody else's compulsion
+ * loop, metered in spins per second, and the platform is as glossy and eager as
+ * any real one because that gloss is aimed at them too. Nobody in this window
+ * is gambling. That is the point.
  *
- * The gift-request balloons over the farm are GDD §4's "kapatılamaz bildirim
- * balonları" — they nag, they overlap the crops, and closing one spawns the
- * next. They cost the player nothing; the only thing they take is attention,
- * which is exactly what the building is about.
+ * The `w32-buy` costume is the provisioning control — "Host Session Loop" — and
+ * the shelf beside it sells Slot Cycle Packages: the same `buyUnits` call in
+ * bulk, wearing a starburst. It is a costume on one mechanic, never a second
+ * economy.
  */
 
 /**
- * The shop shelf. Prices are in *units*, not currency — a "bundle" is a bulk
- * buy of the same thing the plain button buys, wearing a starburst.
+ * The shelf. `units` is the bulk step; everything else is the sales pitch.
+ * Deliberately reading like enterprise licensing written by a growth team.
  */
-const BUNDLES = [
-  { id: 'starter', name: 'Starter Pack', units: 5, tag: 'BEST VALUE!', hue: 32 },
-  { id: 'barn', name: 'Barn Bundle', units: 25, tag: 'MOST POPULAR', hue: 320 },
-  { id: 'harvest', name: 'Mega Harvest', units: 100, tag: 'LIMITED TIME', hue: 260 },
+const PACKAGES = [
+  { id: 'starter', name: 'Session Licence', units: 5, tag: 'ENTRY TIER', hue: 190 },
+  { id: 'cluster', name: 'Slot Cycle Pack', units: 25, tag: 'MOST DEPLOYED', hue: 320 },
+  { id: 'enterprise', name: 'Reel Farm Cluster', units: 100, tag: 'UNCAPPED RTP', hue: 45 },
 ];
 
-/** What the balloons ask for. Escalating, and never once taking no. */
-const REQUESTS = [
-  ['Sandra needs a Fence Post!', 'Send one?'],
-  ['Your Turnips are withering!', 'Revive for 3 Farm Bucks'],
-  ['Dave sent you a Cow!', 'Accept and send one back'],
-  ['You have 47 unclaimed gifts', 'Claim all'],
-  ['Your farm misses you', 'Come back tomorrow for a bonus'],
-  ['Marie invited you to Farm Club', 'Join now'],
-  ['Only 4 hours left!', 'Do not lose your streak'],
+/** Client operators. Faceless, plausible, and never actually contacted. */
+const CLIENTS = [
+  ['LuckySpin Media Ltd', 'CW-2291'],
+  ['Aurora Interactive NV', 'CW-4417'],
+  ['Meridian Play Group', 'CW-0083'],
+  ['Halcyon Gaming BV', 'CW-7752'],
+  ['Northgate Digital', 'CW-1108'],
+  ['Vela Entertainment', 'CW-5560'],
 ];
 
-const CROPS = ['🌽', '🍅', '🥕', '🌾', '🥬', '🍓'];
+/** The dashboard's alert strip — operations noise, phrased as good news. */
+const NOTICES = [
+  ['Region eu-west-2 at capacity', 'Provision more cycles'],
+  ['Client CW-4417 requests higher RTP ceiling', 'Approve'],
+  ['Session length up 34% this hour', 'View cohort'],
+  ['Retention model retrained', 'Deploy to all tenants'],
+  ['3 tenants exceeded their nightly cap', 'Raise caps'],
+  ['Payout variance within target band', 'Acknowledge'],
+];
 
 function hash(...values) {
   let h = 0x811c9dc5;
@@ -54,36 +61,56 @@ function hash(...values) {
   return h >>> 0;
 }
 
-/** Plots shown, and how crowded they get. 30 is a screen full of noise. */
-const plotCount = (units) => Math.min(30, units);
+/** How many client tenants the operation is serving. Grows with the tier. */
+const tenantCount = (tier) => Math.min(CLIENTS.length, 1 + Math.floor(Math.log2(tier)));
 
 export function mount(body, { game }) {
   body.classList.add('app-flashfarm');
   body.innerHTML = `
     <div class="ff__bar">
       <span class="ff__wordmark">FlashFarm</span>
-      <span class="ff__bucks" data-role="bucks">🪙 0 Farm Bucks</span>
-      <span class="ff__level" data-role="level">Lv 1</span>
+      <span class="ff__sub">Session Hosting Platform</span>
+      <span class="ff__region" data-role="region">eu-west-2</span>
+    </div>
+
+    <div class="ff__kpis">
+      <div class="ff__kpi">
+        <span class="ff__kpi-label">SPINS / SEC</span>
+        <span class="ff__kpi-value" data-role="spins">0</span>
+      </div>
+      <div class="ff__kpi">
+        <span class="ff__kpi-label">ACTIVE LOOPS</span>
+        <span class="ff__kpi-value" data-role="loops">0</span>
+      </div>
+      <div class="ff__kpi">
+        <span class="ff__kpi-label">TENANTS</span>
+        <span class="ff__kpi-value" data-role="tenants">0</span>
+      </div>
     </div>
 
     <div class="ff__body">
-      <div class="ff__field" data-role="field">
-        <div class="ff__plots" data-role="plots" aria-label="Your farm"></div>
-        <div class="ff__balloons" data-role="balloons" aria-live="polite"></div>
+      <div class="ff__main">
+        <div class="ff__notice" data-role="notice" hidden>
+          <span class="ff__notice-text" data-role="notice-text"></span>
+          <button type="button" class="ff__notice-action" data-role="notice-action"></button>
+        </div>
+
+        <h4 class="ff__heading">Hosted tenants</h4>
+        <ul class="ff__tenants" data-role="tenants-list"></ul>
       </div>
 
-      <aside class="ff__shop" data-role="shop" aria-label="Farm Bucks Shop">
+      <aside class="ff__shop" data-role="shop" aria-label="Capacity packages">
         <div class="ff__shop-head">
-          <span class="ff__shop-title">FARM BUCKS</span>
-          <span class="ff__shop-sub">Grow faster!</span>
+          <span class="ff__shop-title">ADD CAPACITY</span>
+          <span class="ff__shop-sub">Scale your hosting</span>
         </div>
-        <div class="ff__bundles" data-role="bundles"></div>
-        <div class="ff__shop-foot" aria-hidden="true">Prices in Buzz. No real money. Obviously.</div>
+        <div class="ff__packages" data-role="packages"></div>
+        <div class="ff__shop-foot" aria-hidden="true">Billed in Buzz. No real money. Obviously.</div>
       </aside>
     </div>
 
     <div class="ff__status">
-      <span data-role="status">Your farm is empty.</span>
+      <span data-role="status">No sessions hosted.</span>
       <span data-role="rate"></span>
     </div>
 
@@ -93,9 +120,8 @@ export function mount(body, { game }) {
   `;
 
   const ref = (role) => body.querySelector(`[data-role="${role}"]`);
-  const plotsRoot = ref('plots');
-  const balloonRoot = ref('balloons');
-  const bundlesRoot = ref('bundles');
+  const tenantsRoot = ref('tenants-list');
+  const packagesRoot = ref('packages');
 
   /* ------------------------------------------------------- the shared kit */
 
@@ -105,8 +131,10 @@ export function mount(body, { game }) {
   const buy = createBuyControl({
     game,
     buildingId: 'flashfarm',
-    labels: { one: '＋ Plant' },
-    onBought: () => renderPlots(true),
+    // Provisioning, not planting. The unit is a session loop the platform runs
+    // for somebody else.
+    labels: { one: 'Host Session Loop' },
+    onBought: () => renderTenants(true),
   });
   buy.root.classList.add('ff__buy');
   ref('buy').replaceWith(buy.root);
@@ -114,7 +142,7 @@ export function mount(body, { game }) {
   const locked = createLockedPanel({
     game,
     buildingId: 'flashfarm',
-    message: 'Loading FlashFarm… 14%',
+    message: 'Provisioning your operator account…',
   });
   ref('locked').replaceWith(locked.root);
 
@@ -123,123 +151,127 @@ export function mount(body, { game }) {
     buildingId: 'flashfarm',
     host: body,
     render: ({ multiplier, minigameUnlocked }) => [
-      el('strong', { class: 'w32celebrate__title', text: '🎁 A friend sent you a gift!' }),
+      el('strong', { class: 'w32celebrate__title', text: 'TIER UPGRADE APPROVED' }),
       el('span', {
         class: 'w32celebrate__body',
-        text: `Free Deluxe Fertiliser applied. Yield is now ×${multiplier}.`,
+        text: `Payout engine relicensed. Cycle throughput is now ×${multiplier}.`,
       }),
       ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Decline Gift Requests unlocked' })]
+        ? [el('em', { class: 'w32celebrate__extra', text: 'Clear the Queue unlocked' })]
         : []),
     ],
   });
 
-  /* ---------------------------------------------------------------- shop */
+  /* ------------------------------------------------------------ packages */
 
-  for (const bundle of BUNDLES) {
-    bundlesRoot.appendChild(
+  for (const pack of PACKAGES) {
+    packagesRoot.appendChild(
       el(
         'button',
         {
           type: 'button',
-          class: 'ff__bundle',
-          style: `--bundle-hue:${bundle.hue}`,
-          dataset: { bundle: bundle.id },
+          class: 'ff__package',
+          style: `--pack-hue:${pack.hue}`,
+          dataset: { pack: pack.id },
           onclick: () => {
-            // The same call the plain buy row makes. A shop that did anything
-            // else would be a second economy in a satirical costume.
-            const result = game.buyUnits('flashfarm', bundle.units);
+            // The same call the provisioning row makes. A shelf that did
+            // anything else would be a second economy in a costume.
+            const result = game.buyUnits('flashfarm', pack.units);
             if (!result.ok) {
               game.notify(
-                'Not enough Buzz',
-                `${bundle.name} needs more than you have. Your crops are fine. Probably.`,
+                'Capacity request declined',
+                `${pack.name} needs more Buzz than the account holds.`,
                 'warn',
               );
               return;
             }
-            renderPlots(true);
+            renderTenants(true);
           },
         },
         [
-          el('span', { class: 'ff__bundle-tag', text: bundle.tag }),
-          el('span', { class: 'ff__bundle-art', 'aria-hidden': 'true', text: '🪙' }),
-          el('span', { class: 'ff__bundle-name', text: bundle.name }),
-          el('span', { class: 'ff__bundle-units', text: `${bundle.units} plots` }),
-          el('span', { class: 'ff__bundle-price', dataset: { role: `price-${bundle.id}` } }),
+          el('span', { class: 'ff__package-tag', text: pack.tag }),
+          el('span', { class: 'ff__package-name', text: pack.name }),
+          el('span', { class: 'ff__package-units', text: `${pack.units} loops` }),
+          el('span', { class: 'ff__package-price', dataset: { role: `price-${pack.id}` } }),
         ],
       ),
     );
   }
 
-  /* ------------------------------------------------------------- balloons */
+  /* ------------------------------------------------------------- notices */
 
   /**
-   * The nagging.
+   * The alert strip.
    *
-   * Simulation-independent and capped at three on screen: this is decoration
-   * with a pulse, not a mechanic, and it must never become a performance
-   * problem in a window the player leaves open. Dismissing one schedules the
-   * next, which is the point — the app does not stop asking.
+   * One at a time, capped, and dismissible — this is a dashboard, not the old
+   * nag balloons. It pulses rather than moves, for the same reason the balloons
+   * ended up doing so: a control that never settles is a control that is hard
+   * to click, and "intrusive" must never mean "un-dismissable".
    */
-  const MAX_BALLOONS = 3;
-  let balloonSeed = 0;
-  let balloonTimer = null;
+  let noticeSeed = 0;
+  let noticeTimer = null;
 
-  function spawnBalloon() {
+  function showNotice() {
     if (!game.econ.isBuildingUnlocked(game.state, 'flashfarm')) return;
     if (game.econ.unitsOf(game.state, 'flashfarm') === 0) return;
-    if (balloonRoot.childElementCount >= MAX_BALLOONS) return;
-
-    const [title, action] = REQUESTS[hash(balloonSeed) % REQUESTS.length];
-    balloonSeed += 1;
-
-    const node = el('div', { class: 'ff__balloon' }, [
-      el('span', { class: 'ff__balloon-title', text: title }),
-      el('span', { class: 'ff__balloon-action', text: action }),
-      el('button', {
-        type: 'button',
-        class: 'ff__balloon-close',
-        'aria-label': 'Dismiss request',
-        text: '×',
-        onclick: () => {
-          node.remove();
-          // ...and immediately queue another. Closing one is not an exit.
-          schedule(1200);
-        },
-      }),
-    ]);
-    balloonRoot.appendChild(node);
+    const [text, action] = NOTICES[hash(noticeSeed) % NOTICES.length];
+    noticeSeed += 1;
+    ref('notice-text').textContent = text;
+    ref('notice-action').textContent = action;
+    ref('notice').hidden = false;
   }
 
-  function schedule(ms) {
-    clearTimeout(balloonTimer);
-    balloonTimer = setTimeout(() => {
-      spawnBalloon();
-      schedule(4200 + hash(balloonSeed) % 3000);
+  ref('notice-action').addEventListener('click', () => {
+    // Acknowledging is free and changes nothing — the platform simply has
+    // another thing to tell you in a moment.
+    ref('notice').hidden = true;
+    scheduleNotice(2200);
+  });
+
+  function scheduleNotice(ms) {
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => {
+      showNotice();
+      scheduleNotice(6000 + (hash(noticeSeed) % 4000));
     }, ms);
   }
 
-  /* ---------------------------------------------------------------- plots */
+  /* ------------------------------------------------------------- tenants */
 
-  let plotsKey = null;
+  let tenantsKey = null;
 
-  function renderPlots(force = false) {
-    const units = game.econ.unitsOf(game.state, 'flashfarm');
-    const count = plotCount(units);
-    if (!force && count === plotsKey) return;
-    plotsKey = count;
+  function renderTenants(force = false) {
+    const bd = game.econ.getProductionBreakdown(game.state, 'flashfarm');
+    const tier = bd.milestoneMultiplier;
+    const count = bd.units === 0 ? 0 : tenantCount(tier);
+    const key = `${count}|${bd.units}`;
+    if (!force && key === tenantsKey) return;
+    tenantsKey = key;
 
-    clear(plotsRoot);
-    for (let i = 0; i < count; i += 1) {
-      const seed = hash(i);
-      // One plot in seven is withering, which is what the shop is *for*.
-      const withering = seed % 7 === 0;
-      plotsRoot.appendChild(
-        el('span', {
-          class: `ff__plot${withering ? ' is-withering' : ''}`,
-          text: withering ? '🥀' : CROPS[seed % CROPS.length],
-        }),
+    clear(tenantsRoot);
+    if (count === 0) {
+      tenantsRoot.appendChild(
+        el('li', { class: 'ff__empty', text: 'No tenants. Host a session loop to begin.' }),
       );
+      return;
+    }
+
+    for (let i = 0; i < count; i += 1) {
+      const [name, ref_] = CLIENTS[i];
+      // Load per tenant: what share of the operation each client is consuming.
+      const load = 0.35 + ((hash(i, tier) % 60) / 100);
+      const fill = el('div', { class: 'meter__fill' });
+      const row = el('li', { class: 'ff__tenant' }, [
+        el('span', { class: 'ff__tenant-name', text: name }),
+        el('span', { class: 'ff__tenant-ref', text: ref_ }),
+        el('span', { class: 'ff__tenant-load' }, el('span', { class: 'ff__tenant-track' }, fill)),
+        el('span', {
+          class: 'ff__tenant-spins',
+          text: `${formatNumber(Math.floor((bd.units / count) * 61))}/s`,
+        }),
+      ]);
+      tenantsRoot.appendChild(row);
+      setBar(fill, Math.min(1, load), { warn: 0.85, critical: 0.95 });
     }
   }
 
@@ -260,32 +292,37 @@ export function mount(body, { game }) {
     }
 
     const bd = econ.getProductionBreakdown(s, 'flashfarm');
-    ref('bucks').textContent = `🪙 ${formatNumber(bd.units * 3)} Farm Bucks`;
-    ref('level').textContent = `Lv ${1 + Math.floor(Math.log2(bd.milestoneMultiplier)) * 7}`;
+    const tier = bd.milestoneMultiplier;
+
+    ref('spins').textContent = formatNumber(bd.units * 61 * tier);
+    ref('loops').textContent = formatNumber(bd.units);
+    ref('tenants').textContent = String(bd.units === 0 ? 0 : tenantCount(tier));
+    ref('region').textContent = tier >= 8 ? 'multi-region' : 'eu-west-2';
     ref('status').textContent =
-      bd.units === 0 ? 'Your farm is empty.' : `${formatNumber(bd.units)} plots · 47 unclaimed gifts`;
+      bd.units === 0
+        ? 'No sessions hosted.'
+        : `${formatNumber(bd.units)} loops · ${formatNumber(bd.units * 61 * tier)} spins/s`;
     ref('rate').textContent = bd.total > 0 ? `+${formatNumber(bd.total)} Buzz/s` : '';
 
-    for (const bundle of BUNDLES) {
-      const node = ref(`price-${bundle.id}`);
-      const { count, cost } = econ.affordableUnits(s, 'flashfarm', bundle.units);
-      const full = econ.unitCostBulk('flashfarm', bd.units, bundle.units);
-      node.textContent = formatNumber(full);
-      body.querySelector(`[data-bundle="${bundle.id}"]`).disabled = count < bundle.units;
-      void cost;
+    for (const pack of PACKAGES) {
+      ref(`price-${pack.id}`).textContent = formatNumber(
+        econ.unitCostBulk('flashfarm', bd.units, pack.units),
+      );
+      const { count } = econ.affordableUnits(s, 'flashfarm', pack.units);
+      body.querySelector(`[data-pack="${pack.id}"]`).disabled = count < pack.units;
     }
 
     meter.update();
     buy.update();
-    renderPlots();
+    renderTenants();
   }, 150);
 
   update();
-  schedule(2600);
+  scheduleNotice(3200);
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
-    clearTimeout(balloonTimer);
+    clearTimeout(noticeTimer);
     celebration.destroy();
     body.classList.remove('app-flashfarm');
   };

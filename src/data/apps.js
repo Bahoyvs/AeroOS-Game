@@ -117,7 +117,7 @@ export const APPS = [
     ram: 120,
     install: { cost: 900_000, unlockAt: 300_000 },
     window: { width: 500, height: 510 },
-    blurb: 'Your crops are withering. Your friends can help. Ask them.',
+    blurb: 'Host the loop. The clients are not people you will ever meet.',
   },
   {
     id: 'botnet',

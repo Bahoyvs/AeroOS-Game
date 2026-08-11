@@ -142,19 +142,26 @@ export const BUILDINGS = [
     id: 'flashfarm',
     name: 'FlashFarm',
     phase: 3,
-    reference: 'FarmVille-alike (satirical)',
-    unit: 'plot',
-    units: 'plots',
+    reference: 'session-hosting backend for slot games (satirical)',
+    unit: 'loop',
+    units: 'loops',
     unlockAt: 400_000,
     baseCost: 358_318_080,
     baseProduction: 5_000_000,
-    blurb: 'Your crops are withering. Your friends can help. Ask them. Ask them.',
+    blurb: 'Host the loop. The clients are not people you will ever meet.',
+    /**
+     * Renamed with the building. GDD §6 calls this "Decline Gift Requests",
+     * written when FlashFarm was a farm and the player was the mark. They are
+     * the operator now, so the same mechanic — clear the incoming demands
+     * before they bury the screen — is the platform's alert queue instead.
+     * Phase 5 implements it; the id changes now so it is never built twice.
+     */
     minigame: {
-      id: 'decline-gifts',
-      title: 'Decline Gift Requests',
-      blurb: 'Clear the un-closable balloons before they cover the screen.',
+      id: 'clear-the-queue',
+      title: 'Clear the Queue',
+      blurb: 'Dismiss the tenant alerts before the backlog buries the dashboard.',
     },
-    synergy: 'Somebody automated the gift requests. It was not a person.',
+    synergy: 'Somebody automated the players too. It was not a person.',
   },
   {
     id: 'botnet',

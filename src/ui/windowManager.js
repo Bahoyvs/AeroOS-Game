@@ -113,7 +113,15 @@ export function createWindowManager({
     el.setAttribute('aria-label', app.name);
     el.setAttribute('aria-live', 'polite');
     el.setAttribute('tabindex', '0');
-    el.innerHTML = '<div class="window-anchor__body aero-window__body"></div>';
+    /**
+     * Note what this body is *not* given: `aero-window__body`.
+     *
+     * That class carries `overflow-y: auto`, which is right for a framed window
+     * and wrong here — it put a scrollbar down the side of a chrome-less orb,
+     * which is a standard window element on the one window that is supposed to
+     * have none of them. An anchor is sized by its content and never scrolls.
+     */
+    el.innerHTML = '<div class="window-anchor__body"></div>';
     return el;
   }
 

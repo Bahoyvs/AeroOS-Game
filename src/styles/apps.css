@@ -2857,331 +2857,6 @@
 
 .app-vidchat .w32meter { color: #b9c6d4; }
 
-/* ------------------------------------------------------------- FlashFarm */
-
-.app-flashfarm {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto 1fr auto auto auto auto;
-  background: linear-gradient(180deg, #5ad7ff, #a8f24a);
-}
-
-.ff__bar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 5px 8px;
-  font-family: 'Comic Sans MS', cursive, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-  background: linear-gradient(180deg, #ff8a3d, #f2600a);
-  border-bottom: 2px solid #b34400;
-}
-
-.ff__wordmark { flex: 1; font-size: 14px; }
-
-.ff__body { display: grid; grid-template-columns: 1fr 128px; min-height: 0; }
-
-.ff__field { position: relative; min-height: 0; overflow: hidden; }
-
-.ff__plots {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
-  gap: 2px;
-  padding: 6px;
-}
-
-.ff__plot {
-  display: grid;
-  place-items: center;
-  aspect-ratio: 1;
-  font-size: 17px;
-  background: linear-gradient(180deg, #7ede4f, #4aa32a);
-  border: 1px solid #2c7a1f;
-  border-radius: 3px;
-}
-
-.ff__plot.is-withering { background: linear-gradient(180deg, #d9a05a, #a06b2a); }
-
-/* The gift requests. They sit over the crops, they overlap each other, and
-   closing one queues the next — which is the mechanic being satirised. */
-.ff__balloons {
-  position: absolute;
-  inset: 6px 6px auto;
-  display: grid;
-  gap: 5px;
-  pointer-events: none;
-}
-
-.ff__balloon {
-  position: relative;
-  display: grid;
-  gap: 1px;
-  padding: 6px 46px 6px 10px;
-  pointer-events: auto;
-  background: linear-gradient(180deg, #fff, #ffe9f4);
-  border: 2px solid #ff4fa3;
-  border-radius: 10px;
-  box-shadow: 0 3px 10px rgb(193 31 104 / 0.35);
-  animation: ff-nag 2.2s ease-in-out infinite;
-  /* The balloon owns the pulse; nothing inside it moves. See ff-nag. */
-  will-change: box-shadow;
-}
-
-.ff__balloon-title { font-size: 11px; font-weight: 700; color: #c11f68; }
-.ff__balloon-action { font-size: 10px; color: #7a4a5e; text-decoration: underline; }
-
-/**
- * The close button: drawn small, sized properly.
- *
- * Every one of these balloons had a close button you could barely hit, and
- * reproducing that is half the joke — but a 24px control on a phone is not a
- * joke, it is a control the player cannot use. The glyph stays tiny and
- * off in the corner; the button around it is a full 44px touch target with
- * most of it transparent. Annoying is the brief. Inaccessible is not.
- */
-.ff__balloon-close {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: grid;
-  place-items: start end;
-  /* Explicit border-box: the glyph is tiny and lives in the corner, but the
-     button around it has to measure a real 44px on a phone. */
-  box-sizing: border-box;
-  width: 44px;
-  min-width: 0;
-  height: 44px;
-  padding: 3px 5px 0 0;
-  font-size: 13px;
-  line-height: 1;
-  color: #c11f68;
-  cursor: pointer;
-  background: none;
-  border: 0;
-}
-
-/**
- * The nag pulses, it does not move.
- *
- * The first version bobbed with `translateY`, which looked right and made the
- * close button genuinely hard to click — a 2px oscillation is enough that a
- * pointer heading for a 44px target can miss it, and a browser driving the page
- * refuses to click it at all because it never settles. Being intrusive is the
- * brief; being un-dismissable is a bug wearing the brief's clothes. Glow and
- * border do the shouting instead, and every pixel of the balloon stays put.
- */
-@keyframes ff-nag {
-  0%, 100% {
-    border-color: #ff4fa3;
-    box-shadow: 0 3px 10px rgb(193 31 104 / 0.3);
-  }
-  50% {
-    border-color: #ff1f86;
-    box-shadow: 0 3px 16px rgb(193 31 104 / 0.62);
-  }
-}
-
-/* The shop. Brighter than anything else in the OS, and it pulses. This is the
-   one surface in the game allowed to be actively unpleasant. */
-.ff__shop {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  overflow-y: auto;
-  background: linear-gradient(180deg, #ffd93d, #ff8a3d);
-  border-left: 3px solid #b34400;
-}
-
-.ff__shop-head {
-  display: grid;
-  padding: 6px 4px;
-  text-align: center;
-  background: linear-gradient(180deg, #ff4fa3, #c11f68);
-}
-
-.ff__shop-title {
-  font-family: 'Comic Sans MS', cursive, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  text-shadow: 0 1px 0 #8a1148;
-}
-
-.ff__shop-sub { font-size: 9px; color: #ffe0ef; }
-
-.ff__bundles { display: grid; gap: 5px; padding: 5px; }
-
-.ff__bundle {
-  position: relative;
-  display: grid;
-  gap: 1px;
-  min-height: 44px;
-  padding: 16px 4px 5px;
-  font: inherit;
-  text-align: center;
-  cursor: pointer;
-  background: linear-gradient(180deg, #fff, hsl(var(--bundle-hue) 95% 88%));
-  border: 2px solid hsl(var(--bundle-hue) 75% 45%);
-  border-radius: 6px;
-  box-shadow: 0 2px 0 hsl(var(--bundle-hue) 60% 35%), 0 0 12px hsl(var(--bundle-hue) 95% 70% / 0.7);
-  animation: ff-glow 1.8s ease-in-out infinite;
-}
-
-.ff__bundle:disabled { cursor: default; filter: grayscale(0.65) brightness(0.92); animation: none; }
-.ff__bundle:hover:not(:disabled) { filter: brightness(1.06); }
-
-.ff__bundle-tag {
-  position: absolute;
-  top: -6px;
-  left: 50%;
-  padding: 1px 6px;
-  font-size: 8px;
-  font-weight: 700;
-  color: #fff;
-  white-space: nowrap;
-  background: #e5342b;
-  border-radius: 8px;
-  transform: translateX(-50%) rotate(-3deg);
-}
-
-.ff__bundle-art { font-size: 18px; }
-.ff__bundle-name { font-size: 10px; font-weight: 700; color: #6b3a00; }
-.ff__bundle-units { font-size: 9px; color: #8a5e00; }
-.ff__bundle-price { font-size: 10px; font-weight: 700; color: #2c7a1f; }
-
-@keyframes ff-glow {
-  0%, 100% { box-shadow: 0 2px 0 hsl(var(--bundle-hue) 60% 35%), 0 0 8px hsl(var(--bundle-hue) 95% 70% / 0.55); }
-  50% { box-shadow: 0 2px 0 hsl(var(--bundle-hue) 60% 35%), 0 0 18px hsl(var(--bundle-hue) 95% 70% / 0.95); }
-}
-
-.ff__shop-foot { padding: 4px; font-size: 8px; color: #7a4400; text-align: center; }
-
-.ff__status {
-  display: flex;
-  justify-content: space-between;
-  padding: 3px 8px;
-  font-size: 10px;
-  color: #2c4a12;
-  background: #cdf29a;
-  border-top: 1px solid #7bbf4a;
-}
-
-/* The player asked for less movement. The shop stops pulsing and the balloons
-   stop bobbing — they are still there, still bright, still nagging. */
-[data-motion='reduced'] .ff__balloon,
-[data-motion='reduced'] .ff__bundle { animation: none; }
-
-/* ---------------------------------------------------------------- BotNet */
-
-.app-botnet {
-  position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1.15fr) minmax(0, 1fr) auto auto auto auto;
-  font-family: 'Lucida Console', Consolas, monospace;
-  font-size: 11px;
-  color: #39ff5e;
-  background: #060906;
-}
-
-.bn__bar {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 8px;
-  color: #8dffa4;
-  background: #0b120b;
-  border-bottom: 1px solid #1d3a1d;
-}
-
-.bn__panes { display: grid; grid-template-columns: 1fr 168px; min-height: 0; }
-
-.bn__map {
-  /* No wrapping and no scrollbar chrome: the map is meant to overrun its box a
-     little, so the network reads as bigger than the window. */
-  padding: 4px 6px;
-  margin: 0;
-  overflow: hidden;
-  font-size: 10px;
-  line-height: 1.02;
-  color: #2bbd45;
-  white-space: pre;
-  text-shadow: 0 0 4px rgb(57 255 94 / 0.5);
-}
-
-.bn__tree {
-  min-height: 0;
-  overflow-y: auto;
-  border-left: 1px solid #1d3a1d;
-}
-
-.bn__tree-head {
-  padding: 3px 6px;
-  font-size: 10px;
-  color: #0b120b;
-  background: #2bbd45;
-}
-
-.bn__tree-list { padding: 4px 6px; margin: 0; list-style: none; }
-.bn__dir { margin-top: 4px; font-size: 10px; color: #8dffa4; word-break: break-all; }
-.bn__file { font-size: 10px; color: #2bbd45; word-break: break-all; }
-.bn__file.is-new { color: #eaff6b; }
-
-.bn__log {
-  padding: 4px 6px;
-  margin: 0;
-  overflow-y: auto;
-  font-size: 10px;
-  line-height: 1.35;
-  white-space: pre-wrap;
-  border-top: 1px solid #1d3a1d;
-}
-
-.bn__line { display: block; color: #1f9e33; }
-.bn__line.is-cmd { color: #eaff6b; }
-.bn__line.is-ok { color: #8dffa4; }
-
-.bn__status {
-  display: flex;
-  justify-content: space-between;
-  padding: 3px 8px;
-  font-size: 10px;
-  color: #8dffa4;
-  background: #0b120b;
-  border-top: 1px solid #1d3a1d;
-}
-
-/* The prompt is the purchase, so it is styled as a prompt: no bevel, no
-   gradient, no glass. The first window in the game with no Aero in it. */
-.bn__buy { background: #0b120b; border-top: 1px solid #1d3a1d; }
-
-.bn__buy .w32buy__btn {
-  font-family: inherit;
-  font-size: 10px;
-  color: #39ff5e;
-  text-align: left;
-  background: #06120a;
-  border: 1px solid #1d3a1d;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.bn__buy .w32buy__btn:hover:not(:disabled) { color: #0b120b; background: #2bbd45; }
-.bn__buy .w32buy__btn:disabled { color: #1f5c2a; background: #06120a; }
-.bn__buy .w32buy__cost { color: inherit; opacity: 0.75; }
-
-.app-botnet .w32meter { color: #8dffa4; }
-.app-vidchat .w32celebrate,
-.app-botnet .w32celebrate { color: #1a1a1a; }
-
-/* FlashFarm's gift balloons occupy the top of the field, so its celebration is
-   the other window that hangs from the bottom — a congratulation covering the
-   nagging it is congratulating you past is a joke that lands only once. */
-.app-flashfarm {
-  --w32celebrate-top: auto;
-  --w32celebrate-bottom: 96px;
-}
-
 /* ==========================================================================
    PHASE 4 — the cosmic/dystopian layer
    GDD §3.4 lets these three break the period rules. The erosion stops at the
@@ -3392,20 +3067,333 @@
 .ms__buy .w32buy__btn:disabled { color: #6a5a8a; background: #1e0f3a; }
 .app-mindsync .w32meter { color: #d9c6ff; }
 
-/* ---------------------------------------------------------------- The Hive */
 
-/**
- * The desktop anchor. No chrome, no frame, no shadow of a window — it is not
- * pretending to be one. Centred on the desktop and above the wallpaper, below
- * nothing.
- */
+/* ==========================================================================
+   BotNet — topology viewer on a black screen
+   Replaces the ASCII pass: the chaos carried no information, and a clean map
+   that visibly grows says "this is enormous" better than a wall of text.
+   ========================================================================== */
+
+.app-botnet {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto auto auto;
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 11px;
+  color: #39ff5e;
+  /* Pure black. Not near-black: this window is a screen in a dark room. */
+  background: #000;
+}
+
+.bn__bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 9px;
+  font-size: 10px;
+  color: #8dffa4;
+  background: #000;
+  border-bottom: 1px solid #123d1c;
+}
+
+.bn__map { display: grid; place-items: center; min-height: 0; padding: 4px; background: #000; }
+.bn__svg { width: 100%; height: 100%; }
+
+/* Range rings — the scanner's hop distances. Adding one is the clearest
+   possible "the network got bigger". */
+.bn__ring { fill: none; stroke: #17401f; stroke-width: 1; }
+
+.bn__spoke { stroke: #1f7a37; stroke-width: 1; opacity: 0.85; }
+
+.bn__hub {
+  fill: #000;
+  stroke: #8dffa4;
+  stroke-width: 1.6;
+}
+
+.bn__dot {
+  fill: #39ff5e;
+  stroke: #0a3d16;
+  stroke-width: 1;
+  transition: r 160ms ease-out;
+}
+
+.bn__host { cursor: default; }
+.bn__host:hover .bn__dot,
+.bn__host:focus-visible .bn__dot { r: 6.4; fill: #eaff6b; }
+.bn__host:focus-visible { outline: 1px solid #eaff6b; outline-offset: 2px; }
+
+/* Filtered hosts: present, mapped, and not answering. */
+.bn__host.is-down .bn__dot { fill: #000; stroke: #2bbd45; stroke-dasharray: 2 2; }
+
+.bn__label {
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 7.5px;
+  fill: #6fe08a;
+}
+
+.bn__idle { font-family: inherit; font-size: 9px; fill: #1f7a37; }
+
+[data-motion='reduced'] .bn__dot { transition: none; }
+
+/* The legend is where the old scrolling log's numbers went — readable, static,
+   and next to the thing they describe. */
+.bn__legend {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 0;
+  background: #123d1c;
+  border-top: 1px solid #123d1c;
+}
+
+.bn__legend > div { display: grid; gap: 1px; padding: 4px 8px; background: #000; }
+.bn__legend dt { font-size: 8.5px; color: #2bbd45; letter-spacing: 0.6px; }
+.bn__legend dd { margin: 0; font-size: 11px; color: #8dffa4; }
+
+.bn__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 9px;
+  font-size: 10px;
+  color: #2bbd45;
+  background: #000;
+  border-top: 1px solid #123d1c;
+}
+
+.bn__hint { opacity: 0.6; }
+
+.bn__buy { background: #000; border-top: 1px solid #123d1c; }
+
+.bn__buy .w32buy__btn {
+  font-family: inherit;
+  font-size: 10px;
+  color: #39ff5e;
+  text-align: left;
+  background: #04140a;
+  border: 1px solid #123d1c;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.bn__buy .w32buy__btn:hover:not(:disabled) { color: #000; background: #2bbd45; }
+.bn__buy .w32buy__btn:disabled { color: #1f5c2a; background: #04140a; }
+.bn__buy .w32buy__cost { color: inherit; opacity: 0.75; }
+.app-botnet .w32meter { color: #8dffa4; }
+.app-botnet .meter__track { background: #0d2a13; }
+
+/* ==========================================================================
+   FlashFarm — session hosting platform
+   A glossy operator dashboard. The player is not the mark here; they are the
+   one selling, and the platform's eagerness is aimed at them.
+   ========================================================================== */
+
+.app-flashfarm {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto auto auto;
+  font-family: Segoe UI, system-ui, sans-serif;
+  color: #e8eef7;
+  background: linear-gradient(180deg, #101a2c, #0a1220);
+}
+
+.ff__bar {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 7px 10px;
+  background: linear-gradient(180deg, #1d3a6b, #12244a);
+  border-bottom: 1px solid #0a1428;
+}
+
+.ff__wordmark { font-size: 14px; font-weight: 700; letter-spacing: 0.4px; }
+.ff__sub { flex: 1; font-size: 10px; color: #8fb3e0; }
+.ff__region { font-size: 10px; color: #5ce1ff; }
+
+.ff__kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #0a1428; }
+
+.ff__kpi {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  background: linear-gradient(180deg, #16263f, #101a2c);
+}
+
+.ff__kpi-label { font-size: 8.5px; letter-spacing: 1px; color: #7f9dc4; }
+.ff__kpi-value { font-size: 17px; font-weight: 700; color: #5ce1ff; }
+
+.ff__body { display: grid; grid-template-columns: 1fr 136px; min-height: 0; }
+.ff__main { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; padding: 6px 8px; }
+
+/* The alert strip. It pulses; it does not move — a control that never settles
+   is a control that is hard to click. */
+.ff__notice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  background: linear-gradient(180deg, #23407a, #172c55);
+  border: 1px solid #3d6cbf;
+  border-radius: 4px;
+  animation: ff-alert 2.6s ease-in-out infinite;
+}
+
+.ff__notice[hidden] { display: none; }
+.ff__notice-text { flex: 1; }
+
+.ff__notice-action {
+  min-width: 68px;
+  /* The touch floor applies to the alert strip too — it is a real control the
+     player is expected to press, not decoration. */
+  min-height: 44px;
+  padding: 3px 9px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: #06121f;
+  cursor: pointer;
+  background: linear-gradient(180deg, #7fe9ff, #35b6e8);
+  border: 1px solid #1d7fa8;
+  border-radius: 3px;
+}
+
+@keyframes ff-alert {
+  0%, 100% { border-color: #3d6cbf; box-shadow: 0 0 0 rgb(92 225 255 / 0); }
+  50% { border-color: #5ce1ff; box-shadow: 0 0 12px rgb(92 225 255 / 0.45); }
+}
+
+.ff__heading { margin: 0 0 4px; font-size: 10px; letter-spacing: 1px; color: #7f9dc4; }
+.ff__tenants { min-height: 0; padding: 0; margin: 0; overflow-y: auto; list-style: none; }
+
+.ff__tenant {
+  display: grid;
+  grid-template-columns: 1fr 52px 60px 54px;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 4px;
+  font-size: 10px;
+  border-bottom: 1px solid #1a2c48;
+}
+
+.ff__tenant-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ff__tenant-ref { color: #7f9dc4; }
+.ff__tenant-track { display: block; height: 5px; overflow: hidden; background: #16263f; border-radius: 3px; }
+
+.ff__tenant-track .meter__fill {
+  height: 100%;
+  background: linear-gradient(90deg, #35b6e8, #5ce1ff);
+  transform-origin: left;
+  transform: scaleX(var(--fill, 0));
+  transition: transform 320ms linear;
+}
+
+.ff__tenant-track .meter__fill.is-critical { background: linear-gradient(90deg, #ff8a3d, #ff4f4f); }
+[data-motion='reduced'] .ff__tenant-track .meter__fill { transition: none; }
+.ff__tenant-spins { color: #5ce1ff; text-align: right; }
+.ff__empty { padding: 14px 4px; font-size: 10px; color: #7f9dc4; text-align: center; }
+
+/* The shelf. Too bright for the dashboard it is bolted to, and pulsing —
+   the one surface in the game allowed to be actively unpleasant. */
+.ff__shop {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #2a1a4e, #17102e);
+  border-left: 2px solid #5ce1ff;
+}
+
+.ff__shop-head { display: grid; padding: 6px 4px; text-align: center; background: linear-gradient(180deg, #ff4fa3, #b81f68); }
+.ff__shop-title { font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
+.ff__shop-sub { font-size: 8.5px; color: #ffd9ec; }
+.ff__packages { display: grid; gap: 6px; padding: 6px 5px; }
+
+.ff__package {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  min-height: 44px;
+  padding: 15px 5px 6px;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fff, hsl(var(--pack-hue) 92% 88%));
+  border: 2px solid hsl(var(--pack-hue) 70% 48%);
+  border-radius: 6px;
+  box-shadow: 0 2px 0 hsl(var(--pack-hue) 55% 34%), 0 0 12px hsl(var(--pack-hue) 92% 66% / 0.65);
+  animation: ff-glow 1.9s ease-in-out infinite;
+}
+
+.ff__package:disabled { cursor: default; filter: grayscale(0.7) brightness(0.9); animation: none; }
+.ff__package:hover:not(:disabled) { filter: brightness(1.06); }
+
+.ff__package-tag {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  padding: 1px 6px;
+  font-size: 7.5px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  background: #e5342b;
+  border-radius: 8px;
+  transform: translateX(-50%) rotate(-3deg);
+}
+
+.ff__package-name { font-size: 10px; font-weight: 700; color: #14243d; }
+.ff__package-units { font-size: 9px; color: #46608a; }
+.ff__package-price { font-size: 10px; font-weight: 700; color: #1d7fa8; }
+
+@keyframes ff-glow {
+  0%, 100% { box-shadow: 0 2px 0 hsl(var(--pack-hue) 55% 34%), 0 0 8px hsl(var(--pack-hue) 92% 66% / 0.5); }
+  50% { box-shadow: 0 2px 0 hsl(var(--pack-hue) 55% 34%), 0 0 20px hsl(var(--pack-hue) 92% 66% / 0.95); }
+}
+
+[data-motion='reduced'] .ff__package,
+[data-motion='reduced'] .ff__notice { animation: none; }
+
+.ff__shop-foot { padding: 4px; font-size: 7.5px; color: #9b8cc4; text-align: center; }
+
+.ff__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px;
+  font-size: 10px;
+  color: #8fb3e0;
+  background: #0a1428;
+  border-top: 1px solid #1a2c48;
+}
+
+.ff__buy { background: #0a1428; border-top: 1px solid #1a2c48; }
+
+.ff__buy .w32buy__btn {
+  font-size: 10px;
+  color: #e8eef7;
+  background: linear-gradient(180deg, #1d3a6b, #12244a);
+  border: 1px solid #3d6cbf;
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.ff__buy .w32buy__btn:hover:not(:disabled) { background: linear-gradient(180deg, #2b5296, #1a3568); }
+.ff__buy .w32buy__btn:disabled { color: #52698c; background: #101a2c; }
+.app-flashfarm .w32meter { color: #8fb3e0; }
+.app-flashfarm .meter__track { background: #16263f; }
+
+/* ==========================================================================
+   The Hive — the mesh eye
+   A wireframe instrument, not a glossy orb: wireframe is what makes it read as
+   something measuring you rather than as a cartoon.
+   ========================================================================== */
+
 .desktop__anchors {
   position: fixed;
   inset: 0;
   z-index: 60;
   display: grid;
   place-items: center;
-  pointer-events: none; /* only the orb itself is interactive */
+  pointer-events: none; /* only the eye itself is interactive */
 }
 
 .window-anchor {
@@ -3416,103 +3404,116 @@
 
 .window-anchor.is-open { opacity: 1; }
 
-/* Focus must be *visible*, not merely possible — this is the one window a
-   keyboard user cannot close, so they have to be able to see where they are. */
+/* The anchor never scrolls and never clips: it is sized by its content, and a
+   scrollbar here would be a standard window element on the one window that is
+   supposed to have none. */
+.window-anchor__body { overflow: visible; }
+
 .window-anchor:focus-visible {
-  outline: 2px solid #ffd27a;
-  outline-offset: 8px;
-  border-radius: 50%;
+  outline: 2px solid #7fd8ff;
+  outline-offset: 10px;
+  border-radius: 12px;
 }
 
 .app-thehive {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   place-items: center;
-  width: 300px;
+  width: min(460px, 84vw);
+  overflow: visible;
   text-align: center;
 }
 
-.hive__orb {
+.hive__stage {
   position: relative;
   display: grid;
   place-items: center;
-  width: 150px;
-  height: 150px;
-  transform: scale(var(--hive-scale, 1));
-  transition: transform 600ms ease-out;
-}
-
-.hive__halo {
-  position: absolute;
-  inset: -18%;
-  background: radial-gradient(
-    circle,
-    rgb(255 160 60 / calc(0.35 * var(--hive-heat, 0.2))) 0%,
-    transparent 68%
-  );
-  border-radius: 50%;
-}
-
-.hive__core {
   width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at 36% 30%, #fff4d6, #ffb347 32%, #d2410a 68%, #3d0a02 100%);
-  border-radius: 50%;
-  box-shadow:
-    0 0 calc(30px + 50px * var(--hive-heat, 0.2)) rgb(210 65 10 / 0.75),
-    inset -8px -12px 26px rgb(0 0 0 / 0.55);
-  /* Follows the cursor. Compositor-only, and disabled under reduced motion. */
-  transform: translate(
-    calc(var(--hive-look-x, 0) * 7px),
-    calc(var(--hive-look-y, 0) * 7px)
-  );
-  transition: transform 220ms ease-out;
+  transform: scale(var(--hive-scale, 1));
+  transform-origin: center;
+  transition: transform 700ms ease-out;
 }
+
+.hive__eye { width: 100%; height: auto; overflow: visible; }
+
+/* The lids: stacked contours, like a wireframe surface. `--i` fades the inner
+   ones so the stack reads as depth rather than as a stack. */
+.hive__lid {
+  fill: none;
+  stroke: #6fc4e8;
+  stroke-width: 0.8;
+  opacity: calc(0.22 + 0.06 * (8 - var(--i, 0)));
+}
+
+.hive__lid--front { stroke: #9fdcf5; stroke-width: 1.4; opacity: 0.9; }
+
+.hive__sclera {
+  fill: url(#hive-sclera-fill), #dff1fb;
+  fill: #e8f6fd;
+  opacity: calc(0.72 + 0.2 * var(--hive-heat, 0.2));
+}
+
+/* Iris: latitude rings + longitude arcs = a sphere in wireframe. */
+.hive__lat,
+.hive__lon {
+  fill: none;
+  stroke: #5aa9cc;
+  stroke-width: 0.55;
+  opacity: 0.55;
+}
+
+.hive__iris-rim { fill: none; stroke: #2f7fa6; stroke-width: 1.2; opacity: 0.9; }
+
+.hive__pupil {
+  fill: #0d1c25;
+  opacity: calc(0.86 + 0.14 * var(--hive-heat, 0.2));
+}
+
+.hive__crosshair line { stroke: #dff1fb; stroke-width: 1.3; }
+.hive__crosshair circle { fill: none; stroke: #dff1fb; stroke-width: 1.3; }
+.hive__crosshair-ring { opacity: 0.75; }
+.hive__glint { fill: #fff; opacity: 0.55; }
+
+/* The pupil group is what tracks the cursor. The transform is written in SVG
+   user units by the app module; the transition here smooths it. */
+.hive__pupilGroup { transition: transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1); }
+[data-motion='reduced'] .hive__pupilGroup,
+[data-motion='reduced'] .hive__stage { transition: none; }
 
 .hive__utterance {
   position: absolute;
+  bottom: 8%;
   font-family: Georgia, serif;
   font-size: 13px;
   font-style: italic;
-  color: rgb(255 244 214 / 0.92);
-  text-shadow: 0 1px 6px #3d0a02;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  color: rgb(223 241 251 / 0.9);
+  text-shadow: 0 1px 8px #05202e;
+  pointer-events: none;
 }
 
 .hive__readout {
-  max-width: 280px;
+  max-width: 320px;
   margin: 0;
   font-size: 11px;
-  color: #ffd9b0;
-  text-shadow: 0 1px 4px #000;
+  color: #cfeaf8;
+  text-shadow: 0 1px 5px #000;
 }
 
-.hive__escape { margin: 0; font-size: 10px; color: rgb(255 217 176 / 0.65); }
+.hive__escape { margin: 0; font-size: 10px; color: rgb(207 234 248 / 0.6); }
 
-.hive__buy {
-  grid-template-columns: repeat(4, auto);
-  gap: 4px;
-  padding: 0;
-  border: 0;
-}
+.hive__buy { grid-template-columns: repeat(4, auto); gap: 4px; padding: 0; border: 0; }
 
 .hive__buy .w32buy__btn {
-  min-width: 56px;
-  color: #ffe8c8;
-  background: rgb(61 10 2 / 0.85);
-  border: 1px solid #a8340a;
+  min-width: 58px;
+  color: #dff1fb;
+  background: rgb(8 32 44 / 0.88);
+  border: 1px solid #3f8fb5;
   border-radius: 3px;
-  box-shadow: 0 0 12px rgb(210 65 10 / 0.45);
+  box-shadow: 0 0 12px rgb(63 143 181 / 0.4);
 }
 
-.hive__buy .w32buy__btn:hover:not(:disabled) { background: #a8340a; }
-.hive__buy .w32buy__btn:disabled { color: rgb(255 232 200 / 0.4); box-shadow: none; }
+.hive__buy .w32buy__btn:hover:not(:disabled) { background: #2f7fa6; }
+.hive__buy .w32buy__btn:disabled { color: rgb(223 241 251 / 0.35); box-shadow: none; }
 
-/* Reduced motion: the orb stops tracking and stops growing smoothly. It is
-   still there, still lit, still the size its tier says — the setting asks for
-   less movement, not for a different game. */
-[data-motion='reduced'] .hive__core,
-[data-motion='reduced'] .hive__orb { transition: none; }
-[data-motion='reduced'] .hive__core { transform: none; }
-
-.app-thehive .w32celebrate { inset: auto 0 -54px; color: #3d0a02; }
+.app-thehive .w32celebrate { inset: auto 0 -52px; color: #072430; }
