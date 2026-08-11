@@ -257,11 +257,71 @@ Nothing was left behind as a disabled hook. A dormant seam in the hot path is a 
 paid on every purchase for a feature nobody is going to build, and the next person to
 read `buyUnits` should not have to work out whether the gate is live.
 
-## Phase 6 — Buffer Overflow event system
+## Phase 6 — Buffer Overflow event system *(done)*
 
-`core/feedRatio.js` → three escalating phases → Airplane Mode purchase → cosmetic unlock.
-Ghost notifications steal a percentage of `buzzPerSecond`, so they belong in the
-multiplier chain, not in a bespoke subtraction.
+`core/overflow.js` + `ui/overflow.js`. The "Dead Internet" crisis, built entirely out of
+systems that already existed — which is the constraint that kept it to two modules and a
+stylesheet.
+
+**What it watches.** `feedRatio` is units across the five feed buildings over units
+across the three the player started with (`FEED_BUILDING_IDS` / `ANCHOR_BUILDING_IDS`,
+hand-listed in `data/buildings.js` so VidChat stays out of the numerator). It measures
+the *shape* of a machine, not its size: a player who keeps AeroChat, RetroAmp and
+ChainMail stocked never meets any of this, and the remedy for a player who does is the
+cheapest purchase in the game.
+
+**Why it dwells.** The ratio is sampled every 15 simulation seconds and the phase is the
+*minimum* across the last four samples. Escalating therefore needs a minute of sustained
+pressure — one bulk buy of The Hive cannot open a fullscreen crisis — while
+de-escalating happens on the first sample that disagrees, because a remedy that takes a
+minute to be believed does not read as a remedy.
+
+**Which clock.** Simulation time, deliberately: a crisis about where the player's
+attention is going may not escalate while nobody is there to have any. Ghosts are the
+one asymmetry — they *spawn* on `dt` and *expire* on the wall clock, so a closed tab
+accrues none and clears any that were live. Both directions favour the player who steps
+away, which is the correct bias for an event about not stepping away.
+
+**Three phases.**
+
+| phase | ratio | what happens |
+| --- | --- | --- |
+| 1 | ≥ 1.5 | the wallpaper tears. Cosmetic; no economy change at all. |
+| 2 | ≥ 3 | ghost notifications, each costing 6% of production while it is on screen. |
+| 3 | ≥ 6 | the machine asks the question. |
+
+**Everything it does, it does through something that was already there.** Ghosts are one
+more factor in `globalMultiplier`, next to `bloatPenalty` and `defragPenalty` — so all
+twelve windows report the cost through `getProductionBreakdown` and not one of them
+knows the event exists. Log Off and Doomscroll are ordinary entries in `state.buffs`
+(−50% for two minutes, ×3 for three). Doomscroll's real price is a quarter of a bloat
+bar left on the machine permanently, which is the existing pressure loop being asked to
+do one more job. Airplane Mode is a Dollar-priced utility shaped exactly like
+Auto-Defrag.
+
+**Two decisions worth recording.**
+
+*The ghost cap is a UI constraint wearing an economy hat.* Three, because three is what
+fits on a phone — every live ghost is costing production, so every live ghost has to be
+on screen or the tax has no visible cause. They share the tray's column (two stacks
+anchored bottom-right drew straight through each other) but not the tray's queue, or a
+"cosmetic unlocked" balloon could evict one.
+
+*The feed tax lives in `buildingProduction`, not in the global chain.* It is the one
+per-building factor in the game, so it has to be inside the function the total and the
+twelve breakdowns both call, or they would disagree about the same number and the
+windows' shares would stop summing to one. That makes the breakdown identity
+`base × milestone × feedTax × global === total`; `feedTax` is 1 for everyone until the
+utility is bought.
+
+No `SAVE_VERSION` bump. `state.event` was already in the schema and the fields added to
+it have defaults in `createInitialState()`, which is exactly the case that does not need
+one. `airplaneModeOwned` and `overflowsResolved` survive a Format C: — the first because
+it was bought with Dollars, the second because a cosmetic unlock may never be revoked.
+
+Numbers are provisional in the way GDD §14.1 means: the thresholds are the one part of
+this that wants a real playtest rather than a tick loop, because what they measure is a
+habit. `OVERFLOW.enabled` is the switch that takes the whole thing out in one edit.
 
 ## Phase 7 — achievements + CrazyGames SDK
 

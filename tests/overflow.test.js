@@ -184,6 +184,23 @@ describe('ghost notifications', () => {
     expect(s.event.ghostNotifications.length).toBe(OVERFLOW.ghost.maxLive);
   });
 
+  it('never shows the same message twice at once', () => {
+    // A uniform roll over a twelve-row table repeats about a quarter of the
+    // time with three on screen, and a duplicate reads as a broken generator
+    // rather than as a machine talking nonsense.
+    const s = noisy();
+    let n = 0;
+    const rng = () => {
+      n += 1;
+      // Insists on the same row until the reroll refuses it.
+      return n % 3 === 0 ? 0.99 : 0.01;
+    };
+    for (let i = 0; i < 20; i += 1) overflow.updateGhosts(s, 999, rng, 0);
+
+    const shown = s.event.ghostNotifications.map((g) => overflow.ghostAt(g.seed).title);
+    expect(new Set(shown).size).toBe(shown.length);
+  });
+
   it('costs production through the global chain, once', () => {
     /**
      * The wiring that matters: the penalty is a factor in `globalMultiplier`,

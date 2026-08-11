@@ -30,6 +30,14 @@
     </div>
 
     <main id="desktop" class="desktop">
+      <!--
+        The Buffer Overflow's visual layer (GDD §7). It is inert and empty at
+        phase 0 and painted entirely from `data-overflow` on <html>, so the
+        crisis costs one attribute write per phase change rather than a render
+        pass. First child on purpose: it belongs over the wallpaper and under
+        everything the player can actually click.
+      -->
+      <div id="overflow-static" class="overflow-static" aria-hidden="true"></div>
       <div id="icons" class="desktop__icons" role="list" aria-label="Desktop icons"></div>
       <div id="gadget-slot" class="desktop__gadget"></div>
       <div id="windows" class="desktop__windows"></div>

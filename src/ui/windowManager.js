@@ -34,7 +34,7 @@ const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, m
  * one control that is always present and always means "you are out of whatever
  * you were in", which is exactly what Escape should buy you.
  */
-const ESCAPE_TARGETS = ['#taskbar .start', '#taskbar button', '#icons button'];
+const ESCAPE_TARGETS = ['#taskbar [data-role="start"]', '#taskbar button', '#icons button'];
 
 export function createWindowManager({
   root,

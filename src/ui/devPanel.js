@@ -4,6 +4,17 @@ import { formatNumber } from '../core/format.js';
 export function mountDevPanel({ game }) {
   if (!import.meta.env.DEV) return;
 
+  /**
+   * A handle on the running game, for driving it from outside the page.
+   *
+   * Dev builds only — it is inside the same guard as the panel itself, so it is
+   * never in a production bundle. Some of what this codebase has to verify only
+   * exists in a browser (window layout, focus order, whether a moving target can
+   * be clicked), and reaching those states through the UI alone would mean
+   * playing an idle game for an hour before every check.
+   */
+  globalThis.__aeroos = game;
+
   const panel = document.createElement('div');
   panel.className = 'aero-dev-panel';
 

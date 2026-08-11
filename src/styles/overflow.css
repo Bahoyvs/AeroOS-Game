@@ -1,0 +1,350 @@
+/**
+ * The Buffer Overflow (GDD v2 §7) — the crisis's whole visual layer.
+ *
+ * Everything here hangs off `[data-overflow]` on <html>, written once per phase
+ * change by `ui/overflow.js`. Nothing in this file animates unless the attribute
+ * is present, so an ordinary desktop pays nothing for it.
+ *
+ * Reduced motion is resolved onto `<html data-motion>` by `ui/motion.js` — never
+ * a raw `prefers-reduced-motion` media query here, which would ignore a player
+ * who deliberately turned motion back *on* in Display Properties. The rule this
+ * file follows: under `reduced` the desktop still looks wrong, it just stops
+ * moving. Taking the tear away entirely would hide the one warning the player
+ * gets before the machine starts asking them questions.
+ */
+
+/* ------------------------------------------------------------- the static */
+
+.overflow-static {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none; /* it is weather, not furniture */
+  opacity: 0;
+  transition: opacity 900ms var(--ease-aero);
+}
+
+/**
+ * One layer, three intensities. The phase only changes the opacity of the tear
+ * — not what it is made of — so the player reads the same artefact getting worse
+ * rather than three unrelated effects.
+ */
+[data-overflow='1'] .overflow-static {
+  opacity: 0.55;
+}
+
+[data-overflow='2'] .overflow-static {
+  opacity: 0.85;
+}
+
+/**
+ * The tear itself: two layers of repeating gradient at slightly different
+ * angles, which beat against each other into something close to interference on
+ * a signal. Cheap — no filters, no noise texture to download, and it composites
+ * on its own layer.
+ */
+.overflow-static::before,
+.overflow-static::after {
+  position: absolute;
+  inset: -20%;
+  content: '';
+}
+
+.overflow-static::before {
+  background: repeating-linear-gradient(
+    0deg,
+    rgb(230 245 255 / 16%) 0 1px,
+    rgb(0 8 14 / 12%) 1px 3px
+  );
+  animation: overflow-drift 7s linear infinite;
+}
+
+.overflow-static::after {
+  background: repeating-linear-gradient(
+    92deg,
+    rgb(120 200 255 / 10%) 0 2px,
+    transparent 2px 7px
+  );
+  opacity: 0.7;
+  animation: overflow-drift 11s linear infinite reverse;
+}
+
+@keyframes overflow-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 60px, 0);
+  }
+}
+
+/**
+ * Phase 3 does *not* reach for `filter` on <body>. That property is already
+ * spoken for: `body.is-bloated` and `body.is-critical` desaturate the desktop as
+ * the pressure loop climbs, and two rules setting `filter` on the same element
+ * do not compose — the later one simply wins, and whichever lost would be a
+ * warning the player stops getting. The crisis gets louder in its own layer.
+ */
+[data-overflow='3'] .overflow-static {
+  opacity: 1;
+  filter: contrast(1.5);
+}
+
+[data-overflow='3'] .overflow-static::after {
+  opacity: 1;
+  animation-duration: 3.5s;
+}
+
+[data-motion='reduced'] .overflow-static::before,
+[data-motion='reduced'] .overflow-static::after {
+  animation: none;
+}
+
+/* ------------------------------------------------------------- the ghosts */
+
+/**
+ * A ghost lives in `#toasts`, the same column as the tray balloons it is
+ * imitating — see the note in ui/overflow.js for why it shares the column and
+ * not the queue. The container owns the position and the gap; a ghost only has
+ * to look wrong.
+ */
+.ghost {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 4px 10px 12px;
+  pointer-events: auto;
+  /**
+   * Deliberately not `.glass`. A ghost is not the OS talking, and the fastest
+   * way to say that without a word of copy is to get the chrome slightly wrong:
+   * flat instead of glossy, square instead of rounded, a border that is not any
+   * colour the theme uses.
+   */
+  color: #dfe6e1;
+  background: linear-gradient(180deg, #2b3330, #171d1a);
+  border: 1px solid #55635b;
+  border-radius: 2px;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+  opacity: 0;
+  transform: translateX(14px);
+  transition:
+    opacity 200ms var(--ease-aero),
+    transform 200ms var(--ease-aero);
+}
+
+.ghost.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.ghost__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ghost__title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ghost__body {
+  margin-top: 2px;
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: #a9b6ae;
+}
+
+/**
+ * 44 px, like every other repeatedly-pressed control in the game (GDD §9). The
+ * padding does the looking; the glyph stays small.
+ */
+.ghost__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #cfdad4;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+.ghost__close:hover,
+.ghost__close:focus-visible {
+  color: #fff;
+  background: rgb(255 255 255 / 8%);
+}
+
+[data-motion='reduced'] .ghost {
+  transition: none;
+  transform: none;
+}
+
+/* ----------------------------------------------------------- the question */
+
+.ovc {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  color: #d6e0da;
+  background: rgb(4 8 6 / 92%);
+  animation: overflow-arrive 260ms var(--ease-aero);
+}
+
+.ovc__inner {
+  width: min(560px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  font-family: 'Lucida Console', 'Courier New', monospace;
+}
+
+/* 7.css styles bare `pre` as an inset white field. Reset it — this one is a
+   crash dump on a black screen, not a document in a window. */
+.ovc__dump {
+  padding: 0;
+  margin: 0 0 18px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #7d8f85;
+  white-space: pre-wrap;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.ovc__title {
+  margin: 0 0 8px;
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: #eef4f0;
+}
+
+.ovc__copy {
+  margin: 0 0 22px;
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #b3c0b8;
+}
+
+.ovc__answers {
+  display: grid;
+  gap: 12px;
+}
+
+/* One column past the phone breakpoint: two side-by-side 44 px targets at
+   360 px wide is how a mis-tap becomes an irreversible choice. */
+@media (width >= 560px) {
+  .ovc__answers {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/**
+ * The `:hover`/`:focus`/`:active` triplet is not belt and braces. 7.css paints
+ * every bare `button` with its own Aero chrome — including on focus, which is
+ * the state the first answer opens in — and its rules land after this file, so
+ * a plain `.ovc__answer { background }` was repainted light blue the moment the
+ * dialog took focus and the white label on it disappeared.
+ */
+.ovc__answer,
+.ovc__answer:hover,
+.ovc__answer:focus,
+.ovc__answer:active {
+  display: grid;
+  gap: 6px;
+  min-height: 44px;
+  padding: 14px 16px;
+  font-family: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  background: #1d2521;
+  background-image: none;
+  border: 1px solid #55635b;
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.ovc__answer strong {
+  font-size: 1rem;
+  color: #eef4f0;
+}
+
+.ovc__answer small {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: #9fada4;
+}
+
+.ovc__answer:hover,
+.ovc__answer:focus-visible {
+  border-color: #8fa79a;
+  outline: none;
+}
+
+.ovc__answer:focus-visible {
+  box-shadow: 0 0 0 2px #8fa79a;
+}
+
+/**
+ * The one that is bad for the player is the one that looks good. It is the
+ * brightest thing on the screen, it pulses, and it is on the right where the
+ * confirming button goes — which is the entire argument the event is making.
+ */
+.ovc__answer--doomscroll,
+.ovc__answer--doomscroll:hover,
+.ovc__answer--doomscroll:focus,
+.ovc__answer--doomscroll:active {
+  background: linear-gradient(180deg, #2a3a49, #16212b);
+  border-color: #4f7fa8;
+  animation: overflow-tempt 2.4s ease-in-out infinite;
+}
+
+.ovc__answer--doomscroll strong {
+  color: #bfe4ff;
+}
+
+.ovc__hint {
+  margin: 18px 0 0;
+  font-family: var(--font-ui);
+  font-size: 0.74rem;
+  color: #6f7f76;
+}
+
+@keyframes overflow-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes overflow-tempt {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgb(120 190 255 / 0%);
+  }
+  50% {
+    box-shadow: 0 0 22px rgb(120 190 255 / 35%);
+  }
+}
+
+[data-motion='reduced'] .ovc {
+  animation: none;
+}
+
+/* The tempting button keeps its colour and loses its pulse — the argument is
+   made by the palette, and the palette is not motion. */
+[data-motion='reduced'] .ovc__answer--doomscroll {
+  animation: none;
+}

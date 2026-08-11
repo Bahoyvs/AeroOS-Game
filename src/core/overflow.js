@@ -192,12 +192,26 @@ export function updateGhosts(state, dt, rng = Math.random, now = Date.now()) {
   // rather than spawning the instant one expires.
   if (event.ghostNotifications.length >= maxLive) return { spawned: null, expired };
 
+  /**
+   * A message that is not already on screen.
+   *
+   * Rolled over the rows that are *free* rather than over the whole table and
+   * rerolled on a collision: the table has twelve rows and the stack holds
+   * three, so choosing from what is left is guaranteed to be distinct, while
+   * rerolling is only probably distinct. An honest uniform roll shows the same
+   * notification twice about a quarter of the time, and a duplicate reads as a
+   * broken generator rather than as a machine talking nonsense.
+   */
+  const taken = new Set(event.ghostNotifications.map((g) => g.seed % GHOSTS.length));
+  const free = [];
+  for (let i = 0; i < GHOSTS.length; i += 1) if (!taken.has(i)) free.push(i);
+  // `free` cannot empty out while maxLive < GHOSTS.length, but a future table
+  // shorter than the cap should degrade to a repeat rather than to a crash.
+  const pool = free.length > 0 ? free : GHOSTS.map((_, i) => i);
+  const seed = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
+
   event.ghostSeq += 1;
-  const ghost = {
-    id: event.ghostSeq,
-    seed: Math.floor(rng() * GHOSTS.length * 997),
-    expiresAt: now + lifetimeSeconds * 1000,
-  };
+  const ghost = { id: event.ghostSeq, seed, expiresAt: now + lifetimeSeconds * 1000 };
   event.ghostNotifications.push(ghost);
   return { spawned: ghost, expired };
 }

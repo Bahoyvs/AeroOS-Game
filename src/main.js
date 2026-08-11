@@ -16,6 +16,7 @@ import { confirmFormat, createFormatSequence, createSystemUpdate } from './ui/bs
 import { createDesktop } from './ui/desktop.js';
 import { createMotionPreference } from './ui/motion.js';
 import { createNotifier } from './ui/notify.js';
+import { createOverflowShell } from './ui/overflow.js';
 import { createTaskbar } from './ui/taskbar.js';
 import { createTheme } from './ui/theme.js';
 import { createTutorialCoach } from './ui/tutorial.js';
@@ -294,6 +295,21 @@ async function boot() {
   });
   const notify = createNotifier(document.getElementById('toasts'));
   game.bus.on(game.events.NOTIFY, notify);
+
+  /**
+   * The Buffer Overflow's visual layer (GDD §7). It owns the desktop static,
+   * the ghost stack and the fullscreen question, and it is mounted here rather
+   * than inside an app because none of the three belongs to a window — the
+   * whole point of the event is that it happens *to* the OS.
+   */
+  const overflowShell = createOverflowShell({
+    game,
+    root: document.body,
+    // Ghosts stack in the tray's column, but not in its queue — see ui/overflow.js.
+    ghostRoot: document.getElementById('toasts'),
+    staticRoot: document.getElementById('overflow-static'),
+    reducedMotion: motion.isReduced,
+  });
 
   /**
    * Every ad in the game goes through this adapter (GDD 8). It resolves whether
@@ -727,6 +743,10 @@ async function boot() {
       desktop.update();
       taskbar.update();
       coach.update();
+      // Cheap: it compares one number and returns. It is called per frame
+      // because the phase can move without an event — a Format C: wipes the
+      // units the ratio is derived from.
+      overflowShell.update();
       // The coach itself is throttled to 200 ms, but the ring it draws is
       // attached to a window the player may be dragging right now.
       coach.refreshSpotlight();

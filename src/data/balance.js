@@ -314,8 +314,14 @@ export const OVERFLOW = {
     spawnSecondsMax: 55,
     frenzyFactor: 0.5, // at phase 3 they arrive twice as fast
     lifetimeSeconds: 45,
-    penaltyEach: 0.04,
-    maxLive: 5, // worst case ×0.815 — noticeable, never ruinous
+    penaltyEach: 0.06,
+    /**
+     * Three, because three is what fits on a phone. The cap is really a UI
+     * constraint wearing an economy hat: every live ghost is costing production,
+     * so every live ghost has to be *on screen* — a tax the player cannot see
+     * the cause of is a bug report. The stack renders all of them.
+     */
+    maxLive: 3, // worst case ×0.83 — noticeable, never ruinous
     dismissSeconds: 10, // burst paid for silencing one, in seconds of production
   },
 

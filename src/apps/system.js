@@ -1,5 +1,5 @@
 import { formatBytesMB, formatDuration, formatNumber } from '../core/format.js';
-import { DEFRAG } from '../data/balance.js';
+import { DEFRAG, OVERFLOW } from '../data/balance.js';
 import { HARDWARE } from '../data/hardware.js';
 import { MOTION_LABELS, MOTION_MODES, systemPrefersReducedMotion } from './../ui/motion.js';
 import { clear, el, setBar, throttle } from './../ui/dom.js';
@@ -40,6 +40,7 @@ export function mount(body, { game, ads = null }) {
 
     <h4 class="sys__heading">Utilities</h4>
     <div class="sys__utility glass" data-role="defrag"></div>
+    <div class="sys__utility glass" data-role="airplane"></div>
 
     <h4 class="sys__heading">Display properties</h4>
     <div class="sys__display glass">
@@ -218,6 +219,67 @@ export function mount(body, { game, ads = null }) {
     }
   }
 
+  /**
+   * Airplane Mode (GDD §7.3) — the opt-out from the Buffer Overflow.
+   *
+   * It is the only purchase in the game that is honest about costing the player
+   * output, so the card says so in the same sentence as the benefit rather than
+   * in small print underneath it. It is also hidden until the machine has
+   * actually started tearing: a utility that turns off a crisis nobody has met
+   * is a spoiler and a dead button.
+   */
+  const airplaneRoot = ref('airplane');
+
+  function renderAirplane() {
+    const s = game.state;
+    const { econ } = game;
+    const owned = econ.airplaneModeOwned(s);
+    // Once bought it stays on the shelf as an "Installed" row, the same as
+    // Auto-Defrag — a utility that vanishes reads as one that was taken away.
+    airplaneRoot.hidden = !owned && econ.overflowPhase(s) < 1;
+    if (airplaneRoot.hidden) return;
+    clear(airplaneRoot);
+
+    const info = el('div', { class: 'sys__utility-info' }, [
+      el('strong', { class: 'sys__utility-name', text: 'Airplane Mode' }),
+      el('span', {
+        class: 'sys__utility-state',
+        text: owned ? 'Enabled · the feed cannot reach you' : 'Off',
+      }),
+      el('small', {
+        class: 'sys__utility-blurb',
+        text: owned
+          ? `The feed apps run ${Math.round(OVERFLOW.airplane.feedTax * 100)}% quieter, and the machine will not ask you anything again.`
+          : `Stops the Buffer Overflow before it starts asking questions. Costs the five feed apps ${Math.round(OVERFLOW.airplane.feedTax * 100)}% of what they make, permanently — that is the trade.`,
+      }),
+    ]);
+
+    const action = owned
+      ? el('span', { class: 'sys__utility-owned', text: 'Enabled' })
+      : el('button', {
+          type: 'button',
+          class: 'hw-row__buy',
+          text: `$${OVERFLOW.airplane.cost.toFixed(2)}`,
+          onclick: () => {
+            const result = game.buyAirplaneMode();
+            if (result.ok) {
+              game.notify('Airplane Mode enabled', 'The desktop goes quiet. It stays quiet.', 'success');
+            } else if (result.reason === 'too-expensive') {
+              game.notify('Not enough Dollars', 'Format C: to earn more.', 'warn');
+            }
+            renderAirplane();
+            update();
+          },
+        });
+
+    if (!owned) {
+      action.classList.toggle('is-affordable', s.dollars >= OVERFLOW.airplane.cost);
+      action.disabled = s.dollars < OVERFLOW.airplane.cost;
+    }
+
+    airplaneRoot.append(info, action);
+  }
+
   /* --------------------------------------------------------- personalisation */
 
   /**
@@ -324,6 +386,7 @@ export function mount(body, { game, ads = null }) {
   renderMotion();
   renderCosmetics();
   renderDefrag();
+  renderAirplane();
 
   /* ---------------------------------------------------------------- update */
 
@@ -333,6 +396,7 @@ export function mount(body, { game, ads = null }) {
    * five updates a second to be legible.
    */
   const refreshDefrag = throttle(renderDefrag, 500);
+  const refreshAirplane = throttle(renderAirplane, 500);
 
   const update = throttle(() => {
     const s = game.state;
@@ -362,6 +426,7 @@ export function mount(body, { game, ads = null }) {
     }
 
     refreshDefrag();
+    refreshAirplane();
 
     // Format C: panel — AO-16's payout made legible.
     const progress = econ.dollarProgress(s);
