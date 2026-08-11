@@ -82,9 +82,7 @@ export const GOALS = [
     id: 'first-milestone',
     isDone: (state) => state.chat.bots >= CHAT_BOT.milestoneEvery,
     title: `${CHAT_BOT.milestoneEvery} buddies`,
-    hint: `Every ${CHAT_BOT.milestoneEvery} buddies adds +${Math.round(
-      CHAT_BOT.milestoneBonus * 100,
-    )}% to the whole buddy list.`,
+    hint: `Every ${CHAT_BOT.milestoneEvery} buddies doubles the output of the whole buddy list.`,
     progress: (state) => ratio(state.chat.bots, CHAT_BOT.milestoneEvery),
     detail: (state) => `${state.chat.bots} / ${CHAT_BOT.milestoneEvery} buddies`,
   },

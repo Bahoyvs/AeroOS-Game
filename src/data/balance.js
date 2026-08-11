@@ -12,6 +12,7 @@ export const CHAT_BOT = {
   baseRate: 0.5, // Buzz/sec per bot before multipliers
   maxPerRun: 500,
   milestoneEvery: 25,
+  milestoneBonus: 1.0,
 
   /** Step function doubling milestone multipliers based on buddies owned. */
   milestones: [
