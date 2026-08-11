@@ -169,7 +169,7 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
     // animation forces a synchronous layout of the whole document, on the one
     // interaction the player performs fastest.
     nodes.nudge.classList.add('is-pressed');
-    for (const animation of nodes.nudge.getAnimations()) {
+    for (const animation of (nodes.nudge.getAnimations?.() ?? [])) {
       if (animation.animationName === 'nudge-shake') animation.currentTime = 0;
     }
 
@@ -182,7 +182,10 @@ export function createDesktop({ iconRoot, gadgetRoot, game, launch, ads = null }
       nodes.nudge.classList.add('is-flaring');
 
       spawnBubbles(nodes.nudge.getBoundingClientRect());
-      spawnRipple(event.clientX, event.clientY);
+      const rect = nodes.nudge.getBoundingClientRect();
+      const x = event?.clientX ?? (rect.left + rect.width / 2);
+      const y = event?.clientY ?? (rect.top + rect.height / 2);
+      spawnRipple(x, y);
     }
   }
 
