@@ -96,7 +96,16 @@ export const GOALS = [
     progress: (state) => ratio(buddies(state), FIRST_MILESTONE.at),
     detail: (state) => `${buddies(state)} / ${FIRST_MILESTONE.at} buddies`,
   },
-  installGoal('lemonwire', 'Seeded files pay Buzz around the clock, with no clicking.'),
+  /**
+   * The phase 1-2 buildings, in the order their unlocks land. Each one is
+   * introduced by what it *does for the player*, never by its production
+   * figure — the coach is the one place the game could slip into quoting bare
+   * numbers, and GDD §3.1 says it must not.
+   */
+  installGoal('chainmail', 'Chain letters forward themselves. You just supply the contacts.'),
+  installGoal('aeroboards', 'A forum runs itself once enough people are arguing on it.'),
+  installGoal('lemonwire', 'The swarm shares around the clock, with no clicking.'),
+  installGoal('geopage', 'A homepage nobody maintains still counts visitors forever.'),
   {
     id: 'first-format',
     isDone: (state) => state.prestigeCount >= 1,

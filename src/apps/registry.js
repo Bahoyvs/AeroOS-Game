@@ -1,5 +1,8 @@
 import { getApp } from '../data/apps.js';
+import * as aeroboards from './aeroboards.js';
 import * as aerochat from './aerochat.js';
+import * as chainmail from './chainmail.js';
+import * as geopage from './geopage.js';
 import * as aerosweeper from './aerosweeper.js';
 import * as lemonwire from './lemonwire.js';
 import * as placeholder from './placeholder.js';
@@ -17,7 +20,10 @@ const IMPLEMENTATIONS = {
   system,
   aerochat,
   retroamp,
+  chainmail,
+  aeroboards,
   lemonwire,
+  geopage,
   aerosweeper,
 };
 

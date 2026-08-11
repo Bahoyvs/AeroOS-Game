@@ -1,16 +1,25 @@
-import { BUILDING, STATUS_EVENT } from '../data/balance.js';
+import { STATUS_EVENT } from '../data/balance.js';
 import { ambientStatus, buddyAt, isAway } from '../data/buddies.js';
 import { activeBuffs, remainingSeconds } from '../core/buffs.js';
 import { claimSecondsLeft, getBonus } from '../core/statusEvents.js';
 import { formatNumber } from '../core/format.js';
-import { clear, el, setBar, throttle } from './../ui/dom.js';
+import { createBuyControl, createCelebration, createMeter } from '../ui/building.js';
+import { clear, el, throttle } from './../ui/dom.js';
 
 /**
- * AeroChat — the core idle engine (AO-5, AO-8, AO-9, AO-10).
+ * AeroChat — building #1, and the first thing anyone sees (AO-5, GDD v2 §4).
  *
  * Buddies are derived from their index (src/data/buddies.js), so the list can
- * show 500 of them without storing any of it. Only a window of the list is
- * drawn; the rest is summarised.
+ * show five hundred of them without storing any of it. Only a window of the
+ * list is drawn; the rest is summarised.
+ *
+ * It was the last window still carrying its own hand-built buy row — the shape
+ * every other building's kit was generalised *from*. It now uses the kit like
+ * its eleven siblings, so there is one buy control in the game rather than a
+ * canonical one and a copy that drifts.
+ *
+ * The `w32-buy` costume is MSN's own: **Add a Contact**, the wizard that asked
+ * for an e-mail address and then made you wait.
  */
 
 const VISIBLE_BUDDIES = 14;
@@ -30,13 +39,7 @@ export function mount(body, { game }) {
       <span class="chat__rate" data-role="rate">0 / sec</span>
     </div>
 
-    <div class="chat__milestone">
-      <div class="chat__milestone-label">
-        <span data-role="bot-count">0 buddies</span>
-        <span data-role="milestone-text">—</span>
-      </div>
-      <div class="meter__track"><div class="meter__fill" data-role="milestone-bar"></div></div>
-    </div>
+    <div data-role="meter"></div>
 
     <p class="chat__breakdown" data-role="breakdown"></p>
 
@@ -44,17 +47,7 @@ export function mount(body, { game }) {
 
     <ul class="chat__list" data-role="list" aria-label="Buddy list"></ul>
 
-    <div class="chat__actions">
-      <button type="button" class="chat__buy" data-buy="1">
-        Add buddy<small data-role="cost-1">10</small>
-      </button>
-      <button type="button" class="chat__buy" data-buy="10">
-        ×10<small data-role="cost-10">—</small>
-      </button>
-      <button type="button" class="chat__buy" data-buy="max">
-        Max<small data-role="cost-max">—</small>
-      </button>
-    </div>
+    <div data-role="buy"></div>
     <p class="chat__hint" data-role="hint">Buddies keep chatting whether or not this window is open. Closing it only frees the memory.</p>
   `;
 
@@ -63,23 +56,41 @@ export function mount(body, { game }) {
   const buffsRoot = ref('buffs');
   const breakdown = ref('breakdown');
 
-  for (const button of body.querySelectorAll('[data-buy]')) {
-    button.addEventListener('click', () => {
-      const amount = button.dataset.buy === 'max' ? BUILDING.maxUnits : Number(button.dataset.buy);
-      const result = game.buyUnits('aerochat', amount);
-      if (!result.ok) {
-        game.notify(
-          result.reason === 'full' ? 'Buddy list is full' : 'Not enough Buzz',
-          result.reason === 'full'
-            ? `${BUILDING.maxUnits} buddies is as many as the list holds.`
-            : 'Nudge a few more times.',
-          'warn',
-        );
-        return;
-      }
-      update();
-    });
-  }
+  /* ------------------------------------------------------- the shared kit */
+
+  const meter = createMeter({ game, buildingId: 'aerochat' });
+  ref('meter').replaceWith(meter.root);
+
+  const buy = createBuyControl({
+    game,
+    buildingId: 'aerochat',
+    labels: { one: 'Add a Contact' },
+    onBought: () => renderList(true),
+  });
+  buy.root.classList.add('chat__buy-row');
+  ref('buy').replaceWith(buy.root);
+
+  /**
+   * GDD §4's milestone for AeroChat: a short automatic notice from
+   * Tools → Options, as if the client had quietly reconfigured itself. The
+   * quietest celebration of the twelve, deliberately — this is the innocent
+   * phase, and it should not feel like a slot machine paying out.
+   */
+  const celebration = createCelebration({
+    game,
+    buildingId: 'aerochat',
+    host: body,
+    render: ({ at, multiplier, minigameUnlocked }) => [
+      el('strong', { class: 'w32celebrate__title', text: 'Tools → Options' }),
+      el('span', {
+        class: 'w32celebrate__body',
+        text: `${at} contacts online. Group chat capacity is now ×${multiplier}.`,
+      }),
+      ...(minigameUnlocked
+        ? [el('em', { class: 'w32celebrate__extra', text: 'Nudge war unlocked' })]
+        : []),
+    ],
+  });
 
   /* ------------------------------------------------------------ buddy list */
 
@@ -273,33 +284,8 @@ export function mount(body, { game }) {
     const bd = econ.getProductionBreakdown(s, 'aerochat', now);
 
     ref('rate').textContent = `${formatNumber(econ.buzzPerSecond(s, now))} / sec`;
-    ref('bot-count').textContent = `${bd.units} ${bd.units === 1 ? 'buddy' : 'buddies'}`;
-
-    const milestone = bd.milestone;
-    const multiplier = bd.milestoneMultiplier;
-    if (milestone) {
-      ref('milestone-text').textContent = `×${multiplier} · ${milestone.remaining} to ×${milestone.multiplier}`;
-      setBar(ref('milestone-bar'), milestone.ratio, { warn: 2, critical: 2 });
-    } else {
-      ref('milestone-text').textContent = `×${multiplier} · every buddy online`;
-      setBar(ref('milestone-bar'), 1, { warn: 2, critical: 2 });
-    }
-
-    for (const button of body.querySelectorAll('[data-buy]')) {
-      const raw = button.dataset.buy;
-      const amount = raw === 'max' ? BUILDING.maxUnits : Number(raw);
-      const { count, cost } = econ.affordableUnits(s, 'aerochat', amount);
-      button.disabled = count === 0;
-      const costNode = ref(`cost-${raw}`);
-      if (costNode) {
-        costNode.textContent =
-          raw === 'max'
-            ? count > 0
-              ? `${count} · ${formatNumber(cost)}`
-              : '—'
-            : formatNumber(econ.unitCostBulk('aerochat', bd.units, amount));
-      }
-    }
+    meter.update();
+    buy.update();
 
     renderBreakdown(econ.rateBreakdown(s, now));
     renderList();
@@ -313,6 +299,7 @@ export function mount(body, { game }) {
   const unsubscribe = game.bus.on(game.events.TICK, update);
   return () => {
     unsubscribe();
+    celebration.destroy();
     body.classList.remove('app-aerochat');
   };
 }

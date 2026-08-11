@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Geocities: a page under construction, forever, with a visitor counter. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b1a52"/><stop offset="1" stop-color="#5b2f7a"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="5" width="40" height="38" rx="2" fill="url(#sky)" stroke="#1a0f33" stroke-width="1.5"/>
+  <rect x="6.5" y="7.5" width="35" height="6" rx="1" fill="#ffd93d"/>
+  <path d="M8 12.5h32" stroke="#c9a300" stroke-width="1"/>
+  <text x="24" y="12.4" font-family="Comic Sans MS, cursive" font-size="5.4" font-weight="700"
+        text-anchor="middle" fill="#8a2be2">MY PAGE</text>
+  <!-- The road-sign hazard stripe every Geocities page had. -->
+  <rect x="7" y="16.5" width="34" height="6.5" rx="0.8" fill="#ffb100" stroke="#a06f00" stroke-width="1"/>
+  <path d="M8 23l4-6.5M14 23l4-6.5M20 23l4-6.5M26 23l4-6.5M32 23l4-6.5" stroke="#3a2600" stroke-width="1.8"/>
+  <!-- Glitter text and the hit counter. -->
+  <path d="M8 27h20M8 30.5h26M8 34h15" stroke="#67e8f9" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="7" y="36.5" width="20" height="5" rx="0.8" fill="#0b0b0b" stroke="#4ade80" stroke-width="0.9"/>
+  <text x="17" y="40.6" font-family="monospace" font-size="4.6" font-weight="700"
+        text-anchor="middle" fill="#4ade80">001337</text>
+  <path d="M35 26.5l1.5 3.4 3.7.4-2.8 2.5.8 3.6-3.2-1.9-3.2 1.9.8-3.6-2.8-2.5 3.7-.4Z" fill="#ffd93d"/>
+</svg>

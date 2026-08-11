@@ -2151,11 +2151,20 @@
    body, so it never reflows the app underneath it mid-animation. */
 .w32celebrate {
   position: absolute;
-  /* Clear of the buy row it would otherwise cover. It is pointer-events:none so
-     clicks were always getting through, but a player who has just been told
-     they earned something should not have to wait 2.6s to see the button that
-     earns the next one. */
-  inset: auto 8px 62px;
+  /**
+   * Anchored to the *top* of the window body by default.
+   *
+   * It is pointer-events:none, so clicks were always getting through — but a
+   * player who has just been told they earned something should not have to
+   * wait 2.6s to see the button that earns the next one, and most of these
+   * windows keep their buy row at the bottom. A fixed bottom offset was tried
+   * first and covered the controls in three of the six, because "the bottom"
+   * means a different distance in each app.
+   *
+   * Windows whose controls live at the top (ChainMail's toolbar) flip it with
+   * `--w32celebrate-anchor: bottom`.
+   */
+  inset: var(--w32celebrate-top, 8px) 8px var(--w32celebrate-bottom, auto);
   z-index: 4;
   display: grid;
   gap: 2px;
@@ -2175,7 +2184,7 @@
 .w32celebrate__extra { font-size: 11px; font-weight: 700; color: #8a5b00; }
 
 @keyframes w32celebrate-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.96); }
+  from { opacity: 0; transform: translateY(-10px) scale(0.96); }
   to { opacity: 1; transform: none; }
 }
 
@@ -2203,3 +2212,489 @@
 
 .w32locked__text { font-size: 12px; font-weight: 700; }
 .w32locked__hint { font-size: 11px; opacity: 0.7; }
+
+/* ==========================================================================
+   ChainMail — Outlook Express
+   Cream, grey, and a counter that will not stop. Three panes, a dead menu bar,
+   and the chunkiest toolbar buttons in the game.
+   ========================================================================== */
+
+.app-chainmail {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto auto auto;
+  background: #ece9d8; /* the exact beige of a 2003 mail client */
+}
+
+.cm__menubar {
+  display: flex;
+  gap: 12px;
+  padding: 3px 8px;
+  font-size: 11px;
+  background: linear-gradient(180deg, #fff, #ece9d8);
+  border-bottom: 1px solid #aca899;
+}
+
+.cm__toolbar { display: none; } /* the buy row is the toolbar */
+
+.cm__buy {
+  grid-row: 2;
+  gap: 3px;
+  padding: 5px 6px;
+  background: linear-gradient(180deg, #fdfdfb, #ece9d8);
+  border-bottom: 1px solid #aca899;
+}
+
+.cm__panes {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  min-height: 0;
+  border-bottom: 1px solid #aca899;
+}
+
+.cm__tree {
+  padding: 4px;
+  overflow-y: auto;
+  background: #fff;
+  border-right: 1px solid #aca899;
+}
+
+.cm__tree-root { padding: 2px 4px; font-size: 11px; font-weight: 700; }
+.cm__folders { padding: 0 0 0 10px; margin: 0; list-style: none; }
+
+.cm__folder {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 2px 3px;
+  font-size: 11px;
+  border-radius: 2px;
+}
+
+.cm__folder.is-current { font-weight: 700; background: #d6e6f7; }
+.cm__folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm__folder-count { font-size: 10px; color: #2a5d8f; }
+
+/* The number the whole app is about. Red and bold once it stops being calm. */
+.cm__folder-count.is-alarming { font-weight: 700; color: #c0170c; }
+
+.cm__list-pane { display: grid; grid-template-rows: auto 1fr; min-height: 0; background: #fff; }
+
+.cm__columns,
+.cm__row {
+  display: grid;
+  grid-template-columns: 18px 84px 1fr 62px;
+  gap: 4px;
+  align-items: center;
+}
+
+.cm__columns {
+  padding: 3px 6px;
+  font-size: 10px;
+  background: linear-gradient(180deg, #fff, #e4e1d5);
+  border-bottom: 1px solid #aca899;
+}
+
+.cm__list { min-height: 0; padding: 0; margin: 0; overflow-y: auto; list-style: none; }
+
+.cm__row {
+  width: 100%;
+  padding: 3px 6px;
+  font: inherit;
+  font-size: 11px;
+  text-align: left;
+  cursor: default;
+  background: none;
+  border: 0;
+  border-bottom: 1px solid #f0eee6;
+}
+
+.cm__row.is-unread { font-weight: 700; }
+.cm__row.is-selected { color: #fff; background: #316ac5; }
+.cm__row:hover:not(.is-selected) { background: #eaf2fb; }
+.cm__row-flag { color: #c0170c; }
+.cm__row-subject,
+.cm__row-from { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm__row-when { font-size: 10px; text-align: right; opacity: 0.7; }
+
+.cm__empty,
+.cm__more { padding: 6px; font-size: 11px; text-align: center; opacity: 0.65; }
+
+.cm__preview {
+  min-height: 62px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  background: #fff;
+  border-bottom: 1px solid #aca899;
+}
+
+.cm__preview-head { display: grid; padding-bottom: 4px; border-bottom: 1px solid #e4e1d5; }
+.cm__preview-head strong { font-size: 12px; }
+.cm__preview-head span { font-size: 10px; opacity: 0.7; }
+.cm__preview-body { margin: 6px 0 0; font-size: 11px; line-height: 1.45; }
+
+.cm__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 8px;
+  font-size: 10px;
+  background: #ece9d8;
+  border-top: 1px solid #fff;
+}
+
+/* ==========================================================================
+   AeroBoards — phpBB inside an IE6 frame
+   The only building that is a *website*, so it gets browser chrome and no
+   window furniture of its own.
+   ========================================================================== */
+
+.app-aeroboards {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: #fff;
+}
+
+.ab__addressbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 6px;
+  font-size: 11px;
+  background: linear-gradient(180deg, #fff, #dcd8c8);
+  border-bottom: 1px solid #aca899;
+}
+
+.ab__ie-label { opacity: 0.7; }
+
+.ab__url {
+  padding: 2px 5px;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #fff;
+  border: 1px solid #7f9db9;
+}
+
+.ab__go { padding: 1px 7px; font-size: 11px; border: 1px solid #7f9db9; border-radius: 2px; }
+
+.ab__page { min-height: 0; padding: 0 0 6px; overflow-y: auto; background: #e6e9f0; }
+
+.ab__banner {
+  display: grid;
+  gap: 1px;
+  padding: 8px 10px;
+  color: #fff;
+  background: linear-gradient(180deg, #4f7bb5, #2c4d7c);
+  border-bottom: 3px solid #1b3454;
+}
+
+.ab__logo { font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 700; }
+.ab__tagline { font-size: 10px; font-style: italic; opacity: 0.85; }
+
+.ab__welcome {
+  padding: 4px 10px;
+  font-size: 10px;
+  background: #dfe4ee;
+  border-bottom: 1px solid #b9c2d2;
+}
+
+.ab__meter { padding: 4px 10px; }
+
+.ab__forum-head {
+  display: grid;
+  gap: 1px;
+  padding: 5px 10px;
+  color: #fff;
+  background: linear-gradient(180deg, #7590bd, #4a6698);
+}
+
+.ab__forum-name { font-size: 12px; font-weight: 700; }
+.ab__forum-desc { font-size: 10px; opacity: 0.9; }
+
+.ab__cols,
+.ab__topic {
+  display: grid;
+  grid-template-columns: 34px 1fr 52px 52px;
+  gap: 4px;
+  align-items: center;
+}
+
+.ab__cols {
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  background: #cfd8e6;
+}
+
+.ab__cols span:first-child { grid-column: 1 / 3; }
+.ab__topics { padding: 0; margin: 0; list-style: none; }
+
+.ab__topic {
+  padding: 4px 10px;
+  font-size: 11px;
+  background: #fff;
+  border-bottom: 1px solid #dde3ec;
+}
+
+.ab__topic:nth-child(even) { background: #f4f6fa; }
+.ab__topic.is-sticky { background: #fff8e2; }
+.ab__topic.is-locked { opacity: 0.72; }
+.ab__topic-icon { display: flex; gap: 1px; font-size: 11px; }
+.ab__topic-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ab__topic-title a,
+.ab__topic-title span { color: #2b4f81; }
+.ab__sticky-tag { color: #a06f00; }
+.ab__topic-author { opacity: 0.6; }
+.ab__topic-replies,
+.ab__topic-views { font-size: 10px; text-align: center; }
+
+/* The flaming-GIF slot, as CSS — so it honours the player's motion setting
+   instead of animating regardless, which an actual GIF could not. */
+.ab__flame { display: inline-block; animation: ab-flicker 900ms steps(2) infinite; }
+[data-motion='reduced'] .ab__flame { animation: none; }
+
+@keyframes ab-flicker {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18) rotate(-4deg); }
+}
+
+.ab__cpanel {
+  padding: 5px 10px;
+  font-size: 11px;
+  background: #fffbe6;
+  border-top: 1px solid #d9c98a;
+  border-bottom: 1px solid #d9c98a;
+}
+
+/**
+ * The footer sticks to the bottom of the scrolling page.
+ *
+ * A 2004 forum footer did not do this, and the fiction is worse for it — but
+ * this footer carries the buy control, and a purchase button parked below the
+ * fold of a page that grows as you play is a control the player has to go
+ * looking for. Authenticity loses that one.
+ */
+.ab__footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 10px;
+  font-size: 10px;
+  background: #dfe4ee;
+  border-top: 1px solid #b9c2d2;
+  box-shadow: 0 -3px 8px rgb(27 52 84 / 0.14);
+}
+
+.ab__footer-link { color: #2b4f81; text-decoration: underline; }
+.ab__footer-link.is-dead { opacity: 0.55; }
+
+/* The buy control, wearing the footer's clothes. It is a link among links —
+   which is the whole conceit: renting more forum, not buying units. */
+.ab__buy {
+  grid-template-columns: auto auto auto auto;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+}
+
+/**
+ * Styled as a link, sized as a button.
+ *
+ * The first pass set `min-height: 24px` to make these read as footer links and
+ * dropped the touch target to 38px — under the 44px floor GDD §9 sets for
+ * every control in the game, on the one building whose purchase control is a
+ * link. The height stays; the padding does the work of not looking like a
+ * button.
+ */
+.ab__buy .w32buy__btn {
+  min-height: 44px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: #2b4f81;
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.ab__buy .w32buy__btn:hover:not(:disabled) { color: #c0170c; background: none; }
+.ab__buy .w32buy__btn:disabled { opacity: 0.5; }
+.ab__buy .w32buy__cost { opacity: 0.75; }
+
+.ab__statusbar {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 8px;
+  font-size: 10px;
+  background: #ece9d8;
+  border-top: 1px solid #aca899;
+}
+
+.ab__empty { padding: 14px; font-size: 11px; text-align: center; opacity: 0.7; }
+
+/* ==========================================================================
+   GeoPage — the Geocities editor
+   A page that only ever gains things, above the tag soup that makes it.
+   ========================================================================== */
+
+.app-geopage {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto auto;
+  background: #2b1a52;
+}
+
+.gp__toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 6px;
+  font-size: 11px;
+  background: linear-gradient(180deg, #fff, #ece9d8);
+  border-bottom: 1px solid #aca899;
+}
+
+.gp__wordmark { flex: 1; font-weight: 700; }
+.gp__tab { padding: 1px 8px; background: #dcd8c8; border: 1px solid #aca899; border-bottom: 0; }
+.gp__tab.is-active { background: #fff; }
+
+.gp__preview {
+  min-height: 0;
+  padding: 8px;
+  overflow-y: auto;
+  color: #67e8f9;
+  text-align: center;
+  background: #2b1a52;
+}
+
+.gp__construction {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #3a2600;
+  background: repeating-linear-gradient(45deg, #ffb100 0 8px, #3a2600 8px 16px);
+  border: 1px solid #a06f00;
+}
+
+.gp__construction-text { padding: 1px 6px; background: #ffb100; }
+
+.gp__title {
+  margin: 10px 0 4px;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  font-size: 19px;
+  color: #ffd93d;
+  text-shadow: 2px 2px 0 #8a2be2;
+}
+
+.gp__welcome { margin: 0 0 8px; font-size: 11px; }
+.gp__stickers { display: flex; gap: 6px; justify-content: center; font-size: 16px; }
+
+.gp__counter { margin-top: 10px; font-size: 10px; }
+
+.gp__counter-digits {
+  display: inline-block;
+  padding: 2px 6px;
+  margin-left: 4px;
+  font-family: monospace;
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: #4ade80;
+  background: #000;
+  border: 1px solid #4ade80;
+}
+
+.gp__midi { margin-top: 8px; font-size: 10px; color: #ffd93d; }
+
+/* Past ×8 the page stops pretending to be tasteful. */
+.app-geopage.is-loud .gp__title { animation: gp-rainbow 2.4s linear infinite; }
+[data-motion='reduced'] .app-geopage.is-loud .gp__title { animation: none; }
+
+@keyframes gp-rainbow {
+  0%, 100% { color: #ffd93d; }
+  33% { color: #67e8f9; }
+  66% { color: #ff6ec7; }
+}
+
+.gp__source { display: grid; grid-template-rows: auto 1fr; min-height: 96px; }
+
+.gp__source-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 6px;
+  font-size: 10px;
+  background: linear-gradient(180deg, #fff, #ece9d8);
+  border-top: 1px solid #aca899;
+  border-bottom: 1px solid #aca899;
+}
+
+.gp__code {
+  padding: 6px;
+  margin: 0;
+  overflow: auto;
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.5;
+  color: #111;
+  white-space: pre;
+  background: #fff;
+}
+
+.gp__line { display: block; }
+
+/* The line the milestone just wrote. It stays highlighted, because on a page
+   like this nothing is ever removed — that is the joke. */
+.gp__line.is-new { font-weight: 700; background: #fff6bf; }
+
+/* ==========================================================================
+   RetroAmp — the EQ bank the milestone lights up
+   ========================================================================== */
+
+.amp__eq {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 4px 6px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #000;
+}
+
+.amp__eq-band {
+  display: flex;
+  align-items: flex-end;
+  width: 6px;
+  height: 14px;
+  background: linear-gradient(180deg, #2a2a2a, #111);
+  border: 1px solid #000;
+}
+
+.amp__eq-led {
+  width: 100%;
+  height: 3px;
+  background: #2f4f2f;
+  transition: height 220ms ease-out, background 220ms ease-out;
+}
+
+.amp__eq-band.is-lit .amp__eq-led { height: 100%; background: linear-gradient(180deg, #7cff5a, #1f9e00); }
+[data-motion='reduced'] .amp__eq-led { transition: none; }
+
+/* ChainMail's buy row *is* its toolbar, at the top of the window, so its
+   celebration is the one that hangs from the bottom instead. */
+.app-chainmail {
+  --w32celebrate-top: auto;
+  --w32celebrate-bottom: 52px;
+}

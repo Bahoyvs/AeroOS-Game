@@ -38,6 +38,44 @@ export const APPS = [
     blurb: 'Playlists give global Buzz multipliers. Heavy metal costs RAM.',
   },
   {
+    id: 'chainmail',
+    name: 'ChainMail',
+    icon: 'icons/chainmail.svg',
+    day: 2,
+    ram: 48,
+    /**
+     * Installing an app and unlocking its building are two different gates, and
+     * the gap between them is deliberate: the app arrives first and opens on a
+     * "connecting…" panel, so a building announces itself before it is buyable
+     * rather than appearing fully formed in the Start menu.
+     */
+    install: { cost: 250, unlockAt: 100 },
+    // Three panes — folder tree, message list, preview — like the real thing.
+    window: { width: 470, height: 430 },
+    blurb: 'Forward to ten people or nothing good will happen.',
+  },
+  {
+    id: 'aeroboards',
+    name: 'AeroBoards',
+    icon: 'icons/aeroboards.svg',
+    day: 2,
+    ram: 80,
+    install: { cost: 2000, unlockAt: 800 },
+    window: { width: 500, height: 470 },
+    blurb: 'Forums. 1,204 replies, none of them on topic.',
+  },
+  {
+    id: 'geopage',
+    name: 'GeoPage',
+    icon: 'icons/geopage.svg',
+    day: 2,
+    ram: 112,
+    install: { cost: 30000, unlockAt: 18000 },
+    // Tall enough for the page preview and the View Source pane together.
+    window: { width: 460, height: 500 },
+    blurb: 'Under construction. Forever. With a MIDI.',
+  },
+  {
     id: 'lemonwire',
     name: 'LemonWire',
     icon: 'icons/lemonwire.png',
@@ -47,7 +85,7 @@ export const APPS = [
     // Tall enough that the seed slots and the swarm are visible at once — the
     // whole app is the comparison between the two.
     window: { width: 430, height: 500 },
-    blurb: 'Seed files for passive Buzz. Some of them bite.',
+    blurb: 'Share files with the swarm. Some of them bite.',
   },
   {
     id: 'aerosweeper',

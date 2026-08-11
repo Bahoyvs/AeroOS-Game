@@ -42,9 +42,12 @@ describe('the goal tracker', () => {
   });
 
   /**
-   * The reason `isReady` exists. Offering "install Shield99" to a player who
-   * has not earned a tenth of its price is a shopping list, not an objective —
+   * The reason `isReady` exists. Offering "install GeoPage" to a player who has
+   * not earned a thousandth of its price is a shopping list, not an objective —
    * and it would sit there unmoved for the whole early game.
+   *
+   * Written against the *next unreached install* rather than a named app, so
+   * adding a building to the roster cannot silently retarget the assertion.
    */
   it('skips an app the run has not unlocked yet', () => {
     const state = fresh();
@@ -54,12 +57,20 @@ describe('the goal tracker', () => {
     state.buildings.aerochat.units = FIRST_MILESTONE.at;
     state.runBuzz = 0;
 
-    // LemonWire is next on the list but unreachable, so the tracker moves past
+    // The next install is unreachable at runBuzz 0, so the tracker moves past
     // it rather than parking on an objective the player cannot act on.
-    expect(currentGoal(state).id).not.toBe('install-lemonwire');
+    // Taken from the goal chain's own order, and skipping anything the fixture
+    // has already installed — otherwise this picks RetroAmp, which is installed
+    // two lines above.
+    const nextInstall = GOALS.map((goal) => goal.id)
+      .filter((id) => id.startsWith('install-'))
+      .map((id) => getApp(id.slice('install-'.length)))
+      .find((app) => !state.apps[app.id].installed);
+    expect(currentGoal(state).id).not.toBe(`install-${nextInstall.id}`);
 
-    state.runBuzz = getApp('lemonwire').install.unlockAt;
-    expect(currentGoal(state).id).toBe('install-lemonwire');
+    // ...and it is offered the moment the run has earned its way there.
+    state.runBuzz = nextInstall.install.unlockAt;
+    expect(currentGoal(state).id).toBe(`install-${nextInstall.id}`);
   });
 
   it('counts completed goals rather than the current index', () => {

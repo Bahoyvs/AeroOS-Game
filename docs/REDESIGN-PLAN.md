@@ -113,25 +113,41 @@ their branches in `globalMultiplier` (`infectionPenalty`, `renderPenalty`). The 
 "System Updating…" screen reuses `ui/bsod.js`. This is the only backwards-incompatible
 step for live players, so it goes early and alone.
 
-## Phase 2 — Faz 1–2 building content *(in progress)*
+## Phase 2 — Faz 1–2 building content *(complete)*
 
-AeroChat, RetroAmp, ChainMail, AeroBoards, LemonWire, GeoPage. Per building: an app
-module under `src/apps/`, a roster entry in `data/apps.js`, a `w32-buy` control (GDD §4),
-and a milestone celebration (2–3 s, no decision).
+All six phase 1–2 buildings have a window, a `w32-buy` control in their own fiction, and
+a milestone celebration (2–3 s, no decision).
 
-**Done:**
+`src/ui/building.js` is the shared kit: one buy control, one unit/milestone meter, one
+celebration driver off the `MILESTONE` event, one locked panel. Six windows with six
+bespoke celebration timers is how a celebration outlives the window that spawned it,
+which is why there is exactly one of each.
 
-- `src/ui/building.js` — the shared kit. One `w32-buy` control, one unit/milestone meter,
-  one celebration driver off the `MILESTONE` event, one locked panel. Six windows with
-  six bespoke celebration timers is how a celebration outlives the window that spawned
-  it; this is why there is exactly one.
-- **LemonWire** rebuilt on the kit, resolving the overlap above.
+| Building | `w32-buy` costume (GDD §4) | Milestone moment | Visual progression |
+| --- | --- | --- | --- |
+| AeroChat | `Add a Contact` | Tools → Options notice | buddy list grows, statuses rotate |
+| RetroAmp | `+ ADD` | `EQ PRESET UNLOCKED`, bands light | EQ bank fills, marquee reports the library |
+| ChainMail | `✉ Send/Recv` | "New message rule created" | unread counter jumps, turns red past 1,000 |
+| AeroBoards | `Upgrade Server Hosting` footer link | cPanel permission granted | forums appear, threads go sticky/locked/on fire |
+| LemonWire | `Download` | "Upgraded to PRO!" | swarm spans rarer files, connection bars light |
+| GeoPage | `＋ Add Widget` | a snippet writes itself into View Source | stickers, MIDI, counter, then a rainbow title |
 
-**Remaining:** ChainMail, AeroBoards and GeoPage need app modules and roster entries
-(they are on the building roster but have no window yet, so they are unreachable in
-game). RetroAmp needs a unit track alongside its playlist deck. AeroChat needs its
-celebration wired — it still uses its own hand-built buy row rather than the kit, which
-works but is now the odd one out.
+Three notes on things that were decided in the building rather than in the plan:
+
+- **The celebration anchor is a CSS variable.** A fixed bottom offset covered the buy row
+  in three of the six, because "the bottom" is a different distance in each window. It is
+  top-anchored by default; ChainMail, whose buy row *is* its toolbar, flips it.
+- **AeroBoards' footer is sticky.** A 2004 forum footer was not, and the fiction is worse
+  for it — but that footer carries the purchase control, and a button below the fold of a
+  page that grows as you play is a button the player has to hunt for.
+- **AeroBoards' link-styled buttons still get 44 px.** Styling them as footer links first
+  dropped the touch target to 38 px, under the GDD §9 floor, on the one building whose
+  buy control is a link. Padding does the looking; the height stays.
+
+`tests/appRoster.test.js` guards the seam between the two rosters: every phase 1–2
+building has a window, install gates sit at or before building unlocks, install prices
+stay under the first unit's price, and the six windows cannot all fit in stock RAM at
+once.
 
 ## Phase 3 — Faz 3 building content
 
