@@ -615,13 +615,11 @@ async function boot() {
    * Until they exist it stays a balloon — but a balloon in the building's own
    * language, counting the building's own unit, not AeroChat's buddies.
    */
-  game.bus.on(game.events.MILESTONE, ({ id, at, multiplier, minigameUnlocked }) => {
+  game.bus.on(game.events.MILESTONE, ({ id, at, multiplier }) => {
     const building = getBuilding(id);
     notify({
       title: `${at} ${building.units}`,
-      body: minigameUnlocked
-        ? `${building.name} is now ×${multiplier} — and ${building.minigame.title} is unlocked.`
-        : `${building.name} production is now ×${multiplier}.`,
+      body: `${building.name} production is now ×${multiplier}.`,
       tone: 'success',
     });
   });

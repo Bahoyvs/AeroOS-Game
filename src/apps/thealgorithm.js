@@ -136,15 +136,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'thealgorithm',
     host: body,
-    render: ({ at, multiplier, minigameUnlocked }) => [
+    render: ({ at, multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'EPOCH COMPLETE' }),
       el('span', {
         class: 'w32celebrate__body',
         text: `${formatNumber(at)} cores committed. Model weights updated. ×${multiplier}.`,
       }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Tune the Parameters unlocked' })]
-        : []),
     ],
   });
 

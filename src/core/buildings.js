@@ -151,15 +151,3 @@ export function nextUnlock(state) {
   };
 }
 
-/**
- * Is this building's mini-game open (GDD §6)? Derived from the unit count, never
- * stored — which is one save field fewer, and makes the answer impossible to
- * desync from the thing it is about.
- *
- * Only five of the twelve declare a `minigame` at all; the rest answer false
- * forever, and that gap is deliberate (phase 1 stays plain, phase 4 stops
- * offering the player games).
- */
-export function hasMinigame(state, id) {
-  return getBuilding(id).minigame != null && unitsOf(state, id) >= BUILDING.minigameAt;
-}

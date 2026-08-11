@@ -170,25 +170,6 @@ describe('unlocks', () => {
   });
 });
 
-describe('mini-game gating', () => {
-  it('opens at the first milestone, for the five buildings that have one', () => {
-    const withGame = BUILDINGS.filter((b) => b.minigame);
-    expect(withGame).toHaveLength(5);
-    for (const building of withGame) {
-      expect(econ.hasMinigame(withUnits(building.id, BUILDING.minigameAt - 1), building.id)).toBe(
-        false,
-      );
-      expect(econ.hasMinigame(withUnits(building.id, BUILDING.minigameAt), building.id)).toBe(true);
-    }
-  });
-
-  it('never opens for a building that declares none', () => {
-    for (const building of BUILDINGS.filter((b) => !b.minigame)) {
-      expect(econ.hasMinigame(withUnits(building.id, 5000), building.id)).toBe(false);
-    }
-  });
-});
-
 describe('buying units', () => {
   const newGame = () => {
     const game = createGame({ storage: createMemoryStorage(), now: 0, rng: () => 0.5 });
@@ -208,26 +189,37 @@ describe('buying units', () => {
     expect(before - game.state.buzz).toBe(expected);
   });
 
-  it('announces the milestone it crossed, and the mini-game it opened', () => {
+  it('announces the milestone it crossed', () => {
     const game = newGame();
     const seen = [];
     game.bus.on(game.events.MILESTONE, (payload) => seen.push(payload));
 
-    game.buyUnits('lemonwire', BUILDING.minigameAt - 1);
+    game.buyUnits('lemonwire', BUILDING.milestones[1].at - 1);
     expect(seen).toHaveLength(0);
 
     game.buyUnits('lemonwire', 1);
     expect(seen).toHaveLength(1);
-    expect(seen[0]).toMatchObject({ id: 'lemonwire', at: 25, minigameUnlocked: true });
+    expect(seen[0]).toMatchObject({
+      id: 'lemonwire',
+      at: BUILDING.milestones[1].at,
+      multiplier: BUILDING.milestones[1].multiplier,
+    });
   });
 
-  it('does not re-announce a mini-game that was already open', () => {
+  it('announces each threshold once, not every purchase past it', () => {
     const game = newGame();
     game.buyUnits('lemonwire', BUILDING.milestones[1].at);
     const seen = [];
     game.bus.on(game.events.MILESTONE, (payload) => seen.push(payload));
-    game.buyUnits('lemonwire', BUILDING.milestones[2].at - BUILDING.milestones[1].at);
-    expect(seen[0]).toMatchObject({ at: BUILDING.milestones[2].at, minigameUnlocked: false });
+
+    // Two buys inside the same tier, then one that crosses into the next.
+    game.buyUnits('lemonwire', 5);
+    game.buyUnits('lemonwire', 5);
+    expect(seen).toHaveLength(0);
+
+    game.buyUnits('lemonwire', BUILDING.milestones[2].at - BUILDING.milestones[1].at - 10);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ at: BUILDING.milestones[2].at });
   });
 
   it('is the only way units appear — a refused buy costs nothing', () => {

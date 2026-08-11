@@ -144,7 +144,7 @@ export function mount(body, { game }) {
     game,
     buildingId: 'lemonwire',
     host: body,
-    render: ({ multiplier, minigameUnlocked }) => {
+    render: ({ multiplier }) => {
       const connection = game.econ.lemonwireConnection(game.state);
       return [
         el('strong', { class: 'w32celebrate__title', text: 'Upgraded to PRO!' }),
@@ -152,9 +152,6 @@ export function mount(body, { game }) {
           class: 'w32celebrate__body',
           text: `${connection.label} unlocked — the swarm is ×${multiplier} faster.`,
         }),
-        ...(minigameUnlocked
-          ? [el('em', { class: 'w32celebrate__extra', text: 'Bandwidth Tug-of-War unlocked' })]
-          : []),
       ];
     },
   });

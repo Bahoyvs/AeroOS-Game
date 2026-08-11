@@ -168,15 +168,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'aeroboards',
     host: body,
-    render: ({ at, multiplier, minigameUnlocked }) => {
+    render: ({ at, multiplier }) => {
       const index = Math.min(PERMISSIONS.length - 1, Math.floor(Math.log2(Math.max(1, multiplier))));
       return [
         el('strong', { class: 'w32celebrate__title', text: 'cPanel: new permission granted' }),
         el('span', { class: 'w32celebrate__body', text: PERMISSIONS[index] }),
         el('em', { class: 'w32celebrate__extra', text: `${formatNumber(at)} members · ×${multiplier}` }),
-        ...(minigameUnlocked
-          ? [el('em', { class: 'w32celebrate__extra', text: 'Douse the Flame War unlocked' })]
-          : []),
       ];
     },
   });

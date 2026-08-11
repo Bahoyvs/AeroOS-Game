@@ -47,13 +47,6 @@ export const BUILDING = {
    * clear of the last threshold.
    */
   maxUnits: 10_000,
-
-  /**
-   * Where a building's mini-game opens (GDD §6) — the same threshold as the
-   * first milestone, so the celebration and the unlock land as one moment.
-   * Derived state: `units >= this`, never stored.
-   */
-  minigameAt: 25,
 };
 
 /**

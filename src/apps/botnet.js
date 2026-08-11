@@ -132,15 +132,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'botnet',
     host: body,
-    render: ({ at, multiplier, minigameUnlocked }) => [
+    render: ({ at, multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'SUBNET ACQUIRED' }),
       el('span', {
         class: 'w32celebrate__body',
         text: `${formatNumber(at)} nodes mapped. Throughput ×${multiplier}.`,
       }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Node sweep unlocked' })]
-        : []),
     ],
   });
 

@@ -174,12 +174,9 @@ export function mount(body, { game }) {
     game,
     buildingId: 'mindsync',
     host: body,
-    render: ({ multiplier, minigameUnlocked }) => [
+    render: ({ multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'NEW WAVEFORM ACQUIRED' }),
       el('span', { class: 'w32celebrate__body', text: `Carrier locked. Amplitude ×${multiplier}.` }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Frequency drift unlocked' })]
-        : []),
     ],
   });
 

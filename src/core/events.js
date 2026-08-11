@@ -43,7 +43,7 @@ export const EVENTS = {
   APP_INSTALLED: 'app:installed', // { id }
   OUT_OF_MEMORY: 'system:oom', // { id, needed, free }
   UNITS_BOUGHT: 'building:bought', // { id, count, cost, units }
-  MILESTONE: 'building:milestone', // { id, at, multiplier, minigameUnlocked }
+  MILESTONE: 'building:milestone', // { id, at, multiplier }
   STATUS_SPAWNED: 'status:spawned', // { index, bonusId, expiresAt }
   STATUS_MISSED: 'status:missed', // { index, bonusId }
   STATUS_CLAIMED: 'status:claimed', // { bonus, buzz }

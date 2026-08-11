@@ -80,15 +80,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'aerochat',
     host: body,
-    render: ({ at, multiplier, minigameUnlocked }) => [
+    render: ({ at, multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'Tools → Options' }),
       el('span', {
         class: 'w32celebrate__body',
         text: `${at} contacts online. Group chat capacity is now ×${multiplier}.`,
       }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Nudge war unlocked' })]
-        : []),
     ],
   });
 

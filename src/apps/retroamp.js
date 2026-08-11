@@ -91,15 +91,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'retroamp',
     host: body,
-    render: ({ at, multiplier, minigameUnlocked }) => [
+    render: ({ at, multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'EQ PRESET UNLOCKED' }),
       el('span', {
         class: 'w32celebrate__body',
         text: `${formatNumber(at)} tracks in the library — output ×${multiplier}.`,
       }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Crossfade unlocked' })]
-        : []),
     ],
   });
 

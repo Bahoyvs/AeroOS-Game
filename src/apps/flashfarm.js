@@ -150,15 +150,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'flashfarm',
     host: body,
-    render: ({ multiplier, minigameUnlocked }) => [
+    render: ({ multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'TIER UPGRADE APPROVED' }),
       el('span', {
         class: 'w32celebrate__body',
         text: `Payout engine relicensed. Cycle throughput is now ×${multiplier}.`,
       }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Clear the Queue unlocked' })]
-        : []),
     ],
   });
 

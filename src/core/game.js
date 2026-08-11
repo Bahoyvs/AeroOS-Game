@@ -255,17 +255,11 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
         id: buildingId,
         at: BUILDING.milestones[econ.milestoneIndex(after)].at,
         multiplier: econ.milestoneMultiplier(after),
-        // Same threshold, so a building with a mini-game opens it on this beat.
-        minigameUnlocked: econ.hasMinigame(state, buildingId) && !hasMinigameAt(before, buildingId),
       });
     }
     return { ok: true, count, cost, units: after };
   }
 
-  /** Did this building already have its mini-game open at `units`? */
-  function hasMinigameAt(units, buildingId) {
-    return econ.hasMinigame({ buildings: { [buildingId]: { units } } }, buildingId);
-  }
 
   /* ------------------------------------------------------------- RetroAmp */
 

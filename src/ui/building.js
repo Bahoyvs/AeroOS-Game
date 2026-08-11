@@ -197,14 +197,11 @@ export function createCelebration({ game, buildingId, host, render, durationMs =
  * A building that has its own idea — RetroAmp's EQ, LemonWire's PRO banner —
  * passes its own `render` instead.
  */
-export function milestoneCard({ id, at, multiplier, minigameUnlocked }) {
+export function milestoneCard({ id, at, multiplier }) {
   const building = getBuilding(id);
   return [
     el('strong', { class: 'w32celebrate__title', text: `${at} ${building.units}` }),
     el('span', { class: 'w32celebrate__body', text: `${building.name} is now ×${multiplier}.` }),
-    ...(minigameUnlocked && building.minigame
-      ? [el('em', { class: 'w32celebrate__extra', text: `${building.minigame.title} unlocked` })]
-      : []),
   ];
 }
 

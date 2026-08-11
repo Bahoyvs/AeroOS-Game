@@ -25,7 +25,7 @@ export function createInitialState(now = Date.now()) {
   /**
    * One entry per building (GDD v2 §1), and nothing in it but the unit count —
    * there is no `upgrades` field because there are no manual upgrades to buy.
-   * The milestone multiplier, the mini-game gate and the unlock are all derived
+   * The milestone multiplier and the unlock are both derived
    * from `units` and `runBuzz`, so they cannot desync from what they describe.
    */
   const buildings = {};

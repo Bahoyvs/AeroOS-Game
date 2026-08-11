@@ -150,15 +150,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'chainmail',
     host: body,
-    render: ({ at, multiplier, minigameUnlocked }) => [
+    render: ({ at, multiplier }) => [
       el('strong', { class: 'w32celebrate__title', text: 'New message rule created' }),
       el('span', {
         class: 'w32celebrate__body',
         text: `${at} contacts are forwarding automatically — ×${multiplier} mail.`,
       }),
-      ...(minigameUnlocked
-        ? [el('em', { class: 'w32celebrate__extra', text: 'Inbox triage unlocked' })]
-        : []),
     ],
   });
 

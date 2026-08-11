@@ -23,10 +23,6 @@
  * (`econ.isAppUnlocked`) — it resets with Format C:, so a new run re-walks the
  * roster instead of opening twelve windows on the first tick.
  *
- * `minigame` is the active mini-game the building opens at `BUILDING.minigameAt`
- * units (GDD §6). Seven buildings have no entry, and that is the design, not a
- * gap: phase 1 stays plain, and phase 4 stops offering the player games.
- *
  * `synergy` is flavour only (GDD §2.4): tooltip text, never a factor in any
  * formula. Nothing reads it except the UI.
  */
@@ -82,11 +78,6 @@ export const BUILDINGS = [
     baseCost: 17_280,
     baseProduction: 500,
     blurb: 'Forums. 1,204 replies, none of them on topic.',
-    minigame: {
-      id: 'douse-the-flame-war',
-      title: 'Douse the Flame War',
-      blurb: 'Rein a runaway thread in with the right reply, before a mod locks it.',
-    },
     synergy: 'Every thread ends in a link to something you should download.',
   },
   {
@@ -100,11 +91,6 @@ export const BUILDINGS = [
     baseCost: 207_360,
     baseProduction: 5_000,
     blurb: 'Share files with the swarm. Some of them bite.',
-    minigame: {
-      id: 'bandwidth-tug',
-      title: 'Bandwidth Tug-of-War',
-      blurb: 'Balance the upload and download sliders against the swarm.',
-    },
     synergy: 'Somebody has to host all those animated GIFs.',
   },
   {
@@ -131,11 +117,6 @@ export const BUILDINGS = [
     baseCost: 29_859_840,
     baseProduction: 500_000,
     blurb: 'Next partner. Next partner. Next partner.',
-    minigame: {
-      id: 'latency-sync',
-      title: 'Latency Sync',
-      blurb: 'Tap in time with a stream that keeps freezing.',
-    },
     synergy: 'Watching strangers is one click from farming with them.',
   },
   {
@@ -149,18 +130,6 @@ export const BUILDINGS = [
     baseCost: 358_318_080,
     baseProduction: 5_000_000,
     blurb: 'Host the loop. The clients are not people you will ever meet.',
-    /**
-     * Renamed with the building. GDD §6 calls this "Decline Gift Requests",
-     * written when FlashFarm was a farm and the player was the mark. They are
-     * the operator now, so the same mechanic — clear the incoming demands
-     * before they bury the screen — is the platform's alert queue instead.
-     * Phase 5 implements it; the id changes now so it is never built twice.
-     */
-    minigame: {
-      id: 'clear-the-queue',
-      title: 'Clear the Queue',
-      blurb: 'Dismiss the tenant alerts before the backlog buries the dashboard.',
-    },
     synergy: 'Somebody automated the players too. It was not a person.',
   },
   {
@@ -187,11 +156,6 @@ export const BUILDINGS = [
     baseCost: 51_597_803_520,
     baseProduction: 500_000_000,
     blurb: 'Allocate processing power. It knows what to do with it.',
-    minigame: {
-      id: 'tune-parameters',
-      title: 'Tune the Parameters',
-      blurb: 'Hold several sliders inside the target band at once.',
-    },
     synergy: 'It has finished modelling the network. Now it models you.',
   },
   {

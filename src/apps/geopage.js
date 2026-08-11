@@ -110,14 +110,11 @@ export function mount(body, { game }) {
     game,
     buildingId: 'geopage',
     host: body,
-    render: ({ multiplier, minigameUnlocked }) => {
+    render: ({ multiplier }) => {
       const widget = WIDGETS[Math.min(WIDGETS.length - 1, Math.floor(Math.log2(multiplier)) + 1)];
       return [
         el('strong', { class: 'w32celebrate__title', text: 'Widget added to your page' }),
         el('span', { class: 'w32celebrate__body', text: `<${widget.tag}> is now live. ×${multiplier} visitors.` }),
-        ...(minigameUnlocked
-          ? [el('em', { class: 'w32celebrate__extra', text: 'Guestbook moderation unlocked' })]
-          : []),
       ];
     },
   });

@@ -234,10 +234,28 @@ then Escape lands on Start.
 Neither is caught by `appRoster.test.js`: both are "on screen and covered", which is a
 different failure from "too big to open".
 
-## Phase 5 — mini-game engine
+## Phase 5 — mini-game engine *(cancelled)*
 
-Five games behind one `applyMinigameReward(buildingId, result)` seam. Rewards are
-building-scoped by rule; nothing here may touch `globalMultiplier`.
+**Cut from the design.** Five active mini-games would dilute an idle game that has
+already reached the depth its platform wants, clutter twelve windows that are each
+carrying their own fiction, and add a stressful, time-consuming layer to a game whose
+stated design goal (GDD §0) is "rahatlatıcı, karar yükü düşük" — relaxing, low decision
+load. GDD §6 is retired along with it.
+
+`applyMinigameReward` was never built; it only ever existed as the line above. What *was*
+built during Phase 0 has been removed rather than left dormant:
+
+- `BUILDING.minigameAt` and `hasMinigame()` (balance, core/buildings, economy re-export)
+- the `minigame` blocks on the five buildings that declared one (data/buildings)
+- `minigameUnlocked` on the `MILESTONE` payload, its computation in `game.js`, and the
+  `hasMinigameAt` helper
+- the branch in every one of the eleven celebration renderers, the shared
+  `milestoneCard`, and the balloon in `main.js`
+- the tests that covered the gate
+
+Nothing was left behind as a disabled hook. A dormant seam in the hot path is a cost
+paid on every purchase for a feature nobody is going to build, and the next person to
+read `buyUnits` should not have to work out whether the gate is live.
 
 ## Phase 6 — Buffer Overflow event system
 

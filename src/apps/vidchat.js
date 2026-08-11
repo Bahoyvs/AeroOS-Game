@@ -145,15 +145,12 @@ export function mount(body, { game }) {
     game,
     buildingId: 'vidchat',
     host: body,
-    render: ({ multiplier, minigameUnlocked }) => {
+    render: ({ multiplier }) => {
       const index = Math.min(ENHANCEMENTS.length - 1, Math.floor(Math.log2(Math.max(1, multiplier))));
       return [
         el('strong', { class: 'w32celebrate__title', text: 'Webcam Settings updated' }),
         el('span', { class: 'w32celebrate__body', text: ENHANCEMENTS[index] }),
         el('em', { class: 'w32celebrate__extra', text: `Throughput ×${multiplier}` }),
-        ...(minigameUnlocked
-          ? [el('em', { class: 'w32celebrate__extra', text: 'Latency Sync unlocked' })]
-          : []),
       ];
     },
   });

@@ -46,12 +46,6 @@ describe('the anchor footprint', () => {
     expect(app.install.unlockAt).toBeLessThan(building.unlockAt);
     expect(app.install.cost).toBeLessThan(building.baseCost);
   });
-
-  it('has no mini-game — phase 4 stops offering the player games', () => {
-    // GDD §6's deliberate gap. By the end the game is not entertaining you.
-    expect(getBuilding('thehive').minigame).toBeUndefined();
-    expect(getBuilding('mindsync').minigame).toBeUndefined();
-  });
 });
 
 describe('MindSync renderer selection (GDD §5, §9)', () => {
