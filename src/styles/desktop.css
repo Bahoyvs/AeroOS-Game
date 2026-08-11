@@ -931,10 +931,33 @@
 .coach__head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.62rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.85;
+}
+
+.coach__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coach__close {
+  background: transparent;
+  border: none;
+  color: var(--aero-cyan, #00f0ff);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.8;
+  transition: opacity 0.15s ease;
+}
+
+.coach__close:hover {
+  opacity: 1;
 }
 
 .coach__title {
@@ -1411,4 +1434,191 @@ body[data-heat='critical'] .tray__clock {
 
 .tray__motion[data-reduced='true'] {
   opacity: 0.55;
+}
+
+/* -------------------------------------------------------- Achievements App (Windows Vista / 7 Theme) */
+.app-achievements {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 14px;
+  overflow-y: auto;
+  color: #ffffff;
+  gap: 14px;
+  background: linear-gradient(180deg, #7c92a6 0%, #647a8e 40%, #52687c 100%);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  user-select: none;
+}
+
+.ach__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(210, 225, 240, 0.2) 50%, rgba(160, 180, 200, 0.25) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 3px 8px rgba(0, 0, 0, 0.15);
+  text-shadow: 0 1px 2px rgba(0, 20, 40, 0.5);
+}
+
+.ach__count {
+  display: flex;
+  flex-direction: column;
+}
+
+.ach__count strong {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.ach__count small {
+  font-size: 0.75rem;
+  color: #dbe8f5;
+  opacity: 0.9;
+}
+
+.ach__progress {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  width: 170px;
+  gap: 4px;
+}
+
+.ach__progress .meter__track {
+  width: 100%;
+  height: 12px;
+  background: linear-gradient(180deg, #8896a6 0%, #b2becb 100%);
+  border: 1px solid #6b7a8a;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.ach__progress .meter__fill {
+  height: 100%;
+  background: linear-gradient(180deg, #9ae6ff 0%, #3bb3ff 45%, #0077e6 50%, #005bb8 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  transition: width 0.3s ease;
+}
+
+.ach__progress small {
+  font-size: 0.72rem;
+  color: #dbe8f5;
+}
+
+.ach__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ach__group-title {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin: 0 0 6px 0;
+  color: #6edaff;
+  text-shadow: 0 1px 3px rgba(0, 20, 50, 0.7);
+}
+
+.ach__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.ach__badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.ach__badge.is-unlocked {
+  background: linear-gradient(180deg, rgba(85, 150, 180, 0.85) 0%, rgba(48, 105, 135, 0.85) 100%);
+  border: 1px solid rgba(150, 220, 250, 0.75);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 6px rgba(0, 30, 60, 0.25);
+  text-shadow: 0 1px 2px rgba(0, 20, 40, 0.5);
+}
+
+.ach__badge.is-locked {
+  background: linear-gradient(180deg, rgba(160, 168, 178, 0.55) 0%, rgba(125, 133, 143, 0.55) 100%);
+  border: 1px solid rgba(200, 208, 218, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 1px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  opacity: 0.85;
+}
+
+.ach__badge:hover {
+  transform: translateY(-1px);
+}
+
+.ach__badge.is-unlocked:hover {
+  border-color: #aae0ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 10px rgba(0, 180, 255, 0.4);
+}
+
+.ach__icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(200, 220, 240, 0.15) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 4px;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.ach__icon-placeholder {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.05em;
+  opacity: 0.9;
+}
+
+.ach__badge.is-locked .ach__icon {
+  background: linear-gradient(180deg, rgba(200, 208, 218, 0.25) 0%, rgba(150, 158, 168, 0.15) 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.ach__text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ach__text strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.ach__badge.is-locked .ach__text strong {
+  color: #eceffe;
+}
+
+.ach__text small {
+  font-size: 0.7rem;
+  color: #d2e4f5;
+  line-height: 1.25;
+  opacity: 0.9;
+}
+
+.ach__badge.is-locked .ach__text small {
+  color: #c2cbd4;
 }

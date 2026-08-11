@@ -112,7 +112,10 @@ export function createTutorialCoach({ root, game }) {
   panel.innerHTML = `
     <div class="coach__head">
       <span class="coach__label" data-role="label">Getting started</span>
-      <span class="coach__progress" data-role="progress"></span>
+      <div class="coach__meta">
+        <span class="coach__progress" data-role="progress"></span>
+        <button type="button" class="coach__close" data-role="close" title="Dismiss">×</button>
+      </div>
     </div>
     <strong class="coach__title" data-role="title"></strong>
     <p class="coach__hint" data-role="hint"></p>
@@ -130,15 +133,6 @@ export function createTutorialCoach({ root, game }) {
   /**
    * Publish the panel's measured height, the same way the gadget publishes its
    * own (`ui/desktop.js`).
-   *
-   * In PDA mode this is not decoration. A window is a full-screen sheet, the
-   * coach is pinned to the bottom of the screen, and the coach used to be drawn
-   * straight over the sheet's last hundred pixels — which is where AeroChat
-   * keeps its buy row and AeroSweeper its cash-out button. The tutorial was
-   * covering the very control it was pointing at. The stylesheet reserves this
-   * height instead of overlaying it, so it has to be the real number and not a
-   * guess: the panel's height changes with the objective, with the meter
-   * appearing and disappearing, and with how the hint wraps.
    */
   function publishHeight() {
     const height = panel.hidden ? 0 : Math.ceil(panel.getBoundingClientRect().height);
@@ -152,39 +146,29 @@ export function createTutorialCoach({ root, game }) {
   }
   requestAnimationFrame(publishHeight);
 
-  /**
-   * One button, two jobs, because it is the same offer both times: stop showing
-   * me this. During the tour it skips the script; on the closing card it
-   * acknowledges the hand-off and the panel goes away for good.
-   */
-  ref('skip').addEventListener('click', () => {
+  function handleDismiss() {
     if (currentStep(game.state)) game.skipOnboarding();
     else game.dismissGoals();
     spotlight.clear();
     update();
-  });
+  }
+
+  ref('skip').addEventListener('click', handleDismiss);
+  ref('close')?.addEventListener('click', handleDismiss);
 
   let shownKey = null;
 
   /**
    * The scripted tour: coach copy plus an arrow on the thing to click.
-   *
-   * Unless the player cannot afford the thing yet, in which case the objective
-   * is replaced by the shortfall that is blocking it. Pointing an arrow at a
-   * button somebody has 1 Buzz for, and calling that a tutorial step, is how
-   * the first minute used to dead-end — so the arrow goes back to the Nudge
-   * button, which is the answer to every version of this question, and the
-   * meter shows how much further there is to go.
    */
   function renderStep(step) {
     const gate = stepGate(game.state);
     ref('label').textContent = 'Getting started';
     ref('skip').hidden = false;
+    ref('skip').textContent = 'Skip the tour';
     ref('meter').hidden = gate === null;
     ref('progress').textContent = `${stepNumber(game.state)} / ${TUTORIAL_STEP_COUNT}`;
 
-    // Keyed on the gate as well as the step, so crossing the threshold replays
-    // the attention animation on what is now a genuinely new instruction.
     const key = `${step.id}:${gate ? 'gated' : 'open'}`;
     if (key !== shownKey) {
       shownKey = key;
@@ -206,28 +190,17 @@ export function createTutorialCoach({ root, game }) {
   }
 
   /**
-   * After the tour. No spotlight here on purpose: the arrow is a teaching
-   * device for someone who does not know where anything is, and pointing at
-   * the Start button for the rest of the session would be nagging rather than
-   * coaching.
+   * After the tour.
    */
   function renderGoal(goal) {
     spotlight.clear();
 
-    /**
-     * The last card in the chain is a hand-off, not an objective: no target, no
-     * bar, and a button to put it away (`core/goals.js` explains why the 500-buddy
-     * milestone is no longer sitting in this slot). Everything else is "Next up"
-     * with a bar under it.
-     */
     const closing = goal.progress === null;
     ref('label').textContent = closing ? 'All caught up' : 'Next up';
     ref('meter').hidden = closing;
-    ref('skip').hidden = !closing;
-    if (closing) ref('skip').textContent = 'Got it';
+    ref('skip').hidden = false;
+    ref('skip').textContent = closing ? 'Got it' : 'Dismiss goals';
 
-    // Namespaced: the tour keys on `${stepId}:gated|open`, and the two share
-    // this one slot.
     if (`goal:${goal.id}` !== shownKey) {
       shownKey = `goal:${goal.id}`;
       ref('title').textContent = goal.title;
@@ -241,8 +214,6 @@ export function createTutorialCoach({ root, game }) {
     if (closing) return;
 
     ref('detail').textContent = goal.detail;
-    // The bar is a target, not a warning: a nearly-full objective is good news,
-    // so the warn/critical tones are switched off.
     setBar(ref('bar'), goal.progress, { warn: 2, critical: 2 });
   }
 

@@ -13,6 +13,7 @@ import * as aerosweeper from './aerosweeper.js';
 import * as lemonwire from './lemonwire.js';
 import * as placeholder from './placeholder.js';
 import * as retroamp from './retroamp.js';
+import * as achievements from './achievements.js';
 import * as system from './system.js';
 
 /**
@@ -24,6 +25,7 @@ import * as system from './system.js';
  */
 const IMPLEMENTATIONS = {
   system,
+  achievements,
   aerochat,
   retroamp,
   chainmail,

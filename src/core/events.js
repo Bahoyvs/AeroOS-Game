@@ -74,4 +74,5 @@ export const EVENTS = {
   SAVED: 'save:written', // { at }
   LOADED: 'save:loaded', // { offline }
   NOTIFY: 'ui:notify', // { title, body, tone }
+  ACHIEVEMENT: 'achievement', // { achievement }
 };

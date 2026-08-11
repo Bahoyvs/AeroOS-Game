@@ -1,7 +1,8 @@
 import { ADS, BUILDING, CLICK, DEFRAG, OVERFLOW, SAVE, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
-import { hasBuilding } from '../data/buildings.js';
+import { BUILDINGS, hasBuilding } from '../data/buildings.js';
+import { ACHIEVEMENT_LIST } from '../data/achievements.js';
 import { applyLegacyLevel } from './legacy.js';
 import { getPlaylist } from '../data/playlists.js';
 import { HARDWARE, nextTierOf } from '../data/hardware.js';
@@ -158,6 +159,7 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     }
     checkTutorial();
     announceCosmetics();
+    updateAchievements();
 
     if (now - lastSaveAt >= SAVE.autosaveMs) save();
     bus.emit(EVENTS.TICK, { state, dt });
@@ -756,6 +758,68 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, dollars, bonus, legacy };
   }
 
+  /* --------------------------------------------------------- Achievements */
+
+  function updateAchievements() {
+    if (!state.achievements) state.achievements = { unlocked: {} };
+    if (!state.achievements.unlocked) state.achievements.unlocked = {};
+
+    const api = {
+      units: (id) => state.buildings?.[id]?.units ?? 0,
+      legacyLevel: () => econ.legacyLevel(state.allTimeBuzz ?? 0),
+      anyBuildingFullyUpgraded: () =>
+        Object.values(state.buildings ?? {}).some((b) => (b.units ?? 0) >= 500),
+      ownedBuildingCount: () =>
+        Object.values(state.buildings ?? {}).filter((b) => (b.units ?? 0) > 0).length,
+      synergyCount: () =>
+        BUILDINGS.filter((b) => (state.buildings?.[b.id]?.units ?? 0) >= 25).length,
+      allCosmeticsUnlocked: () => cosmetics.allUnlocked(state),
+      allHardwareMaxed: () =>
+        HARDWARE.tracks.every((t) => (state.hardware?.[t.id] ?? 0) >= t.tiers.length - 1),
+    };
+
+    let newlyUnlocked = false;
+    for (const item of ACHIEVEMENT_LIST) {
+      if (state.achievements.unlocked[item.id]) continue;
+      try {
+        if (item.test(state, api)) {
+          state.achievements.unlocked[item.id] = Date.now();
+          newlyUnlocked = true;
+          bus.emit(EVENTS.ACHIEVEMENT, { achievement: item });
+          bus.emit(EVENTS.NOTIFY, {
+            title: `Badge Earned: ${item.name}`,
+            body: item.blurb,
+            tone: 'celebrate',
+          });
+        }
+      } catch (err) {
+        // Silently skip any failed assertion
+      }
+    }
+    if (newlyUnlocked) save();
+  }
+
+  function getAchievementsSummary() {
+    updateAchievements();
+    const rows = ACHIEVEMENT_LIST.map((item) => ({
+      ...item,
+      unlocked: Boolean(state.achievements?.unlocked?.[item.id]),
+      unlockedAt: state.achievements?.unlocked?.[item.id] ?? null,
+    }));
+    const unlocked = rows.filter((r) => r.unlocked).length;
+    return {
+      unlocked,
+      total: ACHIEVEMENT_LIST.length,
+      rows,
+    };
+  }
+
+  function completionPercent() {
+    const summary = getAchievementsSummary();
+    if (summary.total === 0) return 0;
+    return Math.floor((summary.unlocked / summary.total) * 100);
+  }
+
   /** Player settings (sound, motion). Persisted immediately — it is a promise. */
   function setSettings(patch) {
     state.settings = { ...state.settings, ...patch };
@@ -838,6 +902,8 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     setCosmetic,
     cosmetics: () => cosmetics.cosmeticSummary(state),
     activeCosmetics: () => cosmetics.activeCosmetics(state),
+    achievements: getAchievementsSummary,
+    completionPercent,
     formatC,
     requestFormat,
     hardReset,

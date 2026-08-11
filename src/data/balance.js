@@ -400,7 +400,7 @@ export const DEFRAG = {
    * a 10x margin against a *fully built* machine now, not a hand-picked one, so
    * this cannot rot again when phase 4 adds the last three buildings.
    */
-  clearPerSecond: 0.07,
+  clearPerSecond: 0.08,
 
   /** What the pass costs while it runs. Small, visible, and never a surprise. */
   productionTax: 0.05,

@@ -199,6 +199,16 @@ export const SYSTEM_APPS = [
     window: { width: 380, height: 400 },
     blurb: 'Hardware, Buzz rate, and the Format C: button.',
   },
+  {
+    id: 'achievements',
+    name: 'Badges',
+    icon: 'icons/badges.ico',
+    day: 1,
+    ram: 0,
+    system: true,
+    window: { width: 560, height: 540 },
+    blurb: 'Badges earned across all runs.',
+  },
 ];
 
 export const ALL_APPS = [...SYSTEM_APPS, ...APPS];

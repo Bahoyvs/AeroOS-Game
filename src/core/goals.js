@@ -82,11 +82,11 @@ export const GOALS = [
   installGoal('retroamp', 'A playlist multiplies everything you earn, forever.'),
   {
     id: 'load-playlist',
-    isDone: (state) => state.retroamp.playlist !== null,
+    isDone: (state) => state.retroamp.playlist !== null || state.retroamp.startedAt > 0,
     isReady: (state) => installed(state, 'retroamp'),
     title: 'Put a playlist on',
     hint: 'Open RetroAmp and play AERO AMBIENCE. It pays for itself immediately.',
-    progress: (state) => (state.retroamp.playlist !== null ? 1 : 0),
+    progress: (state) => (state.retroamp.playlist !== null || state.retroamp.startedAt > 0 ? 1 : 0),
     detail: () => 'RetroAmp · nothing loaded',
   },
   {
