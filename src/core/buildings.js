@@ -1,5 +1,5 @@
-import { BUILDING } from '../data/balance.js';
-import { BUILDINGS, getBuilding } from '../data/buildings.js';
+import { BUILDING, OVERFLOW } from '../data/balance.js';
+import { BUILDINGS, FEED_BUILDING_IDS, getBuilding } from '../data/buildings.js';
 
 /**
  * The building mechanic (GDD v2 §2): what a unit costs, what it pays, and when
@@ -106,6 +106,21 @@ export function crossedMilestone(before, after) {
 /* --------------------------------------------------------------- production */
 
 /**
+ * Airplane Mode's price, per building (GDD §7.3, and see core/overflow.js —
+ * which owns the rule and re-exports this).
+ *
+ * It lives here rather than in the overflow module for two reasons: it has to be
+ * inside `buildingProduction` or the total and the twelve window breakdowns
+ * would disagree about the same number, and a `core/buildings.js` that imported
+ * `core/overflow.js` would close a cycle around `unitsOf`. What it needs is a
+ * constant and a list, both of which are data.
+ */
+export function feedTax(state, id) {
+  if (state.event?.airplaneModeOwned !== true) return 1;
+  return FEED_BUILDING_IDS.includes(id) ? 1 - OVERFLOW.airplane.feedTax : 1;
+}
+
+/**
  * One building's own output, before any global multiplier.
  *
  * Note what is *not* here: the window's open/closed state. A building pays
@@ -114,7 +129,7 @@ export function crossedMilestone(before, after) {
  */
 export function buildingProduction(state, id) {
   const units = unitsOf(state, id);
-  return units * getBuilding(id).baseProduction * milestoneMultiplier(units);
+  return units * getBuilding(id).baseProduction * milestoneMultiplier(units) * feedTax(state, id);
 }
 
 /** The twelve buildings together — what CPU and Legacy then multiply. */

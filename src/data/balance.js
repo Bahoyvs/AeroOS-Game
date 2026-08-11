@@ -255,6 +255,110 @@ export const OFFLINE = {
 };
 
 /**
+ * The Buffer Overflow crisis (GDD v2 §7) — the "Dead Internet" event.
+ *
+ * What it measures is not how *far* the player has got but what shape their
+ * machine is: `feedRatio` is the units owned across the five automated feed
+ * buildings against the three the player started with (the lists live in
+ * src/data/buildings.js, because that split is a property of the roster).
+ * Someone who keeps AeroChat, RetroAmp and ChainMail stocked never sees any of
+ * this. Someone who rushes the algorithm and lets the early apps rot does, and
+ * the remedy is the cheapest purchase in the game.
+ *
+ * Everything below is a *modifier on systems that already exist* — buffs, the
+ * global multiplier chain, and bloat. Phase 6 adds no new mechanic to play,
+ * which is why the whole event fits in one balance block and one core module.
+ */
+export const OVERFLOW = {
+  /**
+   * The master switch, same purpose as `ADS.enabled`: this is the one system in
+   * the game that deliberately makes the desktop unpleasant, on a portal where
+   * sessions are half an hour. If it reads badly in the wild it comes out in one
+   * edit, and nothing else changes shape.
+   */
+  enabled: true,
+
+  /**
+   * The ratio is sampled on simulation time and only escalates when it has held
+   * across `dwellSamples` consecutive samples — a minute of sustained pressure,
+   * not one bulk buy. Without the dwell, buying 100 units of The Hive would flip
+   * straight to a fullscreen crisis and the next purchase would flip it back.
+   */
+  sampleSeconds: 15,
+  dwellSamples: 4,
+  historyLength: 8, // two minutes of ratio, for the graph the UI can draw
+
+  /**
+   * The phases, ascending. Provisional like every number in the redesign —
+   * GDD §14.1 defers to simulation, and this one wants a real playtest rather
+   * than a tick loop, because what it is measuring is a habit.
+   */
+  phases: [
+    { phase: 1, at: 1.5 }, // cosmetic: the wallpaper starts to tear
+    { phase: 2, at: 3 }, //   economic: ghost notifications
+    { phase: 3, at: 6 }, //   crisis: the machine asks the question
+  ],
+
+  /**
+   * Ghost notifications. Balloons from apps that are not open, about things that
+   * did not happen. Each one live costs `penaltyEach` of production — folded
+   * into the global multiplier chain, so all twelve windows report it through
+   * `getProductionBreakdown` without a single one of them knowing it exists.
+   *
+   * Dismissing one pays a small burst. Deliberately small: a tax the player can
+   * only avoid by watching for balloons is the chore this phase was cut of
+   * mini-games to avoid. Ghosts also expire on their own.
+   */
+  ghost: {
+    spawnSecondsMin: 25,
+    spawnSecondsMax: 55,
+    frenzyFactor: 0.5, // at phase 3 they arrive twice as fast
+    lifetimeSeconds: 45,
+    penaltyEach: 0.04,
+    maxLive: 5, // worst case ×0.815 — noticeable, never ruinous
+    dismissSeconds: 10, // burst paid for silencing one, in seconds of production
+  },
+
+  /**
+   * The binary choice, and the reason it is a choice at all.
+   *
+   * Doomscroll is the better play for the next three minutes and the worse one
+   * for the rest of the run: it pays ×3 and dumps a quarter of a bloat bar onto
+   * the machine, permanently, every time it is taken. Log Off costs half of two
+   * minutes and buys ten minutes of quiet with nothing left behind.
+   *
+   * Both are ordinary modifiers on systems that were already here — an entry in
+   * `state.buffs` and a number added to `state.bloat`.
+   */
+  logOff: {
+    buffId: 'overflow-logoff',
+    magnitude: -0.5,
+    durationSeconds: 120,
+    calmSeconds: 600, // the phase is held at `calmPhase` or below for this long
+    calmPhase: 1,
+  },
+  doomscroll: {
+    buffId: 'overflow-doomscroll',
+    magnitude: 2, // ×3
+    durationSeconds: 180,
+    bloat: 0.25, // and this is what it actually costs
+  },
+
+  /**
+   * Airplane Mode — the Dollar-priced opt-out (GDD §7.3). It caps the event at
+   * its cosmetic phase forever, and taxes the five feed buildings for the
+   * privilege. A player who wants the game to stop being unpleasant can buy
+   * their way out; it costs them yield, which is the honest version of the
+   * trade. Priced above Auto-Defrag because it is bought later and wanted more.
+   */
+  airplane: {
+    cost: 60,
+    capPhase: 1,
+    feedTax: 0.05,
+  },
+};
+
+/**
  * Auto-Defrag (see src/core/defrag.js for the why).
  *
  * A scheduled job, not a stat. It idles until bloat is genuinely bad, then runs

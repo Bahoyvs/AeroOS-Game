@@ -24,6 +24,13 @@ export const UNLOCK = {
   lifetimeBuzz: (at) => ({ kind: 'lifetimeBuzz', at }),
   prestige: (at) => ({ kind: 'prestige', at }),
   dollarsSpent: (at) => ({ kind: 'dollarsSpent', at }),
+  /**
+   * Buffer Overflows answered (GDD §7). Monotonic like the other three — the
+   * counter lives outside the wipe in `state.event.overflowsResolved` — which is
+   * what makes it safe to derive an unlock from. It does not care *which* answer
+   * was given: the prize is for having been there, not for behaving.
+   */
+  overflows: (at) => ({ kind: 'overflows', at }),
 };
 
 /**
@@ -60,6 +67,13 @@ export const TINTS = [
     blurb: 'Warm plastic and a low orange sun. Peak 2006.',
     swatch: 'linear-gradient(160deg, #ffd9a3, #f0762c 58%, #8c2f0a)',
     unlock: UNLOCK.dollarsSpent(20),
+  },
+  {
+    id: 'deadnet',
+    label: 'Dead Internet',
+    blurb: 'Phosphor grey on a signal nobody is broadcasting. You kept it anyway.',
+    swatch: 'linear-gradient(160deg, #b9c6bd, #4d5a52 58%, #161c19)',
+    unlock: UNLOCK.overflows(1),
   },
 ];
 

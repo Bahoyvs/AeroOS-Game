@@ -59,6 +59,12 @@ export const EVENTS = {
   DEFRAG_INSTALLED: 'defrag:installed', // { cost }
   DEFRAG_STARTED: 'defrag:started', // { from } — bloat the pass engaged at
   DEFRAG_DONE: 'defrag:done', // { from, passes }
+  OVERFLOW_PHASE: 'overflow:phase', // { from, to, ratio }
+  OVERFLOW_GHOST: 'overflow:ghost', // { ghost, message }
+  OVERFLOW_SILENCED: 'overflow:silenced', // { ghost, buzz }
+  OVERFLOW_CRISIS: 'overflow:crisis', // { ratio } — the UI takes the screen
+  OVERFLOW_RESOLVED: 'overflow:resolved', // { choice, buff, bloat }
+  AIRPLANE_INSTALLED: 'overflow:airplane', // { cost }
   COSMETIC_CHANGED: 'cosmetics:changed', // { kind, item }
   COSMETIC_UNLOCKED: 'cosmetics:unlocked', // { item }
   FORMAT_REQUESTED: 'prestige:requested', // { dollars } — UI runs the sequence

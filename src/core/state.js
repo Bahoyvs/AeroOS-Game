@@ -82,15 +82,36 @@ export function createInitialState(now = Date.now()) {
     achievements: { unlocked: {} },
 
     /**
-     * The Buffer Overflow crisis system (GDD §7). Named `event` to match the
-     * documented save schema. `airplaneModeOwned` is the Dollar-priced opt-out,
-     * so it survives Format C: the way every other Dollar purchase does.
+     * The Buffer Overflow crisis system (GDD §7, core/overflow.js). Named
+     * `event` to match the documented save schema.
+     *
+     * Two of these outlive a Format C: and the rest do not. `airplaneModeOwned`
+     * is the Dollar-priced opt-out, so it survives like every other Dollar
+     * purchase; `overflowsResolved` is the monotonic counter the cosmetic
+     * unlocks measure against, and cosmetics may never be revoked (see the note
+     * in data/cosmetics.js). Everything else is *this run's* pressure and starts
+     * again from nothing, which it does for free: the ratio is computed from
+     * unit counts, and the wipe takes those.
+     *
+     * None of this needed a SAVE_VERSION bump. New fields with defaults in here
+     * are exactly the case that does not: a v4 save without them reads as a
+     * machine that has never overflowed, which is true.
      */
     event: {
       feedRatioHistory: [],
       overflowPhase: 0,
       ghostNotifications: [],
       airplaneModeOwned: false,
+      overflowsResolved: 0,
+      // Countdowns in simulation seconds — the event only escalates while
+      // somebody is watching it (core/overflow.js).
+      sampleIn: 0,
+      ghostIn: 0,
+      ghostSeq: 0,
+      // Wall clock: the quiet Log Off buys, and when a Doomscroll wears off.
+      calmUntil: 0,
+      crisisPending: false,
+      crisisRearmAt: 0,
     },
 
     /**
@@ -250,10 +271,15 @@ export function resetForPrestige(state, dollarsEarned, now = Date.now(), { bonus
     crazyGames: { ...state.crazyGames },
     /**
      * Airplane Mode (GDD §7.3) is bought with Dollars, so it outlives the wipe
-     * for the same reason Auto-Defrag does. Everything else about the crisis
+     * for the same reason Auto-Defrag does, and the resolved count is a lifetime
+     * counter with cosmetics hanging off it. Everything else about the crisis
      * system is *this run's* pressure and starts again from nothing.
      */
-    event: { ...fresh.event, airplaneModeOwned: state.event?.airplaneModeOwned === true },
+    event: {
+      ...fresh.event,
+      airplaneModeOwned: state.event?.airplaneModeOwned === true,
+      overflowsResolved: state.event?.overflowsResolved ?? 0,
+    },
     prestigeCount: state.prestigeCount + 1,
     hardware: { ...state.hardware },
     stats: { ...state.stats },

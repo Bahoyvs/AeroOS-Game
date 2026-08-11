@@ -28,8 +28,20 @@ import {
   unitsOf,
   unlockedBuildings,
 } from './buildings.js';
+import { feedTax } from './buildings.js';
 import { legacyLevel, legacyMultiplier, legacyProgress } from './legacy.js';
 import { defragPenalty, defragProgress, isDefragging, offlineBloat } from './defrag.js';
+import {
+  airplaneModeOwned,
+  canBuyAirplaneMode,
+  crisisPending,
+  feedRatio,
+  ghostAt,
+  liveGhosts,
+  overflowPenalty,
+  overflowPhase,
+  phaseForRatio,
+} from './overflow.js';
 import { connectionAt, storageUsedGB, swarm, swarmRisk } from './lemonwire.js';
 
 /**
@@ -253,12 +265,22 @@ export function bloatLevel(state) {
  */
 export {
   affordableUnits,
+  airplaneModeOwned,
   buildingProduction,
+  canBuyAirplaneMode,
+  crisisPending,
   crossedMilestone,
+  feedRatio,
+  feedTax,
+  ghostAt,
   isBuildingUnlocked,
   legacyLevel,
   legacyMultiplier,
   legacyProgress,
+  liveGhosts,
+  overflowPenalty,
+  overflowPhase,
+  phaseForRatio,
   milestoneIndex,
   milestoneMultiplier,
   nextMilestone,
@@ -338,7 +360,14 @@ export function globalMultiplier(state, now = Date.now()) {
     legacyMultiplier(state) *
     // A defrag pass is disk-bound and the machine knows it. Small, and only
     // while it runs — the bloat it is clearing costs far more.
-    defragPenalty(state)
+    defragPenalty(state) *
+    /**
+     * What the ghost notifications are costing (GDD §7.2). It belongs *here*,
+     * as one more factor in the chain, and not as a subtraction somewhere: put
+     * it in the chain and all twelve windows report it through
+     * `getProductionBreakdown` without one of them knowing the event exists.
+     */
+    overflowPenalty(state, now)
   );
 }
 
@@ -387,11 +416,16 @@ export function rateBreakdown(state, now = Date.now()) {
  * spectrum analyser), but it may never *compute* one. If a window needs a
  * factor that is not on this object, the factor belongs here first.
  *
- * `base × milestoneMultiplier × globalMultiplier === total`, exactly. The
- * `legacyMultiplier` and `hardwareMultiplier` fields are the two slices of
+ * `base × milestoneMultiplier × feedTax × globalMultiplier === total`, exactly.
+ * The `legacyMultiplier` and `hardwareMultiplier` fields are the two slices of
  * `globalMultiplier` the player is most likely to ask about; they are reported
  * for display and are already inside it, so multiplying them in again would
  * double-count.
+ *
+ * `feedTax` is the one per-building factor and therefore cannot live in the
+ * global chain: it is Airplane Mode's price, charged to the five feed buildings
+ * and to nobody else (GDD §7.3). It is 1 for everyone until the utility is
+ * bought, which is why it is in the identity rather than folded away.
  */
 export function getProductionBreakdown(state, buildingId, now = Date.now()) {
   const units = unitsOf(state, buildingId);
@@ -406,6 +440,7 @@ export function getProductionBreakdown(state, buildingId, now = Date.now()) {
     base: units * building.baseProduction,
     perUnit: building.baseProduction,
     milestoneMultiplier: milestone,
+    feedTax: feedTax(state, buildingId),
     legacyMultiplier: legacyMultiplier(state),
     hardwareMultiplier: hardwareEffects(state).production,
     globalMultiplier: global,

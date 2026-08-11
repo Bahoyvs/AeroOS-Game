@@ -1,4 +1,4 @@
-import { ADS, BUILDING, CLICK, DEFRAG, SAVE, SWEEPER } from '../data/balance.js';
+import { ADS, BUILDING, CLICK, DEFRAG, OVERFLOW, SAVE, SWEEPER } from '../data/balance.js';
 import { formatNumber } from './format.js';
 import { getApp } from '../data/apps.js';
 import { hasBuilding } from '../data/buildings.js';
@@ -10,6 +10,7 @@ import * as ads from './ads.js';
 import { addBuff, pruneBuffs } from './buffs.js';
 import * as cosmetics from './cosmetics.js';
 import * as defrag from './defrag.js';
+import * as overflow from './overflow.js';
 import * as sweeper from './sweeper.js';
 import { claimStatusEvent, updateStatusEvents } from './statusEvents.js';
 import { EVENTS, createEventBus } from './events.js';
@@ -109,6 +110,30 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     const { spawned, missed } = updateStatusEvents(state, dt, rng);
     if (spawned) bus.emit(EVENTS.STATUS_SPAWNED, spawned);
     if (missed) bus.emit(EVENTS.STATUS_MISSED, missed);
+
+    /**
+     * The Buffer Overflow (core/overflow.js). Simulation time on purpose: a
+     * crisis about where the player's attention is going may not escalate while
+     * nobody is there to have any.
+     */
+    const shift = overflow.updateOverflow(state, dt, now);
+    if (shift) {
+      bus.emit(EVENTS.OVERFLOW_PHASE, shift);
+      save();
+    }
+    const ghost = overflow.updateGhosts(state, dt, rng, now);
+    if (ghost.spawned) {
+      bus.emit(EVENTS.OVERFLOW_GHOST, {
+        ghost: ghost.spawned,
+        message: overflow.ghostAt(ghost.spawned.seed),
+      });
+    }
+    // Armed by crossing into phase 3, and re-armed when a Doomscroll wears off.
+    // Both paths land here so the UI has exactly one signal to listen for.
+    const crossed = shift !== null && shift.to >= 3 && shift.from < 3;
+    if (crossed || overflow.updateCrisis(state, now)) {
+      bus.emit(EVENTS.OVERFLOW_CRISIS, { ratio: overflow.feedRatio(state) });
+    }
 
 
 
@@ -606,6 +631,59 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     return { ok: true, cost: check.cost };
   }
 
+  /* ----------------------------------------------------- Buffer Overflow */
+
+  /**
+   * Silence one ghost notification (GDD §7.2). Pays a small burst, priced in
+   * seconds of production like every other burst in the game — and priced
+   * *after* the ghost is gone, so the number matches the rate the player is
+   * looking at a frame later rather than the depressed one that nagged them.
+   *
+   * Deliberately small. A tax the player can only avoid by watching for
+   * balloons is a chore, and Phase 5 was cut to keep chores out of this game.
+   */
+  function silenceGhost(id, now = Date.now()) {
+    const ghost = overflow.dismissGhost(state, id, now);
+    if (!ghost) return { ok: false, reason: 'gone' };
+    const buzz = econ.buzzPerSecond(state, now) * OVERFLOW.ghost.dismissSeconds;
+    grantBuzz(buzz, 'overflow');
+    bus.emit(EVENTS.OVERFLOW_SILENCED, { ghost, buzz });
+    return { ok: true, buzz };
+  }
+
+  /** Answer the crisis: 'logoff' or 'doomscroll'. See core/overflow.js. */
+  function answerOverflow(choice, now = Date.now()) {
+    const result = overflow.resolveOverflow(state, choice, now);
+    if (!result) return { ok: false, reason: 'unknown-choice' };
+    bus.emit(EVENTS.OVERFLOW_RESOLVED, result);
+    announceCosmetics();
+    save();
+    return { ok: true, ...result };
+  }
+
+  /**
+   * Buy Airplane Mode (GDD §7.3) — the Dollar-priced opt-out. Same shape as
+   * Auto-Defrag, and for the same reason: it is bought out of the meta-currency,
+   * so it outlives the wipe. It caps the event at its cosmetic phase and taxes
+   * the five feed buildings 5% forever, which is the trade stated plainly.
+   */
+  function buyAirplaneMode() {
+    const check = overflow.canBuyAirplaneMode(state);
+    if (!check.ok) return check;
+
+    state.dollars -= check.cost;
+    state.dollarsSpentTotal += check.cost;
+    state.event.airplaneModeOwned = true;
+    state.event.ghostNotifications = [];
+    state.event.crisisPending = false;
+    state.event.crisisRearmAt = 0;
+    state.event.overflowPhase = Math.min(state.event.overflowPhase, OVERFLOW.airplane.capPhase);
+    bus.emit(EVENTS.AIRPLANE_INSTALLED, { cost: check.cost });
+    announceCosmetics();
+    save();
+    return { ok: true, cost: check.cost };
+  }
+
   /* --------------------------------------------------------- cosmetics */
 
   /**
@@ -753,6 +831,10 @@ export function createGame({ storage = defaultStorage(), now = Date.now(), rng =
     buyHardware,
     buyDefrag,
     defragCost: DEFRAG.cost,
+    silenceGhost,
+    answerOverflow,
+    buyAirplaneMode,
+    airplaneCost: OVERFLOW.airplane.cost,
     setCosmetic,
     cosmetics: () => cosmetics.cosmeticSummary(state),
     activeCosmetics: () => cosmetics.activeCosmetics(state),

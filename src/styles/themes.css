@@ -109,6 +109,28 @@
   --chrome-deep: rgb(66 24 6 / 58%);
 }
 
+/**
+ * The prize for answering a Buffer Overflow (GDD §7). Desaturated phosphor —
+ * the only tint in the game where the glass has stopped being wet, which is the
+ * whole joke: the player kept the machine and it never quite came back.
+ */
+:root[data-tint='deadnet'] {
+  --aero-tint: #b9c6bd;
+  --aero-blue: #5d6c63;
+  --aero-blue-deep: #1b221e;
+  --aero-cyan: #cfdad2;
+  --glass-bg: linear-gradient(
+    180deg,
+    rgb(212 222 214 / 34%) 0%,
+    rgb(88 102 94 / 20%) 48%,
+    rgb(160 176 166 / 22%) 100%
+  );
+  --glass-border: rgb(206 218 210 / 46%);
+  --glass-shadow: 0 10px 30px rgb(8 12 10 / 46%), inset 0 1px 0 rgb(220 230 224 / 52%);
+  --chrome-lit: rgb(84 98 90 / 46%);
+  --chrome-deep: rgb(14 20 16 / 60%);
+}
+
 /* ------------------------------------------------------------- wallpapers */
 
 /**

@@ -33,6 +33,13 @@ function measure(state, unlock) {
         have: state.dollarsSpentTotal ?? 0,
         requirement: `$${unlock.at.toFixed(2)} spent on hardware`,
       };
+    case 'overflows':
+      return {
+        at: unlock.at,
+        have: state.event?.overflowsResolved ?? 0,
+        requirement:
+          unlock.at === 1 ? 'surviving a Buffer Overflow' : `${unlock.at} Buffer Overflows`,
+      };
     default:
       return { at: 0, have: 1, requirement: 'included' };
   }
