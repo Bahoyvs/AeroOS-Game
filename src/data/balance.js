@@ -162,7 +162,7 @@ export const PRESTIGE = {
    */
   scale: 1,
   divisor: 1000,
-  minLifetimeBuzz: 5000, // below this, Format C: is refused
+  minLifetimeBuzz: 9000, // below this, Format C: is refused
 };
 
 /**
