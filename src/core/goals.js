@@ -171,6 +171,7 @@ export const CLOSING_GOAL = {
  * rather than as an error.
  */
 export function currentGoal(state) {
+  if (state.tutorial?.goalsDismissed === true) return null;
   for (const goal of GOALS) {
     if (goal.isDone(state)) continue;
     if (goal.isReady && !goal.isReady(state)) continue;

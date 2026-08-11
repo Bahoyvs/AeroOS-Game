@@ -73,7 +73,8 @@ const TARGETS = {
   nudge: q('.nudge-button'),
 
   'first-buddy': firstReachable(
-    q('.window[data-app-id="aerochat"] [data-buy="1"]'),
+    q('.window[data-app-id="aerochat"] button[data-step="1"]'),
+    q('.window[data-app-id="aerochat"] .w32buy__btn--primary'),
     q('.desktop-icon[data-app-id="aerochat"]'),
   ),
 
@@ -198,8 +199,8 @@ export function createTutorialCoach({ root, game }) {
     const closing = goal.progress === null;
     ref('label').textContent = closing ? 'All caught up' : 'Next up';
     ref('meter').hidden = closing;
-    ref('skip').hidden = false;
-    ref('skip').textContent = closing ? 'Got it' : 'Dismiss goals';
+    ref('skip').hidden = !closing;
+    if (closing) ref('skip').textContent = 'Got it';
 
     if (`goal:${goal.id}` !== shownKey) {
       shownKey = `goal:${goal.id}`;

@@ -21,8 +21,8 @@
       localStorage and its own audio settings.
     -->
     <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
-    <script type="module" crossorigin src="./assets/index-BdHmEvqO.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BFArXcfm.css">
+    <script type="module" crossorigin src="./assets/index-EPWVnumv.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-BSxV_FwX.css">
   </head>
   <body>
     <div id="boot" class="boot">
@@ -32,6 +32,14 @@
     </div>
 
     <main id="desktop" class="desktop">
+      <!--
+        The Buffer Overflow's visual layer (GDD §7). It is inert and empty at
+        phase 0 and painted entirely from `data-overflow` on <html>, so the
+        crisis costs one attribute write per phase change rather than a render
+        pass. First child on purpose: it belongs over the wallpaper and under
+        everything the player can actually click.
+      -->
+      <div id="overflow-static" class="overflow-static" aria-hidden="true"></div>
       <div id="icons" class="desktop__icons" role="list" aria-label="Desktop icons"></div>
       <div id="gadget-slot" class="desktop__gadget"></div>
       <div id="windows" class="desktop__windows"></div>
@@ -39,6 +47,20 @@
     </main>
 
     <nav id="taskbar" aria-label="Taskbar"></nav>
+
+    <!--
+      Desktop anchors (GDD §5): chrome-less windows pinned to the desktop, which
+      today means The Hive and nothing else.
+
+      It sits *after* the taskbar on purpose, and that placement is the whole
+      accessibility contract. Tab order follows DOM order, so a keyboard user
+      walks the ordinary windows, then the Start menu and taskbar, and only then
+      reaches the Hive — it is the last thing they meet rather than something
+      they have to get past. Putting it inside #windows and forcing the order
+      with a positive tabindex would have worked and would have broken the tab
+      order of everything else on the page.
+    -->
+    <div id="anchors" class="desktop__anchors"></div>
 
     <!--
       Aero ripple filter (Faz 2.1). One definition, reused by every ripple

@@ -50,6 +50,15 @@ export function isCosmeticUnlocked(state, item) {
   return have >= at;
 }
 
+export function allUnlocked(state) {
+  for (const kind of COSMETIC_KINDS) {
+    for (const item of COSMETICS[kind]) {
+      if (!isCosmeticUnlocked(state, item)) return false;
+    }
+  }
+  return true;
+}
+
 /**
  * One picker row: the item, whether it is unlocked, how close it is, and the
  * sentence the UI puts under a locked chip. Deriving the whole row here is what

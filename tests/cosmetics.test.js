@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   activeCosmetics,
+  allUnlocked,
   chooseCosmetic,
   cosmeticSummary,
   isCosmeticUnlocked,
@@ -108,6 +109,16 @@ describe('unlock conditions', () => {
         if (before[kind][i].unlocked) expect(after[kind][i].unlocked).toBe(true);
       }
     }
+  });
+
+  it('correctly reports whether all cosmetics are unlocked', () => {
+    const s = fresh();
+    expect(allUnlocked(s)).toBe(false);
+    s.lifetimeBuzz = 1e12;
+    s.prestigeCount = 100;
+    s.dollarsSpentTotal = 100000;
+    s.event = { overflowsResolved: 100 };
+    expect(allUnlocked(s)).toBe(true);
   });
 });
 
