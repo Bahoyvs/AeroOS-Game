@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- No frame, no window, no chrome. Just the orb. -->
+  <defs>
+    <radialGradient id="hv" cx="0.38" cy="0.32">
+      <stop offset="0" stop-color="#fff4d6"/><stop offset="0.35" stop-color="#ffb347"/>
+      <stop offset="0.72" stop-color="#d2410a"/><stop offset="1" stop-color="#3d0a02"/>
+    </radialGradient>
+  </defs>
+  <circle cx="24" cy="24" r="21" fill="#12060a" opacity="0.55"/>
+  <circle cx="24" cy="24" r="17" fill="url(#hv)"/>
+  <!-- Hex cells, because it is a hive. -->
+  <g fill="none" stroke="#5c1c04" stroke-width="0.9" opacity="0.55">
+    <path d="M24 12l4 2.3v4.6L24 21.2l-4-2.3v-4.6zM17 24l4 2.3v4.6L17 33.2l-4-2.3v-4.6zM31 24l4 2.3v4.6L31 33.2l-4-2.3v-4.6z"/>
+  </g>
+  <circle cx="18.5" cy="18" r="4.4" fill="#fff" opacity="0.3"/>
+</svg>

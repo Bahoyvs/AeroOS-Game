@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A server rack. Cold, corporate, no personality at all — the first icon in
+       the set that is not a consumer product. -->
+  <rect x="9" y="4" width="30" height="40" rx="1.5" fill="#20262e" stroke="#0d1116" stroke-width="1.5"/>
+  <g fill="#161b21" stroke="#0d1116" stroke-width="0.8">
+    <rect x="11.5" y="7" width="25" height="6.5" rx="0.8"/>
+    <rect x="11.5" y="15" width="25" height="6.5" rx="0.8"/>
+    <rect x="11.5" y="23" width="25" height="6.5" rx="0.8"/>
+    <rect x="11.5" y="31" width="25" height="6.5" rx="0.8"/>
+  </g>
+  <!-- Status LEDs. All green, all the time, whatever is happening. -->
+  <g fill="#38d16a">
+    <circle cx="14.5" cy="10.2" r="1.1"/><circle cx="14.5" cy="18.2" r="1.1"/>
+    <circle cx="14.5" cy="26.2" r="1.1"/><circle cx="14.5" cy="34.2" r="1.1"/>
+  </g>
+  <g fill="#2a3038">
+    <rect x="18" y="9.2" width="15" height="2" rx="1"/><rect x="18" y="17.2" width="15" height="2" rx="1"/>
+    <rect x="18" y="25.2" width="15" height="2" rx="1"/><rect x="18" y="33.2" width="15" height="2" rx="1"/>
+  </g>
+  <path d="M11 41h26" stroke="#38d16a" stroke-width="1.2" opacity="0.55"/>
+</svg>

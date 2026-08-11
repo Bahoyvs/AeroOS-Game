@@ -170,6 +170,18 @@ export function createTaskbar({ root, game, wm, launch }) {
   function addTask(id) {
     if (taskNodes.has(id)) return;
     const app = getApp(id);
+    /**
+     * A desktop anchor has no task button: nothing to minimise to, nothing to
+     * close, and a button that only ever means "focus it" would be the taskbar
+     * lying about what it does.
+     *
+     * Read off the *roster*, not off the window manager. This runs on the
+     * APP_OPENED game event, which `launch()` emits before `wm.open()` — so
+     * `wm.isAnchor(id)` is still false here and the guard silently did nothing.
+     * The footprint is a property of the app either way, so asking the app is
+     * both correct and order-independent.
+     */
+    if (app.footprint === 'anchor') return;
     const button = el(
       'button',
       {

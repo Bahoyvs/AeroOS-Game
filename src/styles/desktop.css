@@ -10,7 +10,16 @@
 
 .desktop__icons {
   position: absolute;
-  inset: 12px auto 12px 12px;
+  /**
+   * The bottom inset clears the coach panel (`.coach`, bottom-left, ~120px).
+   *
+   * The column wraps into a second column when it runs out of height, so this
+   * is not lost space — it is where the wrap happens. Without it the tenth icon
+   * onwards lands *underneath* the coach: still rendered, still reported as on
+   * screen, and completely unclickable. That was invisible with a seven-app
+   * roster and became reachable-blocking at twelve.
+   */
+  inset: 12px auto 140px 12px;
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;

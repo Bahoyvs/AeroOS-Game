@@ -39,6 +39,20 @@
     <nav id="taskbar" aria-label="Taskbar"></nav>
 
     <!--
+      Desktop anchors (GDD §5): chrome-less windows pinned to the desktop, which
+      today means The Hive and nothing else.
+
+      It sits *after* the taskbar on purpose, and that placement is the whole
+      accessibility contract. Tab order follows DOM order, so a keyboard user
+      walks the ordinary windows, then the Start menu and taskbar, and only then
+      reaches the Hive — it is the last thing they meet rather than something
+      they have to get past. Putting it inside #windows and forcing the order
+      with a positive tabindex would have worked and would have broken the tab
+      order of everything else on the page.
+    -->
+    <div id="anchors" class="desktop__anchors"></div>
+
+    <!--
       Aero ripple filter (Faz 2.1). One definition, reused by every ripple
       `spawnTransient` creates — an SVG filter, not a WebGL context, so it
       costs nothing to have unused and never grows the dependency graph.

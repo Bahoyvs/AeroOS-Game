@@ -129,6 +129,51 @@ export const APPS = [
     window: { width: 520, height: 480 },
     blurb: '> execute payload.exe',
   },
+  /**
+   * Phase 4 — the cosmic/dystopian layer. GDD §3.4 lets these three break the
+   * period rules the rest of the OS keeps; the erosion stops at their window
+   * edges and never reaches the taskbar, Start menu or gadget.
+   */
+  {
+    id: 'thealgorithm',
+    name: 'The Algorithm',
+    icon: 'icons/thealgorithm.svg',
+    day: 4,
+    ram: 126,
+    install: { cost: 40_000_000, unlockAt: 4_500_000 },
+    window: { width: 520, height: 490 },
+    blurb: 'Allocate processing power. It knows what to do with it.',
+  },
+  {
+    id: 'mindsync',
+    name: 'MindSync',
+    icon: 'icons/mindsync.svg',
+    day: 4,
+    ram: 128,
+    install: { cost: 500_000_000, unlockAt: 20_000_000 },
+    window: { width: 500, height: 500 },
+    blurb: 'Tune the frequency. Hold still.',
+  },
+  {
+    id: 'thehive',
+    name: 'The Hive',
+    icon: 'icons/thehive.svg',
+    day: 4,
+    /**
+     * Zero, and not as an oversight.
+     *
+     * The Hive is a desktop anchor (GDD §5): it has no chrome, cannot be
+     * minimised or closed, and is pinned to the middle of the screen. Charging
+     * it RAM would let the memory budget refuse to open the one window the
+     * player is not allowed to dismiss — a soft-lock the appRoster test cannot
+     * catch, because the failure is that the window never appears at all.
+     */
+    ram: 0,
+    footprint: 'anchor',
+    install: { cost: 6_000_000_000, unlockAt: 90_000_000 },
+    window: { width: 300, height: 300 },
+    blurb: 'Feed.',
+  },
   {
     id: 'aerosweeper',
     name: 'AeroSweeper',

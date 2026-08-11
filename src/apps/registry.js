@@ -1,6 +1,9 @@
 import { getApp } from '../data/apps.js';
 import * as aeroboards from './aeroboards.js';
 import * as botnet from './botnet.js';
+import * as mindsync from './mindsync.js';
+import * as thealgorithm from './thealgorithm.js';
+import * as thehive from './thehive.js';
 import * as aerochat from './aerochat.js';
 import * as chainmail from './chainmail.js';
 import * as flashfarm from './flashfarm.js';
@@ -30,6 +33,9 @@ const IMPLEMENTATIONS = {
   vidchat,
   flashfarm,
   botnet,
+  thealgorithm,
+  mindsync,
+  thehive,
   aerosweeper,
 };
 

@@ -15,14 +15,33 @@ const MIN_WIDTH = 260;
 const MIN_HEIGHT = 180;
 const CASCADE_STEP = 28;
 const TASKBAR_HEIGHT = 44;
-const ICON_COLUMN_WIDTH = 112; // keeps cascaded windows clear of desktop icons
+/**
+ * Fallback width for the desktop icon column, used only when it cannot be
+ * measured. The live width is read instead (see `iconColumnWidth`) because the
+ * column *wraps*: with the full twelve-building roster installed it becomes two
+ * columns, and a hard-coded 112 put every new window straight on top of the
+ * second one — the icons were still on screen and still perfectly unreachable.
+ */
+const ICON_COLUMN_WIDTH = 112;
 const EDGE_MARGIN = 8;
 const SHEET_DISMISS_PX = 90; // drag a PDA modal down this far to dismiss it
 
 /** Clamp that stays sane when max < min (a window dragged to the far edge). */
 const clamp = (value, min, max) => Math.max(min, Math.min(value, Math.max(min, max)));
 
-export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }) {
+/**
+ * Where focus goes when a desktop anchor hands it back. The Start button is the
+ * one control that is always present and always means "you are out of whatever
+ * you were in", which is exactly what Escape should buy you.
+ */
+const ESCAPE_TARGETS = ['#taskbar .start', '#taskbar button', '#icons button'];
+
+export function createWindowManager({
+  root,
+  anchorRoot = null,
+  iconRoot = null,
+  mobileQuery = '(max-width: 820px)',
+}) {
   const windows = new Map();
   const focusOrder = [];
   const media = globalThis.matchMedia?.(mobileQuery) ?? { matches: false, addEventListener() {} };
@@ -63,13 +82,68 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     return el;
   }
 
+  /**
+   * A desktop anchor (GDD §5): chrome-less, centred, and not closable by hand.
+   *
+   * "Un-closable" is a statement about the *fiction*, not about the player. The
+   * accessibility contract (GDD §14.4) is written into this frame:
+   *
+   * - `tabindex="0"` — un-closable must never mean un-focusable. It is reachable
+   *   by Tab like any other control.
+   * - It lives in `#anchors`, which the document places after the taskbar, so
+   *   the tab order is windows -> Start/taskbar/hardware -> here. Last, not
+   *   first, and never a barrier in front of the OS.
+   * - `aria-live="polite"` — a screen reader hears the level and rate change
+   *   without having to go looking, and politely, so it never interrupts.
+   * - Escape blurs it and hands focus back to the Start button (see below).
+   *   Every other window uses Escape to minimise; this one cannot minimise, so
+   *   Escape has to mean the same *thing* by a different mechanism, or the one
+   *   window the player cannot dismiss is also the one they cannot leave.
+   *
+   * There is deliberately no focus trap, no `aria-modal`, and no inert on the
+   * rest of the page. The Hive is the climax of a story about losing control of
+   * your own machine; it is not licence to actually take a keyboard user's.
+   */
+  function buildAnchorFrame(app) {
+    const el = document.createElement('section');
+    el.className = 'window-anchor';
+    el.dataset.appId = app.id;
+    el.dataset.footprint = 'anchor';
+    el.setAttribute('role', 'region');
+    el.setAttribute('aria-label', app.name);
+    el.setAttribute('aria-live', 'polite');
+    el.setAttribute('tabindex', '0');
+    el.innerHTML = '<div class="window-anchor__body aero-window__body"></div>';
+    return el;
+  }
+
+  /** Escape out of an anchor: blur, then hand focus to the first OS control. */
+  function escapeAnchor(el) {
+    el.blur();
+    for (const selector of ESCAPE_TARGETS) {
+      const target = document.querySelector(selector);
+      if (target) {
+        target.focus();
+        return true;
+      }
+    }
+    // Nothing to hand off to (a stripped test page); blurring is still an exit.
+    return false;
+  }
+
+  /** How wide the icon column actually is right now, wrapped columns included. */
+  function iconColumnWidth() {
+    const width = iconRoot?.getBoundingClientRect().width;
+    return width > 0 ? Math.ceil(width) + 8 : ICON_COLUMN_WIDTH;
+  }
+
   function initialRect(app) {
     const width = Math.min(app.window?.width ?? 360, window.innerWidth - 32);
     const height = Math.min(app.window?.height ?? 300, window.innerHeight - TASKBAR_HEIGHT - 32);
     const offset = (cascadeIndex++ % 6) * CASCADE_STEP;
     return {
       // Start right of the icon column so the first window never buries it.
-      x: Math.max(12, Math.min(ICON_COLUMN_WIDTH + offset, window.innerWidth - width - 12)),
+      x: Math.max(12, Math.min(iconColumnWidth() + offset, window.innerWidth - width - 12)),
       y: Math.max(12, Math.min(36 + offset, window.innerHeight - height - TASKBAR_HEIGHT - 12)),
       width,
       height,
@@ -78,7 +152,8 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
 
   function applyRect(entry) {
     const { el, rect } = entry;
-    if (isMobile()) {
+    // Anchors are centred by the stylesheet and have no geometry of their own.
+    if (entry.anchor || isMobile()) {
       el.style.left = el.style.top = el.style.width = el.style.height = '';
       return;
     }
@@ -93,6 +168,12 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
   function focus(id) {
     const entry = windows.get(id);
     if (!entry) return;
+    // Anchors are outside the z-order competition — they live in their own
+    // stacking container and never cover, or get covered by, a real window.
+    if (entry.anchor) {
+      handlers.emit('focus', { id });
+      return;
+    }
     const i = focusOrder.indexOf(id);
     if (i !== -1) focusOrder.splice(i, 1);
     focusOrder.push(id);
@@ -225,27 +306,44 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
       return windows.get(app.id);
     }
 
-    const el = buildFrame(app);
-    const entry = { id: app.id, app, el, rect: initialRect(app), cleanup: null };
+    const anchor = app.footprint === 'anchor';
+    const el = anchor ? buildAnchorFrame(app) : buildFrame(app);
+    const entry = { id: app.id, app, el, anchor, rect: initialRect(app), cleanup: null };
     windows.set(app.id, entry);
 
-    el.querySelector('[data-drag-handle]').addEventListener('pointerdown', (e) => {
-      focus(app.id);
-      beginDrag(entry, e);
-    });
-    el.querySelector('[data-resize-handle]').addEventListener('pointerdown', (e) =>
-      beginResize(entry, e),
-    );
-    el.addEventListener('pointerdown', () => focus(app.id));
-    el.querySelector('[data-action="close"]').addEventListener('click', () => close(app.id));
-    el.querySelector('[data-action="minimize"]').addEventListener('click', () => minimize(app.id));
+    if (anchor) {
+      /**
+       * The Escape catch (GDD §14.4). Handled here rather than in the app
+       * module so the behaviour belongs to the *footprint* — any future anchor
+       * inherits it, and a window that cannot be dismissed can never ship
+       * without a way out.
+       */
+      el.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopPropagation();
+        escapeAnchor(el);
+        handlers.emit('escape', { id: app.id });
+      });
+    } else {
+      el.querySelector('[data-drag-handle]').addEventListener('pointerdown', (e) => {
+        focus(app.id);
+        beginDrag(entry, e);
+      });
+      el.querySelector('[data-resize-handle]').addEventListener('pointerdown', (e) =>
+        beginResize(entry, e),
+      );
+      el.addEventListener('pointerdown', () => focus(app.id));
+      el.querySelector('[data-action="close"]').addEventListener('click', () => close(app.id));
+      el.querySelector('[data-action="minimize"]').addEventListener('click', () => minimize(app.id));
+    }
 
     applyRect(entry);
-    root.appendChild(el);
+    (anchor ? (anchorRoot ?? root) : root).appendChild(el);
     // Next frame so the entry animation actually plays.
     requestAnimationFrame(() => el.classList.add('is-open'));
 
-    const body = el.querySelector('.aero-window__body');
+    const body = el.querySelector(anchor ? '.window-anchor__body' : '.aero-window__body');
     entry.cleanup = mount?.(body, { close: () => close(app.id), focus: () => focus(app.id) }) ?? null;
     focus(app.id);
     return entry;
@@ -272,6 +370,10 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
   function minimize(id) {
     const entry = windows.get(id);
     if (!entry) return;
+    // An anchor has nowhere to minimise *to* — no task button, no title bar.
+    // Refusing here rather than at every call site keeps the one rule in the
+    // one place that owns footprints.
+    if (entry.anchor) return;
     entry.el.classList.add('is-minimized');
     entry.minimized = true;
     handlers.emit('minimize', { id, minimized: true });
@@ -319,6 +421,7 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
    */
   const reflow = () => {
     for (const entry of windows.values()) {
+      if (entry.anchor) continue; // centred by CSS; no geometry to clamp
       const { rect } = entry;
       rect.width = clamp(rect.width, MIN_WIDTH, window.innerWidth - 32);
       rect.height = clamp(rect.height, MIN_HEIGHT, window.innerHeight - TASKBAR_HEIGHT - 32);
@@ -342,14 +445,23 @@ export function createWindowManager({ root, mobileQuery = '(max-width: 820px)' }
     toggleMinimize,
     isOpen: (id) => windows.has(id),
     isMinimized: (id) => windows.get(id)?.minimized === true,
-    body: (id) => windows.get(id)?.el.querySelector('.aero-window__body') ?? null,
+    isAnchor: (id) => windows.get(id)?.anchor === true,
+    body: (id) => {
+      const entry = windows.get(id);
+      if (!entry) return null;
+      return entry.el.querySelector(entry.anchor ? '.window-anchor__body' : '.aero-window__body');
+    },
     get openIds() {
       return [...windows.keys()];
+    },
+    /** Ids that behave like ordinary windows — task buttons, RAM bars, Alt-Tab. */
+    get windowIds() {
+      return [...windows.values()].filter((e) => !e.anchor).map((e) => e.id);
     },
     get isMobile() {
       return isMobile();
     },
-    /** Subscribe to 'focus' | 'close' | 'minimize'. Returns an unsubscribe. */
+    /** Subscribe to 'focus' | 'close' | 'minimize' | 'escape'. Unsubscribes. */
     on(event, fn) {
       return handlers.on(event, fn);
     },

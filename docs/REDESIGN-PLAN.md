@@ -186,11 +186,53 @@ threshold carrying a permanent 5% tax, strictly worse than never buying it.
 `DEFRAG.clearPerSecond` is now 0.07, and the test measures against a *fully built*
 machine rather than a hand-picked one, so it cannot rot again when phase 4 lands.
 
-## Phase 4 — Faz 4 building content
+## Phase 4 — Faz 4 building content *(complete)*
 
-The Algorithm, MindSync (WebGL + the mobile CSS/SVG fallback), The Hive (chrome-less
-desktop anchor — a new `windowManager` footprint category, and the accessibility
-question left open in GDD §14.4 has to be answered before it ships).
+All twelve buildings now have a window.
+
+| Building | `w32-buy` costume | Milestone moment | How it breaks the period rules |
+| --- | --- | --- | --- |
+| The Algorithm | `Allocate Processing Power` | EPOCH COMPLETE | flat, grey, no bevel or glass — the vocabulary the OS spends eleven windows refusing. The chart straightens into a rising line as the tier climbs |
+| MindSync | `Tune Frequency` | NEW WAVEFORM ACQUIRED | a WebGL shader on the desktop, an automatic CSS/SVG fallback on mobile |
+| The Hive | `Feed` | THE HIVE IS PLEASED | a desktop anchor: no chrome, no minimise, no close, no task button |
+
+### The anchor footprint, and GDD §14.4
+
+`app.footprint === 'anchor'` is a new category in `ui/windowManager.js`. Anchors get no
+title bar, no drag, no resize, no minimise, and no task button; they live in `#anchors`,
+a container the document places **after** the taskbar.
+
+That placement is the entire accessibility contract, and it is deliberate that it is
+structural rather than scripted. Tab order follows DOM order, so a keyboard user walks
+the ordinary windows, then the Start menu and taskbar, and only then reaches The Hive —
+last, never a barrier in front of the OS. Forcing that order with a positive `tabindex`
+would have worked and would have broken the tab order of every other control on the page.
+
+- **Un-closable is not un-focusable.** `tabindex="0"` on the frame.
+- **Escape is the way out.** Every other window uses Escape to minimise; an anchor cannot
+  minimise, so Escape blurs it and hands focus to the Start button. The handler lives on
+  the footprint, not on The Hive, so a window that cannot be dismissed can never ship
+  without an exit.
+- **Screen readers** get `role="region"`, a label, and `aria-live="polite"`. The Hive's
+  readout is written as a sentence carrying level, units fed and rate — for a
+  non-sighted player that text *is* the building — and only rewritten when it changes,
+  because a live region updated every tick reads continuously and never lets go.
+- **No focus trap, no `aria-modal`, nothing inert.** The Hive is the climax of a story
+  about losing control of your machine. It is not licence to take a keyboard user's.
+
+Verified by a keyboard walk in a real browser: `icons → gadget → window → taskbar → HIVE`,
+then Escape lands on Start.
+
+**Two reachability bugs this phase surfaced**, both invisible on the old roster:
+
+- `initialRect` used a hard-coded 112px icon-column width. The column *wraps* at twelve
+  apps, so every new window opened on top of the second column — icons still on screen,
+  still perfectly unclickable. The width is measured now.
+- The icon column ran under the coach panel from the tenth icon down. Its bottom inset
+  now clears the coach, which is simply where the wrap should have been happening.
+
+Neither is caught by `appRoster.test.js`: both are "on screen and covered", which is a
+different failure from "too big to open".
 
 ## Phase 5 — mini-game engine
 

@@ -18,8 +18,10 @@ import { BUILDINGS, getBuilding, hasBuilding } from '../src/data/buildings.js';
  */
 
 const phase12 = BUILDINGS.filter((b) => b.phase <= 2);
-/** Everything that has a window today — phases 1-3. Phase 4 lands later. */
-const shipped = BUILDINGS.filter((b) => b.phase <= 3);
+/** Everything that has a window — now all twelve. */
+const shipped = BUILDINGS;
+/** Ordinary windows: anchors have their own rules (see tests/anchor.test.js). */
+const framed = BUILDINGS.filter((b) => getApp(b.id).footprint !== 'anchor');
 
 describe('every shipped building has a window', () => {
   it.each(shipped.map((b) => b.id))('%s is on the app roster and implemented', (id) => {
@@ -96,11 +98,19 @@ describe('windows and memory', () => {
     expect(getApp(id).ram).toBeLessThanOrEqual(stock);
   });
 
+  it('charges the phase 4 windows for the machine too — except the anchor', () => {
+    // The Algorithm and MindSync are the heaviest windows in the game. The Hive
+    // is free, and tests/anchor.test.js explains why that is load-bearing.
+    for (const building of framed.filter((b) => b.phase === 4)) {
+      expect(getApp(building.id).ram).toBeGreaterThan(0);
+    }
+  });
+
   it('makes the phase 3 windows genuinely expensive, not just nominally', () => {
     // If these were as cheap as the early apps the RAM budget would stop being
     // a decision exactly when the desktop gets busiest.
     const heaviestEarly = Math.max(...phase12.map((b) => getApp(b.id).ram));
-    for (const building of BUILDINGS.filter((b) => b.phase === 3)) {
+    for (const building of framed.filter((b) => b.phase === 3)) {
       expect(getApp(building.id).ram).toBeGreaterThanOrEqual(heaviestEarly);
     }
   });

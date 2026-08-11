@@ -284,7 +284,14 @@ async function boot() {
   document.addEventListener('touchend', () => audio.unlock());
   document.addEventListener('keydown', () => audio.unlock());
 
-  const wm = createWindowManager({ root: document.getElementById('windows') });
+  const wm = createWindowManager({
+    root: document.getElementById('windows'),
+    // Desktop anchors live after the taskbar in the document, which is what
+    // puts them last in the tab order (GDD §14.4). See index.html.
+    anchorRoot: document.getElementById('anchors'),
+    // Measured, not assumed: the column wraps to two once the roster is full.
+    iconRoot: document.getElementById('icons'),
+  });
   const notify = createNotifier(document.getElementById('toasts'));
   game.bus.on(game.events.NOTIFY, notify);
 

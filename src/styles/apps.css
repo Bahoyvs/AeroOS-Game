@@ -3181,3 +3181,338 @@
   --w32celebrate-top: auto;
   --w32celebrate-bottom: 96px;
 }
+
+/* ==========================================================================
+   PHASE 4 — the cosmic/dystopian layer
+   GDD §3.4 lets these three break the period rules. The erosion stops at the
+   window edge: taskbar, Start menu, gadget and Hardware Shop are untouched.
+   ========================================================================== */
+
+/* ------------------------------------------------------------ The Algorithm */
+
+.app-thealgorithm {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto auto auto auto;
+  font-family: Segoe UI, system-ui, sans-serif;
+  color: #c8ced6;
+  /* Flat. No gradient, no bevel, no glass — the vocabulary the rest of the OS
+     spends eleven windows refusing. */
+  background: #171b21;
+}
+
+.alg__bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 10px;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  background: #11151a;
+  border-bottom: 1px solid #262c34;
+}
+
+.alg__wordmark { flex: 1; font-weight: 600; }
+.alg__env { font-size: 10px; color: #6d7783; }
+.alg__health { font-size: 10px; color: #38d16a; }
+
+.alg__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #262c34; }
+
+.alg__card { display: grid; gap: 3px; padding: 9px 10px; background: #1b2027; }
+.alg__card-label { font-size: 9px; letter-spacing: 1px; color: #6d7783; }
+.alg__card-value { font-size: 15px; font-weight: 600; color: #e6ebf1; }
+
+.alg__chart { display: grid; gap: 4px; padding: 9px 10px 4px; }
+
+.alg__chart-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #6d7783;
+}
+
+.alg__svg { width: 100%; height: 84px; }
+
+.alg__series {
+  fill: none;
+  stroke: #38d16a;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Past ×8 the line has stopped being a measurement, and says so. */
+.app-thealgorithm.is-converged .alg__series { stroke: #5ce1ff; stroke-width: 2; }
+.app-thealgorithm.is-converged .alg__chart-note { color: #5ce1ff; }
+
+.alg__sliders { display: grid; gap: 4px; padding: 4px 10px 8px; }
+
+.alg__slider { display: grid; grid-template-columns: 26px 1fr; gap: 7px; align-items: center; }
+.alg__slider-label { font-size: 9px; color: #6d7783; }
+
+.alg__slider-track {
+  height: 4px;
+  overflow: hidden;
+  background: #262c34;
+  border-radius: 2px;
+}
+
+.alg__slider-track .meter__fill {
+  height: 100%;
+  background: #4a90d9;
+  transform-origin: left;
+  transform: scaleX(var(--fill, 0));
+  transition: transform 320ms linear;
+}
+
+[data-motion='reduced'] .alg__slider-track .meter__fill { transition: none; }
+
+.alg__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px;
+  font-size: 10px;
+  color: #6d7783;
+  background: #11151a;
+  border-top: 1px solid #262c34;
+}
+
+.alg__buy { background: #11151a; border-top: 1px solid #262c34; }
+
+.alg__buy .w32buy__btn {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.6px;
+  color: #c8ced6;
+  background: #1b2027;
+  border: 1px solid #323a44;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.alg__buy .w32buy__btn:hover:not(:disabled) { color: #fff; background: #253040; border-color: #4a90d9; }
+.alg__buy .w32buy__btn:disabled { color: #4b535d; background: #161a20; }
+.app-thealgorithm .w32meter { color: #c8ced6; }
+
+/* ---------------------------------------------------------------- MindSync */
+
+.app-mindsync {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto auto;
+  color: #d9c6ff;
+  background: #160a2b;
+}
+
+.ms__bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  background: #1e0f3a;
+  border-bottom: 1px solid #3b1a6b;
+}
+
+.ms__mode { font-size: 9px; color: #7c3bd6; }
+
+.ms__stage { position: relative; min-height: 0; overflow: hidden; background: #0f0620; }
+.ms__canvas { display: block; width: 100%; height: 100%; }
+.ms__canvas[hidden] { display: none; }
+
+/* The CSS/SVG fallback (GDD §5, §9). Same design as the shader: concentric
+   waves converging on a core, done with four rings and a radial gradient. */
+.ms__css { position: absolute; inset: 0; display: grid; place-items: center; }
+.ms__css[hidden] { display: none; }
+
+.ms__ring {
+  position: absolute;
+  border: 1px solid rgb(124 59 214 / 0.85);
+  border-radius: 50%;
+  animation: ms-pulse 3.4s ease-out infinite;
+}
+
+.ms__ring:nth-child(1) { width: 76%; height: 76%; animation-delay: 0s; }
+.ms__ring:nth-child(2) { width: 58%; height: 58%; animation-delay: -0.85s; }
+.ms__ring:nth-child(3) { width: 40%; height: 40%; animation-delay: -1.7s; }
+.ms__ring:nth-child(4) { width: 22%; height: 22%; animation-delay: -2.55s; }
+
+.ms__core {
+  width: 16%;
+  height: 16%;
+  background: radial-gradient(circle at 38% 32%, #ffe9ff, #b06cff 45%, #2a0b52);
+  border-radius: 50%;
+  box-shadow: 0 0 calc(18px * var(--ms-intensity, 0.4)) rgb(176 108 255 / 0.85);
+}
+
+@keyframes ms-pulse {
+  0% { opacity: 0; transform: scale(1.06); }
+  35% { opacity: calc(0.9 * var(--ms-intensity, 0.4)); }
+  100% { opacity: 0; transform: scale(0.2); }
+}
+
+/* Reduced motion keeps the picture and drops the travel — the rings sit still
+   at their resting radius instead of collapsing inward forever. */
+[data-motion='reduced'] .ms__ring { animation: none; opacity: 0.5; }
+
+.ms__nodes { position: absolute; inset: 0; pointer-events: none; }
+
+.ms__node {
+  position: absolute;
+  top: var(--ny, 50%);
+  left: var(--nx, 50%);
+  width: 9px;
+  height: 9px;
+  background: var(--nc, #7c3bd6);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--nc, #7c3bd6);
+  transform: translate(-50%, -50%);
+}
+
+.ms__readout {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px;
+  font-size: 10px;
+  color: #9b7fd4;
+  background: #1e0f3a;
+  border-top: 1px solid #3b1a6b;
+}
+
+.ms__buy { background: #1e0f3a; border-top: 1px solid #3b1a6b; }
+
+.ms__buy .w32buy__btn {
+  color: #e4d6ff;
+  background: #2a1552;
+  border: 1px solid #52299a;
+  border-radius: 3px;
+  box-shadow: none;
+}
+
+.ms__buy .w32buy__btn:hover:not(:disabled) { background: #3a1d73; border-color: #b06cff; }
+.ms__buy .w32buy__btn:disabled { color: #6a5a8a; background: #1e0f3a; }
+.app-mindsync .w32meter { color: #d9c6ff; }
+
+/* ---------------------------------------------------------------- The Hive */
+
+/**
+ * The desktop anchor. No chrome, no frame, no shadow of a window — it is not
+ * pretending to be one. Centred on the desktop and above the wallpaper, below
+ * nothing.
+ */
+.desktop__anchors {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  pointer-events: none; /* only the orb itself is interactive */
+}
+
+.window-anchor {
+  pointer-events: auto;
+  opacity: 0;
+  transition: opacity 420ms ease-out;
+}
+
+.window-anchor.is-open { opacity: 1; }
+
+/* Focus must be *visible*, not merely possible — this is the one window a
+   keyboard user cannot close, so they have to be able to see where they are. */
+.window-anchor:focus-visible {
+  outline: 2px solid #ffd27a;
+  outline-offset: 8px;
+  border-radius: 50%;
+}
+
+.app-thehive {
+  display: grid;
+  gap: 8px;
+  place-items: center;
+  width: 300px;
+  text-align: center;
+}
+
+.hive__orb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 150px;
+  transform: scale(var(--hive-scale, 1));
+  transition: transform 600ms ease-out;
+}
+
+.hive__halo {
+  position: absolute;
+  inset: -18%;
+  background: radial-gradient(
+    circle,
+    rgb(255 160 60 / calc(0.35 * var(--hive-heat, 0.2))) 0%,
+    transparent 68%
+  );
+  border-radius: 50%;
+}
+
+.hive__core {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 36% 30%, #fff4d6, #ffb347 32%, #d2410a 68%, #3d0a02 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 calc(30px + 50px * var(--hive-heat, 0.2)) rgb(210 65 10 / 0.75),
+    inset -8px -12px 26px rgb(0 0 0 / 0.55);
+  /* Follows the cursor. Compositor-only, and disabled under reduced motion. */
+  transform: translate(
+    calc(var(--hive-look-x, 0) * 7px),
+    calc(var(--hive-look-y, 0) * 7px)
+  );
+  transition: transform 220ms ease-out;
+}
+
+.hive__utterance {
+  position: absolute;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  color: rgb(255 244 214 / 0.92);
+  text-shadow: 0 1px 6px #3d0a02;
+  letter-spacing: 1px;
+}
+
+.hive__readout {
+  max-width: 280px;
+  margin: 0;
+  font-size: 11px;
+  color: #ffd9b0;
+  text-shadow: 0 1px 4px #000;
+}
+
+.hive__escape { margin: 0; font-size: 10px; color: rgb(255 217 176 / 0.65); }
+
+.hive__buy {
+  grid-template-columns: repeat(4, auto);
+  gap: 4px;
+  padding: 0;
+  border: 0;
+}
+
+.hive__buy .w32buy__btn {
+  min-width: 56px;
+  color: #ffe8c8;
+  background: rgb(61 10 2 / 0.85);
+  border: 1px solid #a8340a;
+  border-radius: 3px;
+  box-shadow: 0 0 12px rgb(210 65 10 / 0.45);
+}
+
+.hive__buy .w32buy__btn:hover:not(:disabled) { background: #a8340a; }
+.hive__buy .w32buy__btn:disabled { color: rgb(255 232 200 / 0.4); box-shadow: none; }
+
+/* Reduced motion: the orb stops tracking and stops growing smoothly. It is
+   still there, still lit, still the size its tier says — the setting asks for
+   less movement, not for a different game. */
+[data-motion='reduced'] .hive__core,
+[data-motion='reduced'] .hive__orb { transition: none; }
+[data-motion='reduced'] .hive__core { transform: none; }
+
+.app-thehive .w32celebrate { inset: auto 0 -54px; color: #3d0a02; }
