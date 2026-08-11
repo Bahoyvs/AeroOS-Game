@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- Deliberately too bright. Saturated to the point of being unpleasant —
+       this is the building that sells you things. -->
+  <defs>
+    <linearGradient id="ffsky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ad7ff"/><stop offset="1" stop-color="#a8f24a"/>
+    </linearGradient>
+    <radialGradient id="ffcoin" cx="0.35" cy="0.3">
+      <stop offset="0" stop-color="#fff6a8"/><stop offset="1" stop-color="#f2a800"/>
+    </radialGradient>
+  </defs>
+  <rect x="3" y="5" width="42" height="38" rx="3" fill="url(#ffsky)" stroke="#2c7a1f" stroke-width="1.5"/>
+  <!-- Tilled rows in an unnaturally green field. -->
+  <path d="M5 28h38M5 33h38M5 38h38" stroke="#3f9c2a" stroke-width="3.4"/>
+  <path d="M5 28h38M5 33h38M5 38h38" stroke="#6fe04a" stroke-width="1.2"/>
+  <!-- Crops. -->
+  <circle cx="12" cy="27" r="3.1" fill="#ff4fa3" stroke="#c11f68" stroke-width="1"/>
+  <circle cx="24" cy="27" r="3.1" fill="#ff4fa3" stroke="#c11f68" stroke-width="1"/>
+  <circle cx="36" cy="27" r="3.1" fill="#c9c9c9" stroke="#8a8a8a" stroke-width="1"/>
+  <!-- The gift-request balloon you cannot close, and the coin it wants. -->
+  <path d="M25 8h17a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H31l-4 4v-4h-2a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"
+        fill="#fff" stroke="#c11f68" stroke-width="1.6"/>
+  <circle cx="33.5" cy="14" r="4.6" fill="url(#ffcoin)" stroke="#b57e00" stroke-width="1.2"/>
+  <text x="33.5" y="16.4" font-family="Arial, sans-serif" font-size="6" font-weight="700"
+        text-anchor="middle" fill="#8a5e00">$</text>
+  <!-- A withering plot, to make you feel bad about leaving. -->
+  <path d="M8 40l2-4 2 4Z" fill="#a06b2a"/>
+</svg>

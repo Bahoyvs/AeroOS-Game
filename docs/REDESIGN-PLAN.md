@@ -149,9 +149,42 @@ building has a window, install gates sit at or before building unlocks, install 
 stay under the first unit's price, and the six windows cannot all fit in stock RAM at
 once.
 
-## Phase 3 — Faz 3 building content
+## Phase 3 — Faz 3 building content *(complete)*
 
-VidChat, FlashFarm, BotNet.
+VidChat, FlashFarm, BotNet — the addiction layer, and the first windows allowed to
+be unpleasant. The erosion is scoped to these three app bodies and never reaches the
+taskbar, Start menu or gadget; that boundary is GDD §3.4 and it is what makes phase 4's
+larger break land.
+
+| Building | `w32-buy` costume | Milestone moment | How it stops being innocent |
+| --- | --- | --- | --- |
+| VidChat | `Next Partner ▸` | Webcam Settings "enhancement" | CSS-only feeds: blocked faces, chroma split, torn scanlines, and a quarter of the grid dead air |
+| FlashFarm | `＋ Plant`, plus a bundle shelf | "A friend sent you a gift!" | an over-glossy pulsing shop, and gift balloons where dismissing one queues the next |
+| BotNet | `> execute payload.exe` | PERSISTENCE ESTABLISHED | no Aero at all — a log that outruns reading, an ASCII map that overruns its box, a rootkit tree that keeps finding places to live |
+
+**Three restraints that the "make it chaotic" brief does not suspend:**
+
+- *Unnerving needs recognition first.* VidChat's feeds ran at `saturate(2.4)` on the
+  first pass and read as orange test-cards. The colour is now plausible and the blur and
+  contrast do the degrading — you have to see a person before you can see what is wrong
+  with them.
+- *Intrusive is not the same as un-dismissable.* FlashFarm's nag balloons bobbed with
+  `translateY`, which made the close button genuinely hard to hit — a browser driving the
+  page refuses to click a target that never settles. They pulse on glow and border now;
+  nothing moves. The close glyph is still tiny and still in the corner, with a full 44px
+  button around it.
+- *Reduced motion still means reduced motion.* The shop stops pulsing, the balloons stop
+  nagging visually, BotNet's log slows to a crawl rather than stopping — an empty log
+  reads as a broken app, and the setting asks for less movement, not less information.
+
+**A balance finding, caught by an existing test.** Auto-Defrag's clear rate was tuned
+against a seven-window roster and one building capped at 500 units (~0.0004/s of bloat).
+Twelve buildings at their top tier with every window open dirty at **0.0067/s** — 17×
+faster — which left the utility with a 1.5× margin instead of the 10× it was designed
+for. The failure mode is quiet and nasty: the machine sits pinned near the critical
+threshold carrying a permanent 5% tax, strictly worse than never buying it.
+`DEFRAG.clearPerSecond` is now 0.07, and the test measures against a *fully built*
+machine rather than a hand-picked one, so it cannot rot again when phase 4 lands.
 
 ## Phase 4 — Faz 4 building content
 

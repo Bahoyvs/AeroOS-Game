@@ -3,9 +3,16 @@ import { GOALS, GOAL_COUNT, currentGoal, goalStatus, goalsCompleted } from '../s
 import { createInitialState } from '../src/core/state.js';
 import { APPS, getApp } from '../src/data/apps.js';
 import { BUILDING, PRESTIGE } from '../src/data/balance.js';
-import { getBuilding } from '../src/data/buildings.js';
+import { BUILDINGS, getBuilding } from '../src/data/buildings.js';
 
 const AEROCHAT = getBuilding('aerochat');
+
+/**
+ * The apps the goal chain walks the player through: phases 1-2, the part of the
+ * game the coach is for. Derived from the building roster so a new phase 1-2
+ * building fails this test until somebody writes its card.
+ */
+const COACHED = new Set(BUILDINGS.filter((b) => b.phase <= 2).map((b) => b.id));
 const FIRST_MILESTONE = BUILDING.milestones[1];
 
 const fresh = () => createInitialState(0);
@@ -152,8 +159,18 @@ describe('the goal tracker', () => {
    */
   it('covers every app on the roster that has to be bought', () => {
     const covered = new Set(GOALS.map((goal) => goal.id));
-    for (const app of APPS) {
-      if (app.install.cost === 0) continue;
+    /**
+     * ...for the apps the coach is *meant* to cover, which is not all of them.
+     *
+     * The chain deliberately stops before the endgame (see the hand-off note in
+     * goals.js): "Next up" promises the thing in it is reachable soon, and a
+     * card asking a new player to save nine million Buzz for BotNet breaks that
+     * promise quietly. Phase 3+ buildings announce themselves through their own
+     * unlocks instead.
+     */
+    const coached = APPS.filter((app) => app.install.cost > 0 && COACHED.has(app.id));
+    expect(coached.length).toBeGreaterThan(0);
+    for (const app of coached) {
       expect(covered.has(`install-${app.id}`)).toBe(true);
     }
   });

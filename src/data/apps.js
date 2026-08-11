@@ -87,6 +87,48 @@ export const APPS = [
     window: { width: 430, height: 500 },
     blurb: 'Share files with the swarm. Some of them bite.',
   },
+  /**
+   * Phase 3 — the addiction layer (GDD §1). Three notes on these numbers:
+   *
+   * `ram` climbs steeply, because these windows are supposed to feel like they
+   * are taking the machine over — but every one stays *under* the 128 MB of a
+   * stock build. A building whose window will not open is a building whose
+   * units cannot be bought, and unlocking one the player cannot then reach is
+   * a soft-lock wearing a difficulty curve. tests/appRoster.js asserts it.
+   *
+   * `install.unlockAt` still lands well before the building unlocks, so each
+   * one arrives on its "connecting…" panel first and starts working later.
+   */
+  {
+    id: 'vidchat',
+    name: 'VidChat',
+    icon: 'icons/vidchat.svg',
+    day: 3,
+    ram: 112,
+    install: { cost: 120_000, unlockAt: 70_000 },
+    window: { width: 480, height: 470 },
+    blurb: 'Next partner. Next partner. Next partner.',
+  },
+  {
+    id: 'flashfarm',
+    name: 'FlashFarm',
+    icon: 'icons/flashfarm.svg',
+    day: 3,
+    ram: 120,
+    install: { cost: 900_000, unlockAt: 300_000 },
+    window: { width: 500, height: 510 },
+    blurb: 'Your crops are withering. Your friends can help. Ask them.',
+  },
+  {
+    id: 'botnet',
+    name: 'BotNet',
+    icon: 'icons/botnet.svg',
+    day: 3,
+    ram: 124,
+    install: { cost: 9_000_000, unlockAt: 1_100_000 },
+    window: { width: 520, height: 480 },
+    blurb: '> execute payload.exe',
+  },
   {
     id: 'aerosweeper',
     name: 'AeroSweeper',

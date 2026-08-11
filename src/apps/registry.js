@@ -1,8 +1,11 @@
 import { getApp } from '../data/apps.js';
 import * as aeroboards from './aeroboards.js';
+import * as botnet from './botnet.js';
 import * as aerochat from './aerochat.js';
 import * as chainmail from './chainmail.js';
+import * as flashfarm from './flashfarm.js';
 import * as geopage from './geopage.js';
+import * as vidchat from './vidchat.js';
 import * as aerosweeper from './aerosweeper.js';
 import * as lemonwire from './lemonwire.js';
 import * as placeholder from './placeholder.js';
@@ -24,6 +27,9 @@ const IMPLEMENTATIONS = {
   aeroboards,
   lemonwire,
   geopage,
+  vidchat,
+  flashfarm,
+  botnet,
   aerosweeper,
 };
 

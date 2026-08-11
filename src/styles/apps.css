@@ -2698,3 +2698,486 @@
   --w32celebrate-top: auto;
   --w32celebrate-bottom: 52px;
 }
+
+/* ==========================================================================
+   PHASE 3 — the addiction layer
+   --------------------------------------------------------------------------
+   These three windows are allowed to be unpleasant. Phase 1-2 earns the
+   player's trust with Aero glass and bevels; phase 3 spends it. The erosion is
+   scoped to these three app bodies and never leaks onto the taskbar, the Start
+   menu or the gadget — that boundary is the design (GDD §3.4).
+
+   Everything that moves here is disabled or slowed under [data-motion],
+   resolved by ui/motion.js onto <html>. Never a raw prefers-reduced-motion
+   query — that would ignore the player's own setting.
+   ========================================================================== */
+
+/* --------------------------------------------------------------- VidChat */
+
+.app-vidchat {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto auto;
+  color: #b9c6d4;
+  background: #10151c;
+}
+
+.vc__bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 5px 8px;
+  font-size: 11px;
+  background: linear-gradient(180deg, #2b3542, #1a222c);
+  border-bottom: 1px solid #0a0e13;
+}
+
+.vc__logo { color: #e5342b; }
+.vc__wordmark { flex: 1; font-weight: 700; letter-spacing: 0.4px; }
+.vc__peers { font-size: 10px; opacity: 0.7; }
+
+.vc__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));
+  gap: 4px;
+  min-height: 0;
+  padding: 6px;
+  overflow-y: auto;
+  background: #0b0f14;
+}
+
+.vc__tile {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #05080b;
+  border: 1px solid #222c38;
+}
+
+/* The "feed": a face at a resolution that cannot carry one. No images, no
+   video — two blocks and a colour, which is all a dying codec leaves. */
+.vc__feed {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #1b2530 0%, #0d141b 100%);
+  /* The chroma split. `--shift` is per-tile, set in JS. */
+  filter: saturate(1.1) contrast(1.15);
+}
+
+.vc__head,
+.vc__shoulders {
+  position: absolute;
+  background: var(--skin, #b98a68);
+  /* Deliberately hard-edged: no border-radius, because a 2007 webcam at
+     160x120 did not give you smooth edges either. */
+  box-shadow: var(--shift, 0) 0 0 rgb(45 224 224 / 0.3), calc(var(--shift, 0px) * -1) 0 0 rgb(224 45 122 / 0.26);
+}
+
+.vc__head { top: 22%; left: 34%; width: 32%; height: 30%; }
+.vc__shoulders { top: 56%; left: 24%; width: 52%; height: 44%; opacity: 0.85; }
+
+/* Torn scanline rows — a dropped slice repeating the one above it. */
+.vc__tear {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 5%;
+  background: var(--skin, #b98a68);
+  opacity: 0.55;
+  transform: translateX(var(--tear-shift, 4px));
+}
+
+/* Scanlines over everything, and a vignette, because CRT-era capture. */
+.vc__tile::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgb(0 0 0 / 0.42) 0 1px, transparent 1px 3px),
+    radial-gradient(circle at 50% 45%, transparent 45%, rgb(0 0 0 / 0.55) 100%);
+}
+
+/* Rot tiers: the further into the building, the worse the network copes. */
+/**
+ * Rot tiers: the further into the building, the worse the network copes.
+ *
+ * Kept gentle on saturation deliberately. A first pass ran these to
+ * `saturate(2.4)` and the tiles came out as orange test-cards — which fails the
+ * brief in a specific way, because "unnerving" needs the viewer to recognise a
+ * person *first* and only then notice what is wrong with them. The blur and the
+ * contrast do the degrading; the colour stays plausible.
+ */
+.vc__tile.is-rot-1 .vc__feed { filter: saturate(1.15) contrast(1.22) hue-rotate(3deg); }
+.vc__tile.is-rot-2 .vc__feed { filter: saturate(1.25) contrast(1.35) hue-rotate(-5deg) blur(0.5px); }
+.vc__tile.is-rot-3 .vc__feed { filter: saturate(1.35) contrast(1.5) hue-rotate(8deg) blur(0.9px); }
+
+/* Dead air. A quarter of the grid, and the reason the rest is unsettling. */
+.vc__tile.is-dead .vc__feed,
+.vc__tile.is-dead .vc__tear { display: none; }
+
+.vc__tile.is-dead {
+  background:
+    repeating-conic-gradient(#1a1a1a 0% 25%, #101010 0% 50%) 0 0 / 6px 6px;
+}
+
+.vc__region {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #dfe7ef;
+  text-shadow: 0 1px 2px #000;
+}
+
+.vc__caption {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  left: 3px;
+  overflow: hidden;
+  font-size: 9px;
+  color: #9fb0c2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+}
+
+.vc__empty { padding: 20px; font-size: 11px; text-align: center; opacity: 0.6; }
+
+.vc__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 8px;
+  font-size: 10px;
+  background: #151c25;
+  border-top: 1px solid #0a0e13;
+}
+
+.app-vidchat .w32meter { color: #b9c6d4; }
+
+/* ------------------------------------------------------------- FlashFarm */
+
+.app-flashfarm {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto auto;
+  background: linear-gradient(180deg, #5ad7ff, #a8f24a);
+}
+
+.ff__bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 5px 8px;
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  background: linear-gradient(180deg, #ff8a3d, #f2600a);
+  border-bottom: 2px solid #b34400;
+}
+
+.ff__wordmark { flex: 1; font-size: 14px; }
+
+.ff__body { display: grid; grid-template-columns: 1fr 128px; min-height: 0; }
+
+.ff__field { position: relative; min-height: 0; overflow: hidden; }
+
+.ff__plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 2px;
+  padding: 6px;
+}
+
+.ff__plot {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  font-size: 17px;
+  background: linear-gradient(180deg, #7ede4f, #4aa32a);
+  border: 1px solid #2c7a1f;
+  border-radius: 3px;
+}
+
+.ff__plot.is-withering { background: linear-gradient(180deg, #d9a05a, #a06b2a); }
+
+/* The gift requests. They sit over the crops, they overlap each other, and
+   closing one queues the next — which is the mechanic being satirised. */
+.ff__balloons {
+  position: absolute;
+  inset: 6px 6px auto;
+  display: grid;
+  gap: 5px;
+  pointer-events: none;
+}
+
+.ff__balloon {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  padding: 6px 46px 6px 10px;
+  pointer-events: auto;
+  background: linear-gradient(180deg, #fff, #ffe9f4);
+  border: 2px solid #ff4fa3;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgb(193 31 104 / 0.35);
+  animation: ff-nag 2.2s ease-in-out infinite;
+  /* The balloon owns the pulse; nothing inside it moves. See ff-nag. */
+  will-change: box-shadow;
+}
+
+.ff__balloon-title { font-size: 11px; font-weight: 700; color: #c11f68; }
+.ff__balloon-action { font-size: 10px; color: #7a4a5e; text-decoration: underline; }
+
+/**
+ * The close button: drawn small, sized properly.
+ *
+ * Every one of these balloons had a close button you could barely hit, and
+ * reproducing that is half the joke — but a 24px control on a phone is not a
+ * joke, it is a control the player cannot use. The glyph stays tiny and
+ * off in the corner; the button around it is a full 44px touch target with
+ * most of it transparent. Annoying is the brief. Inaccessible is not.
+ */
+.ff__balloon-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: start end;
+  /* Explicit border-box: the glyph is tiny and lives in the corner, but the
+     button around it has to measure a real 44px on a phone. */
+  box-sizing: border-box;
+  width: 44px;
+  min-width: 0;
+  height: 44px;
+  padding: 3px 5px 0 0;
+  font-size: 13px;
+  line-height: 1;
+  color: #c11f68;
+  cursor: pointer;
+  background: none;
+  border: 0;
+}
+
+/**
+ * The nag pulses, it does not move.
+ *
+ * The first version bobbed with `translateY`, which looked right and made the
+ * close button genuinely hard to click — a 2px oscillation is enough that a
+ * pointer heading for a 44px target can miss it, and a browser driving the page
+ * refuses to click it at all because it never settles. Being intrusive is the
+ * brief; being un-dismissable is a bug wearing the brief's clothes. Glow and
+ * border do the shouting instead, and every pixel of the balloon stays put.
+ */
+@keyframes ff-nag {
+  0%, 100% {
+    border-color: #ff4fa3;
+    box-shadow: 0 3px 10px rgb(193 31 104 / 0.3);
+  }
+  50% {
+    border-color: #ff1f86;
+    box-shadow: 0 3px 16px rgb(193 31 104 / 0.62);
+  }
+}
+
+/* The shop. Brighter than anything else in the OS, and it pulses. This is the
+   one surface in the game allowed to be actively unpleasant. */
+.ff__shop {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow-y: auto;
+  background: linear-gradient(180deg, #ffd93d, #ff8a3d);
+  border-left: 3px solid #b34400;
+}
+
+.ff__shop-head {
+  display: grid;
+  padding: 6px 4px;
+  text-align: center;
+  background: linear-gradient(180deg, #ff4fa3, #c11f68);
+}
+
+.ff__shop-title {
+  font-family: 'Comic Sans MS', cursive, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 0 #8a1148;
+}
+
+.ff__shop-sub { font-size: 9px; color: #ffe0ef; }
+
+.ff__bundles { display: grid; gap: 5px; padding: 5px; }
+
+.ff__bundle {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  min-height: 44px;
+  padding: 16px 4px 5px;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  background: linear-gradient(180deg, #fff, hsl(var(--bundle-hue) 95% 88%));
+  border: 2px solid hsl(var(--bundle-hue) 75% 45%);
+  border-radius: 6px;
+  box-shadow: 0 2px 0 hsl(var(--bundle-hue) 60% 35%), 0 0 12px hsl(var(--bundle-hue) 95% 70% / 0.7);
+  animation: ff-glow 1.8s ease-in-out infinite;
+}
+
+.ff__bundle:disabled { cursor: default; filter: grayscale(0.65) brightness(0.92); animation: none; }
+.ff__bundle:hover:not(:disabled) { filter: brightness(1.06); }
+
+.ff__bundle-tag {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  padding: 1px 6px;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  background: #e5342b;
+  border-radius: 8px;
+  transform: translateX(-50%) rotate(-3deg);
+}
+
+.ff__bundle-art { font-size: 18px; }
+.ff__bundle-name { font-size: 10px; font-weight: 700; color: #6b3a00; }
+.ff__bundle-units { font-size: 9px; color: #8a5e00; }
+.ff__bundle-price { font-size: 10px; font-weight: 700; color: #2c7a1f; }
+
+@keyframes ff-glow {
+  0%, 100% { box-shadow: 0 2px 0 hsl(var(--bundle-hue) 60% 35%), 0 0 8px hsl(var(--bundle-hue) 95% 70% / 0.55); }
+  50% { box-shadow: 0 2px 0 hsl(var(--bundle-hue) 60% 35%), 0 0 18px hsl(var(--bundle-hue) 95% 70% / 0.95); }
+}
+
+.ff__shop-foot { padding: 4px; font-size: 8px; color: #7a4400; text-align: center; }
+
+.ff__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: #2c4a12;
+  background: #cdf29a;
+  border-top: 1px solid #7bbf4a;
+}
+
+/* The player asked for less movement. The shop stops pulsing and the balloons
+   stop bobbing — they are still there, still bright, still nagging. */
+[data-motion='reduced'] .ff__balloon,
+[data-motion='reduced'] .ff__bundle { animation: none; }
+
+/* ---------------------------------------------------------------- BotNet */
+
+.app-botnet {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1.15fr) minmax(0, 1fr) auto auto auto auto;
+  font-family: 'Lucida Console', Consolas, monospace;
+  font-size: 11px;
+  color: #39ff5e;
+  background: #060906;
+}
+
+.bn__bar {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 8px;
+  color: #8dffa4;
+  background: #0b120b;
+  border-bottom: 1px solid #1d3a1d;
+}
+
+.bn__panes { display: grid; grid-template-columns: 1fr 168px; min-height: 0; }
+
+.bn__map {
+  /* No wrapping and no scrollbar chrome: the map is meant to overrun its box a
+     little, so the network reads as bigger than the window. */
+  padding: 4px 6px;
+  margin: 0;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.02;
+  color: #2bbd45;
+  white-space: pre;
+  text-shadow: 0 0 4px rgb(57 255 94 / 0.5);
+}
+
+.bn__tree {
+  min-height: 0;
+  overflow-y: auto;
+  border-left: 1px solid #1d3a1d;
+}
+
+.bn__tree-head {
+  padding: 3px 6px;
+  font-size: 10px;
+  color: #0b120b;
+  background: #2bbd45;
+}
+
+.bn__tree-list { padding: 4px 6px; margin: 0; list-style: none; }
+.bn__dir { margin-top: 4px; font-size: 10px; color: #8dffa4; word-break: break-all; }
+.bn__file { font-size: 10px; color: #2bbd45; word-break: break-all; }
+.bn__file.is-new { color: #eaff6b; }
+
+.bn__log {
+  padding: 4px 6px;
+  margin: 0;
+  overflow-y: auto;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  border-top: 1px solid #1d3a1d;
+}
+
+.bn__line { display: block; color: #1f9e33; }
+.bn__line.is-cmd { color: #eaff6b; }
+.bn__line.is-ok { color: #8dffa4; }
+
+.bn__status {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 8px;
+  font-size: 10px;
+  color: #8dffa4;
+  background: #0b120b;
+  border-top: 1px solid #1d3a1d;
+}
+
+/* The prompt is the purchase, so it is styled as a prompt: no bevel, no
+   gradient, no glass. The first window in the game with no Aero in it. */
+.bn__buy { background: #0b120b; border-top: 1px solid #1d3a1d; }
+
+.bn__buy .w32buy__btn {
+  font-family: inherit;
+  font-size: 10px;
+  color: #39ff5e;
+  text-align: left;
+  background: #06120a;
+  border: 1px solid #1d3a1d;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.bn__buy .w32buy__btn:hover:not(:disabled) { color: #0b120b; background: #2bbd45; }
+.bn__buy .w32buy__btn:disabled { color: #1f5c2a; background: #06120a; }
+.bn__buy .w32buy__cost { color: inherit; opacity: 0.75; }
+
+.app-botnet .w32meter { color: #8dffa4; }
+.app-vidchat .w32celebrate,
+.app-botnet .w32celebrate { color: #1a1a1a; }
+
+/* FlashFarm's gift balloons occupy the top of the field, so its celebration is
+   the other window that hangs from the bottom — a congratulation covering the
+   nagging it is congratulating you past is a joke that lands only once. */
+.app-flashfarm {
+  --w32celebrate-top: auto;
+  --w32celebrate-bottom: 96px;
+}

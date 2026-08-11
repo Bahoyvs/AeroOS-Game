@@ -18,9 +18,11 @@ import { BUILDINGS, getBuilding, hasBuilding } from '../src/data/buildings.js';
  */
 
 const phase12 = BUILDINGS.filter((b) => b.phase <= 2);
+/** Everything that has a window today — phases 1-3. Phase 4 lands later. */
+const shipped = BUILDINGS.filter((b) => b.phase <= 3);
 
-describe('every phase 1-2 building has a window', () => {
-  it.each(phase12.map((b) => b.id))('%s is on the app roster and implemented', (id) => {
+describe('every shipped building has a window', () => {
+  it.each(shipped.map((b) => b.id))('%s is on the app roster and implemented', (id) => {
     expect(hasApp(id)).toBe(true);
     expect(isImplemented(id)).toBe(true);
   });
@@ -39,7 +41,7 @@ describe('the two gates line up', () => {
    * after. The other order means the player earns the right to buy units into a
    * window they cannot open yet, which reads as the game losing track of them.
    */
-  it.each(phase12.map((b) => b.id))('%s installs no later than it unlocks', (id) => {
+  it.each(shipped.map((b) => b.id))('%s installs no later than it unlocks', (id) => {
     const app = getApp(id);
     const building = getBuilding(id);
     expect(app.install.unlockAt).toBeLessThanOrEqual(building.unlockAt);
@@ -56,7 +58,7 @@ describe('the two gates line up', () => {
      * answered the coach's "install RetroAmp" with "scanning for media…" would
      * be the tutorial arguing with itself.
      */
-    const gated = phase12.filter((b) => b.unlockAt > 0 && b.id !== 'retroamp');
+    const gated = shipped.filter((b) => b.unlockAt > 0 && b.id !== 'retroamp');
     expect(gated.length).toBeGreaterThan(0);
     for (const building of gated) {
       expect(getApp(building.id).install.unlockAt).toBeLessThan(building.unlockAt);
@@ -70,7 +72,7 @@ describe('the two gates line up', () => {
   it('charges an install price below what the first unit costs', () => {
     // The install is the doorway, not the purchase. An app that cost more than
     // its own first unit would be the most expensive thing in its own window.
-    for (const building of phase12) {
+    for (const building of shipped) {
       const app = getApp(building.id);
       if (app.install.cost === 0) continue;
       expect(app.install.cost).toBeLessThan(building.baseCost);
@@ -79,16 +81,33 @@ describe('the two gates line up', () => {
 });
 
 describe('windows and memory', () => {
-  it('gives every phase 1-2 window a footprint the stock machine can open', () => {
+  /**
+   * The soft-lock guard, and the most important assertion in this file.
+   *
+   * Units can only be bought from inside a building's window. So a building
+   * whose window will not fit in memory is a building whose units cannot be
+   * bought — and a player who unlocks one on a stock machine is simply stuck,
+   * with no message telling them why. Phase 3's windows are deliberately heavy
+   * (112-124 MB against 128 MB of stock RAM) because they are supposed to feel
+   * like they are taking the machine over; heavy is fine, unopenable is not.
+   */
+  it.each(shipped.map((b) => b.id))('%s can always be opened on a stock machine', (id) => {
     const stock = econ.ramCapacity(createInitialState(0));
-    for (const building of phase12) {
-      expect(getApp(building.id).ram).toBeLessThanOrEqual(stock);
+    expect(getApp(id).ram).toBeLessThanOrEqual(stock);
+  });
+
+  it('makes the phase 3 windows genuinely expensive, not just nominally', () => {
+    // If these were as cheap as the early apps the RAM budget would stop being
+    // a decision exactly when the desktop gets busiest.
+    const heaviestEarly = Math.max(...phase12.map((b) => getApp(b.id).ram));
+    for (const building of BUILDINGS.filter((b) => b.phase === 3)) {
+      expect(getApp(building.id).ram).toBeGreaterThanOrEqual(heaviestEarly);
     }
   });
 
-  it('cannot fit all six at once on stock RAM — the budget still means something', () => {
+  it('cannot fit them all at once on stock RAM — the budget still means something', () => {
     const stock = econ.ramCapacity(createInitialState(0));
-    const total = phase12.reduce((sum, b) => sum + getApp(b.id).ram, 0);
+    const total = shipped.reduce((sum, b) => sum + getApp(b.id).ram, 0);
     expect(total).toBeGreaterThan(stock);
   });
 

@@ -281,11 +281,23 @@ export const DEFRAG = {
   stopAt: 0,
 
   /**
-   * 0.85 -> 0 in about 85 seconds, which is roughly two orders of magnitude
-   * faster than bloat accrues (a busy desktop gains ~0.0004/s), so a pass
-   * always finishes rather than fighting the machine to a standstill.
+   * 0.85 -> 0 in about twelve seconds.
+   *
+   * The number this is measured against changed with the redesign. It used to
+   * be "two orders of magnitude faster than a busy desktop dirties the disk",
+   * where a busy desktop was seven windows and one building capped at 500
+   * units — about 0.0004/s. Twelve buildings at their top milestone tier, with
+   * every window open, dirty at **0.0067/s**: seventeen times faster, because
+   * both terms of `bloatGain` grew with the roster.
+   *
+   * At the old 0.01 the margin was 1.5x. A pass would still technically finish,
+   * but only just — and the failure mode is nasty and quiet: the machine sits
+   * pinned near the critical threshold with a permanent 5% tax on it, which is
+   * strictly worse than never buying the utility. tests/defrag.test.js asserts
+   * a 10x margin against a *fully built* machine now, not a hand-picked one, so
+   * this cannot rot again when phase 4 adds the last three buildings.
    */
-  clearPerSecond: 0.01,
+  clearPerSecond: 0.07,
 
   /** What the pass costs while it runs. Small, visible, and never a surprise. */
   productionTax: 0.05,

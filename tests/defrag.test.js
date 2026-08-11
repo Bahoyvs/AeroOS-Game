@@ -3,6 +3,7 @@ import * as econ from '../src/core/economy.js';
 import { createGame } from '../src/core/game.js';
 import { createMemoryStorage, serialize } from '../src/core/save.js';
 import { createInitialState } from '../src/core/state.js';
+import { BUILDING } from '../src/data/balance.js';
 import { offlineBloat, updateDefrag } from '../src/core/defrag.js';
 import { BLOAT, DEFRAG, OFFLINE, PRESTIGE, SAVE } from '../src/data/balance.js';
 
@@ -49,11 +50,21 @@ describe('Auto-Defrag, while somebody is watching', () => {
     expect(s.defrag.active).toBe(false);
   });
 
-  it('clears far faster than a busy desktop can dirty the disk', () => {
-    // A pass that loses the race would leave the machine pinned at 85% with a
-    // permanent 5% tax on it — strictly worse than not owning the utility.
+  it('clears far faster than a fully built machine can dirty the disk', () => {
+    /**
+     * A pass that loses the race would leave the machine pinned at 85% with a
+     * permanent 5% tax on it — strictly worse than not owning the utility.
+     *
+     * Measured against the *worst case the game can actually reach*: every
+     * window open and every building at the top milestone tier. An earlier
+     * version of this test picked one building and 400 units, and quietly went
+     * from a 9x margin to a 1.5x one when the roster grew — the assertion still
+     * passed for a while, which is the wrong kind of test.
+     */
     const s = owning(DEFRAG.startAt);
-    s.buildings.aerochat.units = 400;
+    for (const id of Object.keys(s.buildings)) {
+      s.buildings[id].units = BUILDING.milestones.at(-1).at;
+    }
     for (const app of Object.values(s.apps)) app.open = true;
     expect(DEFRAG.clearPerSecond).toBeGreaterThan(econ.bloatGain(s, 1) * 10);
   });

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A terminal with a node graph spreading out of it. No chrome, no gloss:
+       this one is not pretending to be a consumer product. -->
+  <rect x="3" y="6" width="42" height="36" rx="1.5" fill="#080c08" stroke="#1d3a1d" stroke-width="1.5"/>
+  <!-- Command line. -->
+  <text x="6.5" y="15" font-family="monospace" font-size="6.6" font-weight="700" fill="#39ff5e">&gt;_</text>
+  <path d="M6 18.5h20" stroke="#1f7a2c" stroke-width="1.1"/>
+  <path d="M6 21.5h13" stroke="#1f7a2c" stroke-width="1.1" opacity="0.7"/>
+  <!-- The node map: too many edges to follow, which is the point. -->
+  <g stroke="#2bbd45" stroke-width="0.9" opacity="0.9">
+    <path d="M24 30 12 26M24 30 36 25M24 30 15 37M24 30 34 37M24 30 24 22M12 26 15 37M36 25 34 37M12 26 24 22M36 25 24 22"/>
+  </g>
+  <g fill="#39ff5e">
+    <circle cx="24" cy="30" r="2.6"/>
+    <circle cx="12" cy="26" r="1.7"/>
+    <circle cx="36" cy="25" r="1.7"/>
+    <circle cx="15" cy="37" r="1.7"/>
+    <circle cx="34" cy="37" r="1.7"/>
+    <circle cx="24" cy="22" r="1.4"/>
+  </g>
+  <circle cx="24" cy="30" r="5" fill="none" stroke="#39ff5e" stroke-width="0.8" opacity="0.5"/>
+</svg>

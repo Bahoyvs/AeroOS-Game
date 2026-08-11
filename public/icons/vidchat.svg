@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <!-- A webcam window mid-drop-out. The feed is a stranger's face reduced to
+       four flesh-coloured blocks and a scanline — recognisable as a person,
+       and not quite one. -->
+  <defs>
+    <linearGradient id="vcchrome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a5568"/><stop offset="1" stop-color="#1f2733"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="7" width="42" height="34" rx="2" fill="url(#vcchrome)" stroke="#0e141c" stroke-width="1.5"/>
+  <rect x="6" y="12" width="36" height="24" fill="#12181f"/>
+  <!-- The "face": blocks, misaligned on purpose. -->
+  <rect x="17" y="15" width="14" height="12" fill="#c69a78"/>
+  <rect x="15" y="19" width="6" height="5" fill="#a87f60"/>
+  <rect x="27" y="18" width="7" height="6" fill="#d9ae8a"/>
+  <rect x="19" y="27" width="12" height="7" fill="#8a6a52"/>
+  <!-- Compression tearing: two rows shifted sideways. -->
+  <rect x="9" y="22" width="30" height="2" fill="#2de0e0" opacity="0.55"/>
+  <rect x="12" y="30" width="27" height="1.6" fill="#e02d7a" opacity="0.5"/>
+  <!-- Scanlines. -->
+  <path d="M6 14h36M6 17h36M6 20h36M6 23h36M6 26h36M6 29h36M6 32h36M6 35h36"
+        stroke="#000" stroke-width="0.9" opacity="0.35"/>
+  <!-- REC dot, because it is always recording. -->
+  <circle cx="39" cy="9.5" r="2.2" fill="#e5342b"/>
+</svg>
