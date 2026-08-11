@@ -152,3 +152,28 @@ describe('requesting a Format C: (AO-17)', () => {
     );
   });
 });
+
+describe('permanent production multiplier from Format C: (Proje A)', () => {
+  it('defaults to 1.0 when no Dollars have been earned', () => {
+    const state = createInitialState(0);
+    expect(econ.prestigeMultiplier(state)).toBe(1.0);
+  });
+
+  it('permanently scales global production multiplier as Dollars are banked', () => {
+    const state = createInitialState(0);
+    state.dollarsEarnedTotal = 10; // $10 earned across prestiges
+    // Each Dollar gives +5%, so 10 Dollars = 1 + 10 * 0.05 = 1.5x
+    expect(econ.prestigeMultiplier(state)).toBeCloseTo(1.5);
+    expect(econ.globalMultiplier(state)).toBeGreaterThan(1.0);
+  });
+
+  it('monotonicity check: more earned Dollars strictly increases production rate', () => {
+    const s1 = Object.assign(createInitialState(0), { dollarsEarnedTotal: 5 });
+    const s2 = Object.assign(createInitialState(0), { dollarsEarnedTotal: 20 });
+    s1.apps.aerochat.open = true;
+    s1.chat.bots = 10;
+    s2.apps.aerochat.open = true;
+    s2.chat.bots = 10;
+    expect(econ.buzzPerSecond(s2)).toBeGreaterThan(econ.buzzPerSecond(s1));
+  });
+});
